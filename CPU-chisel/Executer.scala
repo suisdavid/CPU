@@ -10,6 +10,7 @@ package Executer
 import Op._
 import RS._
 import CDB._
+import Config._
 import chisel3._
 import chiseltest._
 import chiseltest.RawTester.test
@@ -233,115 +234,117 @@ class Divider extends Module{//unsigned
 
 
 
-class Executer extends Module{//unsigned
+class Executer extends Module{
   val io = IO(new Bundle {
-    val valid = Input(Bool())
-    val receive = Input(Bool())
-    val cdb = Input(new CDB())
+    val valid_num = Input(UInt(32.W))
+    val rs = Input(Vec(issueWidth,new RS))
+    val cdbs = Input(Vec(ALU_NUM+2,new CDB))
 
-    val clear = Input(Bool())
+    val clear_valid = Input(Bool())
     val clear_id = Input(SInt(32.W))
 
-    val rs  = Input(new RS())
-    val ready = Output(Bool())
+    val out_cdb = Output(new CDB)
+    val out_space = Output(UInt(32.W))
   })
-  val l = RegInit(0.U(3.W))
-  val r = RegInit(0.U(3.W))
-  val time = RegInit(0.U(8.W))
-  val buffer = Reg(new RS())
-  val has_buffer = RegInit(false.B)
+  val l = RegInit(0.U(4.W))
+  val r = RegInit(0.U(4.W))
   val rss = Reg(Vec(8, new RS()))
   val cur_rs = Reg(new RS())
-  when (has_buffer){
-    rss(r.asUInt):=buffer
-    has_buffer:=false.B
-    r:=r+1.U
-  }
-  val rd = io.valid&((r+1.U)=/=l)
-  has_buffer:=rd
-  io.ready:=rd
-  buffer:=io.rs
-  when (time===0.U){
+  val in_process=RegInit(false.B)
+  val selected=Wire(Vec(RSWidth+1,Bool()))
+  val init = Wire(new CDB)
+  init.id :=(-1).S
+  val out_cdb= RegInit(init)
 
-  }
-}
-class Executer{
-    protected:
-        RS rss[maxm],cur_rs,buffer;
-        int l,r,time;
-        bool has_buffer;
-        Executer(){
-            l=0;r=0;time=0;has_buffer=0;
-        }
-        int run(){
-            if (!time){
-                for (int id=l;id!=r;id=(id+1)%maxm){//find the first ready instruction
-                    if (rss[id].q1==-1&&rss[id].q2==-1){
-                        int len=is_load(rss[id].type);
-                        if (len){//load operation
-                            int L1=rss[id].v1+signed12(rss[id].v2),R1=L1+len,flag=0;
-                            for (int j=l;j!=id;j=(j+1)%maxm){
-                                int tp=is_store(rss[j].type);
-                                if (!tp){continue;}
-                                int L2=rss[j].v1+signed12(rss[j].dest),R2=L2+tp;
-                                if (L2<R1&&L1<R2){
-                                    flag=1;break;
-                                }
-                            }
-                            if (flag)//overlapped store
-                            {
-                                continue;
-                            }
-                        }
-                        cur_rs=rss[id];
-                        time=1;
-                        for (int i=id;i!=l;i=(i+maxm-1)%maxm){
-                            rss[i]=rss[(i+maxm-1)%maxm];
-                        }
-                        l=(l+1)%maxm;
-                        return 1;
-                    }
-                    if (is_store(rss[id].type)&&rss[id].q1!=-1){//store op with unknown address
-                        return 0;
-                    }
-                }
-            }
-            else if (--time==0){
-                return 2;
-            }
-            return 0;
-        }
-    public:
-        bool full(){
-            return (r+1)%maxm==l;
-        }
-        void add(RS rs){
-            buffer=rs;has_buffer=1;
-        }
-        void receive(CDB cdb){
-            for (int i=l;i!=r;i=(i+1)%maxm){
-                if (rss[i].q1==cdb.id){
-                    rss[i].q1=-1;rss[i].v1=cdb.val;
-                }
-                if (rss[i].q2==cdb.id){
-                    rss[i].q2=-1;rss[i].v2=cdb.val;
-                }
-            }
-        }
-        void clear(int id){
-            while (r!=l&&rss[(r+maxm-1)%maxm].id>id){
-                r=(r+maxm-1)%maxm;
-            }
-            if (r==l){
-                time=0;//completely cleared
-            }
-        }
-        void update(){
-            if (has_buffer)
+  io.out_space:= (r-l)
+  io.out_cdb:=out_cdb
+
+  val start_process=Wire(Bool())//for telling subclasses to execute rs
+  start_process:=false.B
+  //find new instruction to execute
+  when (io.clear_valid===true.B){//flush
+    val newr=Wire(UInt(32.W))
+    newr:=l.U
+    for (i<-0 until RSWidth){
+      when (i.U<(r-l)&&rss(l+i.U).id<=io.clear_id){
+          newr:=l+(i+1).U
+      }
+    }
+    r:=newr
+    in_process:=false.B
+  }.otherwise{
+    for (i<-0 until ALU_NUM+2){//receive CDB
+      for (j<-0 until RSWidth)
+      {
+        when (j.U<(r-l))
+        {
+            when (rss(l+j.U).q1==cdb(i).id)
             {
-                rss[r]=buffer;
-                r=(r+1)%maxm;
-                has_buffer=0;
+                rss(l+j.U).q1:=(-1).S
+                rss(l+j.U).v1:=cdb(i).value
+            }
+            when (rss(l+j.U).q2==cdb(i).id)
+            {
+                rss(l+j.U).q2:=(-1).S
+                rss(l+j.U).v2:=cdb(i).value
             }
         }
-};
+      }
+    }
+    for (i<-0 until issueWidth){//receiving RS
+      when (i.U<io.valid_num){
+        rss(r+i.U):=rs(i)
+      }
+    }
+    r:=r+io.valid_num
+    when (in_process===false.B)
+    {
+      selected(0):=false.B
+      for (i<-0 until RSWidth)
+      {
+        selected(i+1):=selected(i)
+        when (i.U<(r-l)&&rss(l+i.U).q1===-1.S&&rss(l+i.U).q2===-1.S)
+        {
+          val len=Wire(Uint(32.W))
+          val rs=Wire(new RS)
+          val L1=Wire(UInt(32.W))
+          val R1=Wire(UInt(32.W))
+          val flag=Wire(Bool())
+          rs:=rss(l+i.U)
+          len:=MUX(rs.type_ === OP_TYPE.OP_LW,4.U(32.W),MUX(rs.type_ === OP_TYPE.LH||rs.type_ === OP_TYPE.LHU, 2.U(32.W),MUX(rs.type_ === OP_TYPE.LB||rs.type_ === OP_TYPE.LBU,1.U(32.W),0.U(32.W))))
+          L1:=(rs.v1.asSInt+rs.v2(11,0).asSInt).asUInt
+          R1:=L1+len
+          flag:=false.B
+          when (len=/=0.U){
+            for (j<-0 until i){
+              val tp=Wire(UInt(32.W))
+              val temp_rs=Wire(new RS)
+              val L2=Wire(UInt(32.W))
+              val R2=Wire(UInt(32.W))
+              temp_rs:=rss(l+j.U)
+              tp := MUX(temp_rs.type_ === OP_TYPE.OP_SB,1.U(32.W),MUX(temp_rs.type_ === OP_TYPE.OP_SH, 2.U(32.W),MUX(temp_rs.type_ === OP_TYPE.OP_SW,4.U(32.W),0.U(32.W))))
+              L2:=(temp_rs.v1.asSInt+temp_rs.dest(11,0).asSInt).asUInt
+              R2:=L2+tp
+              when(tp=/=0.U&&(temp_rs.q1!=-1.S||(L2<R1&&L1<R2))){
+                flag:=true.B
+              }
+            }
+          }
+          when (selected(i)===false.B&&flag===false.B)
+          {
+            selected(i+1):=true.B
+            cur_rs:=rs
+            in_process:=true.B
+            for (j<-0 until i){
+              rss(l+(j+1).U):=rss(i+j.U)
+            }
+            l:=l+1.U
+            start_process:=true.B
+            
+          }
+        } 
+      }
+    }
+  }
+
+}
