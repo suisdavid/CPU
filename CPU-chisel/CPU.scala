@@ -72,9 +72,11 @@ class CPU extends Module{
     val Icache=Module(new Cache)
     val Dcache=Module(new Cache)
     val committer=Module(new Committer)
-    val alus = Seq.fill(ALU_NUM)(Module(new Executer))
+    val alus = Seq.tabulate(ALU_NUM) { i =>Module(new ALU(i))}
     val lsu=Module(new Executer)
     val bru=Module(new Executer)
+    val mult  = Module(new Mult)
+    val div  = Module(new Divider)
     val issuer=Module(new Issuer)
     val decoder=Module(new Decoder)
 
@@ -150,8 +152,8 @@ class CPU extends Module{
                 //handling issuer input
                 issuer.io.valid_num:=decoder.out_num
                 for (i<-0 until issueWidth){
-                    issuer.io.id(i):=decoder.out_id(i)
-                    issuer.io.cur_op(i):=decoder.out_op(i)
+                    issuer.io.id(i):=decoder.io.out_id(i)
+                    issuer.io.cur_op(i):=decoder.io.out_op(i)
                 }
                 for (i<-0 until 32){
                     issuer.io.reg(i):=reg(i)
@@ -168,7 +170,7 @@ class CPU extends Module{
                 //executer input
                 val num=Wire(UInt(32.W))
                 val cnts=Wire(Vec((issueWidth+1)*(ALU_NUM+2),UInt(32.W)))
-                num:=issuer.out_valid
+                num:=issuer.io.out_valid
                 for (i<-0 until ALU_NUM+2){
                     cnts(i):=0.U(32.W)
                 }
@@ -207,12 +209,49 @@ class CPU extends Module{
                 for (i<-0 until 32){
                     reg(i).prod:=issuer.io.out_prod(i)
                 }
-                new_pc_val:= issuer.out_new_pc_val
+                new_pc_val:= issuer.io.out_new_pc_val
                 pc.value:=new_pc_val
                 Icache.io.valid:=true.B
                 Icache.io.addr:=new_pc_val//retrieve W opcodes starting from io.addr
+
+
+
+
+
+                //handling executer output
+                //mult,div
+                val mult_used=Wire(Vec(ALU_NUM+1,Bool()))
+                val div_used=Wire(Vec(ALU_NUM+1,Bool()))
+                mult_used(0):=false.B
+                div_used(0):=false.B
+                for(i<-0 until ALU_NUM){
+                    alus(i).aluIO.mult_valid:=mult.io.ready
+                    alus(i).aluIO.mult_res:=mult.io.c
+                    alus(i).aluIO.mult_received:=mult.io.received
+                    alus(i).aluIO.div_valid:=div.io.ready
+                    alus(i).aluIO.div_res:=div.io.c
+                    alus(i).aluIO.div_received:=div.io.received
+    
+                    mult_used(i+1):=mult_used(i)
+                    div_used(i+1):=div_used(i)
+                    when (alus(i).aluIO.out_mult_valid===true.B&&mult_used(i)===false.B){
+                        mult.io.a:=alus(i).out_mult_a
+                        mult.io.b:=alus(i).out_mult_b
+                        mult.io.op:=alus(i).out_mult_op
+                        mult.io.valid:=(i+1).U
+                        mult_used(i+1):=true.B
+                    }
+                    when (alus(i).aluIO.out_div_valid===true.B&&div_used(i)===false.B){
+                        div.io.a:=alus(i).out_div_a
+                        div.io.b:=alus(i).out_div_b
+                        div.io.op:=alus(i).out_div_op
+                        div.io.valid:=(i+1).U
+                        div_used(i+1):=true.B
+                    }
+                }
+
         }
-    }.otherwise{
+    }.otherwise{//halt
         io.awaddr:=0x80000000.U(32.W)
         io.wstrb:=15.U(4.W)
         io.wdata:=regs(10).value

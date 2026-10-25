@@ -146,12 +146,13 @@ class Comparer extends Module{//returns 1 if a>=b
 
 class Mult extends Module{
     val io = IO(new Bundle {
-    val valid = Input(Bool())
+    val valid = Input(UInt(32.W))
     val a  = Input(UInt(32.W))
     val b  = Input(UInt(32.W))
-    val op = Input(Bool())//select lower 32 bits or higher 32 bits
-    val ready = Output(Bool())
+    val op = Input(Bool())//select lower 32 bits or higher 32 bits, 0 for low and 1 for high
+    val ready = Output(UInt(32.W))
     val c = Output(UInt(32.W))
+    val received = Output(UInt(32.W))
     })
     val aL=io.a(15,0)
     val aH=io.a(31,16)
@@ -177,18 +178,20 @@ class Mult extends Module{
     adder4.io.b:=Cat(0.U(16.W),RegNext(p10(31,16)))
 
     io.c:=Mux(RegNext(RegNext(io.op)),adder2.io.sum,adder4.io.sum)
-    io.ready:=RegNext(RegNext(io.valid, init = false.B),init = false.B)
+    io.ready:=RegNext(RegNext(io.valid, init = 0.U),init = 0.U)
+    io.received:=RegNext(io.valid,init=0.U)
 }
 
 
 class Divider extends Module{//unsigned
   val io = IO(new Bundle {
-    val valid = Input(Bool())
+    val valid = Input(UInt(32.W))
     val a  = Input(UInt(32.W))
     val b  = Input(UInt(32.W))
-    val op = Input(Bool())//select quotient or remainder
-    val ready = Output(Bool())
+    val op = Input(Bool())//select quotient or remainder, 1 for quotient and 0 for remainder
+    val ready = Output(UInt(32.W))//which alu
     val c = Output(UInt(32.W))
+    val received = Output(UInt(32.W))
     })
     val A = Reg(Vec(32, UInt(32.W)))
     val B = Reg(Vec(32, UInt(32.W)))
@@ -230,6 +233,7 @@ class Divider extends Module{//unsigned
     }
     io.ready:=rd(31)
     io.c:=Mux(ops(31),Q(31),R(31))
+    io.received:=RegNext(io.valid,init=0.U)
 }
 
 
@@ -249,8 +253,9 @@ class Executer extends Module{
   val l = RegInit(0.U(4.W))
   val r = RegInit(0.U(4.W))
   val rss = Reg(Vec(8, new RS()))
-  val cur_rs = Reg(new RS())
+  val cur_rs = Reg(new RS)
   val in_process=RegInit(false.B)
+  val temp_rs=Wire(new RS)
   val selected=Wire(Vec(RSWidth+1,Bool()))
   val init = Wire(new CDB)
   init.id :=(-1).S
@@ -258,7 +263,6 @@ class Executer extends Module{
 
   io.out_space:= (r-l)
   io.out_cdb:=out_cdb
-
   val start_process=Wire(Bool())//for telling subclasses to execute rs
   start_process:=false.B
   //find new instruction to execute
@@ -333,6 +337,7 @@ class Executer extends Module{
           when (selected(i)===false.B&&flag===false.B)
           {
             selected(i+1):=true.B
+            temp_rs:=rs
             cur_rs:=rs
             in_process:=true.B
             for (j<-0 until i){
@@ -346,5 +351,315 @@ class Executer extends Module{
       }
     }
   }
+}
 
+class ALU(val id: Int) extends Executer {
+  val aluIO= IO(new Bundle {
+    val mult_valid = Input(UInt(32.W))
+    val mult_res = Input(UInt(32.W))
+    val mult_received = Input(UInt(32.W))
+    
+    val div_valid = Input(UInt(32.W))
+    val div_res = Input(UInt(32.W))
+    val div_received = Input(UInt(32.W))
+
+    val out_mult_a = Output(UInt(32.W))
+    val out_mult_b = Output(UInt(32.W))
+    val out_mult_op = Output(Bool())
+    val out_mult_valid = Output(Bool())
+
+    val out_div_a = Output(UInt(32.W))
+    val out_div_b = Output(UInt(32.W))
+    val out_div_op = Output(Bool())
+    val out_div_valid = Output(Bool())
+  })
+  aluIO.out_mult_valid:=false.B
+  aluIO.out_div_valid:=false.B
+  val temp_out_mult_a=Reg(UInt(32.W))
+  val temp_out_mult_b=Reg(UInt(32.W))
+  val temp_out_mult_op=Reg(Bool())
+  val temp_out_mult_valid=RegInit(false.B)
+  val temp_out_div_a=Reg(UInt(32.W))
+  val temp_out_div_b=Reg(UInt(32.W))
+  val temp_out_div_op=Reg(Bool())
+  val temp_out_div_valid=RegInit(false.B)
+
+  val res= Reg(UInt(32.W))
+  val waiting=RegInit(false.B)
+  val sgn = RegInit(false.B)//for mul and div
+  when (in_process==true.B){
+    when (io.mult_valid==(id+1).U){
+      io.out_cdb.id:=cur_rs.id
+      io.out_cdb.dest:=cur_rs.dest
+      io.out_cdb.value:=MUX(sgn,~io.mult_res+1.U,io.mult_res)
+      in_process=false.B
+    }.elsewhen (io.div_valid==(id+1).U){
+      io.out_cdb.id:=cur_rs.id
+      io.out_cdb.dest:=cur_rs.dest
+      io.out_cdb.value:=MUX(sgn,~io.div_res+1.U,io.div_res)
+      in_process=false.B
+    }.otherwise{
+      when (waiting===true.B){
+        when (aluIO.mult_received===(i+1).U||aluIO.div_received===(i+1).U){
+            waiting:=false.B
+          }.otherwise{//keep sending
+            aluIO.out_mult_a:=temp_out_mult_a
+            aluIO.out_mult_b:=temp_out_mult_b
+            aluIO.out_mult_op:=temp_out_mult_op
+            aluIO.out_mult_valid:=temp_out_mult_valid
+            aluIO.out_div_a:=temp_out_div_a
+            aluIO.out_div_b:=temp_out_div_b
+            aluIO.out_div_op:=temp_out_div_op
+            aluIO.out_div_valid:=temp_out_div_valid
+          }
+      }.otherwise{//other operations
+          io.out_cdb.id:=cur_rs.id
+          io.out_cdb.dest:=MUX(cur_rs.is_halt,(-1).S,cur_rs.dest)
+          io.out_cdb.value:=res
+          in_process=false.B
+      }
+    }
+
+  }
+  when (start_process===true.B){
+    switch (temp_rs.type_){
+      is(OP_TYPE.OP_ADD){
+        res:=temp_rs.v1+temp_rs.v2
+      }
+      is(OP_TYPE.OP_SUB){
+        res:=temp_rs.v1-temp_rs.v2
+      }
+      is (OP_TYPE.OP_AND){
+        res:=temp_rs.v1&temp_rs.v2
+      }
+      is (OP_TYPE.OP_OR){
+        res:=temp_rs.v1|temp_rs.v2
+      }
+      is (OP_TYPE.OP_XOR){
+        res:=temp_rs.v1^temp_rs.v2
+      }
+      is (OP_TYPE.OP_SLL){
+        res:=(temp_rs.v1<<(temp_rs.v2(4,0)))(31,0)
+      }
+      is (OP_TYPE.OP_SRL){
+        res:=(temp_rs.v1>>(temp_rs.v2(4,0)))
+      }
+      is (OP_TYPE.OP_SRA){
+        res:=(temp_rs.v1.asSInt>>(temp_rs.v2(4,0))).asUInt
+      }
+      is (OP_TYPE.OP_SLT){
+        res:=(temp_rs.v1.asSInt>>(temp_rs.v2(4,0))).asUInt
+      }
+      is (OP_TYPE.OP_SRA){
+        res:=(temp_rs.v1.asSInt>>(temp_rs.v2(4,0))).asUInt
+      }
+      is (OP_TYPE.OP_SLT){
+        res:=MUX(temp_rs.v1.asSInt<temp_rs.v2.asSInt,1.U,0.U)
+      }
+      is (OP_TYPE.OP_SLTU){
+        res:=MUX(temp_rs.v1<temp_rs.v2,1.U,0.U)
+      }
+      is (OP_TYPE.OP_ADDI){
+        res:=(temp_rs.v1.asSInt+temp_rs.v2(11,0).asSInt).asUInt
+      }
+      is (OP_TYPE.OP_ANDI){
+        res:=temp_rs.v1 & Cat(Fill(20, temp_rs.v2(11)), temp_rs.v2(11,0))
+      }
+      is (OP_TYPE.OP_ORI){
+        res:=temp_rs.v1 | Cat(Fill(20, temp_rs.v2(11)), temp_rs.v2(11,0))
+      }
+      is (OP_TYPE.OP_XORI){
+        res:=temp_rs.v1 ^ Cat(Fill(20, temp_rs.v2(11)), temp_rs.v2(11,0))
+      }
+      is (OP_TYPE.OP_SLLI){
+        res:=(temp_rs.v1<<temp_rs.v2)(31,0)
+      }
+      is (OP_TYPE.OP_SRLI){
+        res:=temp_rs.v1>>temp_rs.v2
+      }
+      is (OP_TYPE.OP_SRAI){
+        res:=(temp_rs.v1.asSInt>>temp_rs.v2).asUInt
+      }
+      is (OP_TYPE.OP_SLTI){
+        res:=MUX(temp_rs.v1.asSInt<temp_rs.v2(11,0).asSInt,1.U,0.U)
+      }
+      is (OP_TYPE.OP_SLTUI){
+        res:=MUX(temp_rs.v1<Cat(Fill(20, temp_rs.v2(11)), temp_rs.v2(11,0)).asUInt,1.U,0.U)
+      }
+      is (OP_TYPE.OP_JAL,OP_TYPE.OP_JALR,OP_TYPE.OP_AUIPC,OP_TYPE.OP_LUI){
+        res:=temp_rs.v1
+      }
+      is (OP_TYPE.MUL){
+        sgn:=false.B
+        waiting:=true.B
+        Seq(aluIO.out_mult_a, temp_out_mult_a).foreach { out => out := temp_rs.v1}
+        Seq(aluIO.out_mult_b, temp_out_mult_b).foreach { out => out := temp_rs.v2}
+        Seq(aluIO.out_mult_op, temp_out_mult_op).foreach { out => out := false.B}
+        Seq(aluIO.out_mult_valid, temp_out_mult_valid).foreach { out => out := true.B}
+      }
+      is (OP_TYPE.MULHU){
+        sgn:=false.B
+        waiting:=true.B
+        Seq(aluIO.out_mult_a, temp_out_mult_a).foreach { out => out := temp_rs.v1}
+        Seq(aluIO.out_mult_b, temp_out_mult_b).foreach { out => out := temp_rs.v2}
+        Seq(aluIO.out_mult_op, temp_out_mult_op).foreach { out => out := true.B}
+        Seq(aluIO.out_mult_valid, temp_out_mult_valid).foreach { out => out := true.B}
+      }
+      is (OP_TYPE.MULH){
+        sgn:=temp_rs.v1(31)^temp_rs.v2(31)
+        waiting:=true.B
+        Seq(aluIO.out_mult_a, temp_out_mult_a).foreach { out => out := MUX(temp_rs.v1(31),~temp_rs.v1+1.U,temp_rs.v1)}
+        Seq(aluIO.out_mult_b, temp_out_mult_b).foreach { out => out := MUX(temp_rs.v2(31),~temp_rs.v2+1.U,temp_rs.v2)}
+        Seq(aluIO.out_mult_op, temp_out_mult_op).foreach { out => out := true.B}
+        Seq(aluIO.out_mult_valid, temp_out_mult_valid).foreach { out => out := true.B}
+      }
+      is (OP_TYPE.MULHSU){
+        sgn:=temp_rs.v1(31)
+        waiting:=true.B
+        Seq(aluIO.out_mult_a, temp_out_mult_a).foreach { out => out := MUX(temp_rs.v1(31),~temp_rs.v1+1.U,temp_rs.v1)}
+        Seq(aluIO.out_mult_b, temp_out_mult_b).foreach { out => out := temp_rs.v2}
+        Seq(aluIO.out_mult_op, temp_out_mult_op).foreach { out => out := true.B}
+        Seq(aluIO.out_mult_valid, temp_out_mult_valid).foreach { out => out := true.B}
+      }
+      is (OP_TYPE.DIVU){
+        sgn:=false.B
+        waiting:=true.B
+        Seq(aluIO.out_div_a, temp_out_div_a).foreach { out => out := temp_rs.v1}
+        Seq(aluIO.out_div_b, temp_out_div_b).foreach { out => out := temp_rs.v2}
+        Seq(aluIO.out_div_op, temp_out_div_op).foreach { out => out := true.B}
+        Seq(aluIO.out_div_valid, temp_out_div_valid).foreach { out => out := true.B}
+      }
+      is (OP_TYPE.DIV){
+        when (temp_rs.v1===0x80000000.U&&temp_rs.v2===0xFFFFFFFF.U){
+          res:=0x80000000.U
+        }.otherwise{
+          sgn:=temp_rs.v1(31)^temp_rs.v2(31)
+          waiting:=true.B
+          Seq(aluIO.out_div_a, temp_out_div_a).foreach { out => out := MUX(temp_rs.v1(31),~temp_rs.v1+1.U,temp_rs.v1)}
+          Seq(aluIO.out_div_b, temp_out_div_b).foreach { out => out := MUX(temp_rs.v2(31),~temp_rs.v2+1.U,temp_rs.v2)}
+          Seq(aluIO.out_div_op, temp_out_div_op).foreach { out => out := true.B}
+          Seq(aluIO.out_div_valid, temp_out_div_valid).foreach { out => out := true.B}
+        }
+      }
+      is (OP_TYPE.REMU){
+        sgn:=false.B
+        waiting:=true.B
+        Seq(aluIO.out_div_a, temp_out_div_a).foreach { out => out := temp_rs.v1}
+        Seq(aluIO.out_div_b, temp_out_div_b).foreach { out => out := temp_rs.v2}
+        Seq(aluIO.out_div_op, temp_out_div_op).foreach { out => out := false.B}
+        Seq(aluIO.out_div_valid, temp_out_div_valid).foreach { out => out := true.B}
+      }
+      is (OP_TYPE.REM){
+        when (temp_rs.v1===0x80000000.U&&temp_rs.v2===0xFFFFFFFF.U){//special case
+          res:=0.U
+        }.otherwise{
+          sgn:=temp_rs.v1(31)
+          waiting:=true.B
+          Seq(aluIO.out_div_a, temp_out_div_a).foreach { out => out := MUX(temp_rs.v1(31),~temp_rs.v1+1.U,temp_rs.v1)}
+          Seq(aluIO.out_div_b, temp_out_div_b).foreach { out => out := MUX(temp_rs.v2(31),~temp_rs.v2+1.U,temp_rs.v2)}
+          Seq(aluIO.out_div_op, temp_out_div_op).foreach { out => out := false.B}
+          Seq(aluIO.out_div_valid, temp_out_div_valid).foreach { out => out := true.B}
+        }
+      }
+    }
+  }
+}
+
+class LSU extends Executer{
+
+}
+
+class LSU: public Executer{
+    private:
+        CDB cur_cdb;
+    public:
+        CDB execute(){
+            int res=run();
+            if (res==1)
+            {
+                unsigned int val=0,r1=cur_rs.v1;int r2=cur_rs.v2,dest=cur_rs.dest;
+                int len=is_load(cur_rs.type); 
+                if (len){//store to load forwarding
+                    unsigned long long stlf=committer.find(cur_rs.id,r1+signed12(r2),r1+signed12(r2)+len);
+                    unsigned char vals[4]={(unsigned char)(stlf&255),(unsigned char)((stlf>>16)&255),(unsigned char)((stlf>>32)&255),(unsigned char)((stlf>>48)&255)};
+                    for (int i=0;i<len;i++){
+                        if (((stlf>>(16*i))&65535)==65535){//not found,has to read memory
+                            pair<bool,unsigned char>temp=memory.load(r1+signed12(r2)+i);
+                            vals[i]=temp.second;
+                            if (!temp.first){
+                                time=3;//cache not hit
+                            }
+                            else if (time==1){
+                                time=2;//cache hit case
+                            }
+                        }
+                    }
+                    switch (cur_rs.type){
+                        case OP_LB:
+                            val=(signed char)vals[0];
+                            break;
+                        case OP_LBU:
+                            val=vals[0];
+                            break;
+                        case OP_LH:
+                            val=(signed short)((unsigned short)vals[0]|((unsigned short)vals[1]<<8));
+                            break;
+                        case OP_LHU:
+                            val=((unsigned short)vals[0]|((unsigned short)vals[1]<<8));
+                            break;
+                        case OP_LW:
+                            val=(((unsigned int)vals[0])|((unsigned int)vals[1]<<8)|((unsigned int)vals[2]<<16)|((unsigned int)vals[3]<<24));
+                            break;
+                    }
+                }
+                else{
+                    val=r2;
+                    dest=r1+signed12(dest);
+                }
+                cur_cdb=CDB(cur_rs.id,val,dest);
+                if (--time==0){
+                    return cur_cdb;
+                }
+            }
+            else if (res==2){
+                return cur_cdb;
+            }
+            return CDB();
+        }   
+
+};
+
+
+
+
+class BRU extends Executer{
+  val res=Reg(Bool())
+  when (in_process===true.B){
+    io.out_cdb.id:=cur_rs.id
+    io.out_cdb.dest:=(-2).S
+    io.out_cdb.value:=res
+    in_process:=false.B
+  }
+  when (start_process===true.B){
+    switch (temp_rs.type_){
+      is (OP_TYPE.OP_BEQ){
+        res:=(temp_rs.v1===temp_rs.v2)^temp_rs.dest
+      }
+      is (OP_TYPE.OP_BGE){
+        res:=(temp_rs.v1.asSInt>=temp_rs.v2.asSInt)^temp_rs.dest
+      }
+      is (OP_TYPE.OP_BGEU){
+        res:=(temp_rs.v1>=temp_rs.v2)^temp_rs.dest
+      }
+      is (OP_TYPE.OP_BLT){
+        res:=(temp_rs.v1.asSInt<temp_rs.v2.asSInt)^temp_rs.dest
+      }
+      is (OP_TYPE.OP_BLTU){
+        res:=(temp_rs.v1<temp_rs.v2)^temp_rs.dest
+      }
+      is (OP_TYPE.OP_BNE){
+        res:=(temp_rs.v1=/=temp_rs.v2)^temp_rs.dest
+      }
+    }
+  }
 }

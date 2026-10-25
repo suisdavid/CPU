@@ -17,6 +17,6 @@ object CPUConfig {
   val issueWidth: Int = 4
   val ROBWidth: Int = 16
   val RSWidth: Int = 16
-  val ALU_NUM: Int = 2
+  val ALU_NUM: Int = 4
   val issuerBufferWidth: Int = 16
 }
