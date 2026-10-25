@@ -23,7 +23,7 @@ import _root_.circt.stage.ChiselStage
 import coursier.internal.InMemoryCache
 import Config.CPUConfig.issueWidth
 
-class CPU extends Module{
+class CPU extends Module{//priority: ready instruction< read data < write data
     val io=IO(new Bundle{
         val araddr  = Output(UInt(32.W))
         val arvalid = Output(Bool())
@@ -52,7 +52,7 @@ class CPU extends Module{
     val init = Wire(new Register())
     init.value := 0.U(32.W)
     init.prod  := -1.S(32.W)
-    val reg = RegInit(VecInit(Seq.fill(32)(init)))
+    val regs = RegInit(VecInit(Seq.fill(32)(init)))
     val pc = RegInit(init)
     
     val clk=RegInit(0.U(32.W))
@@ -92,6 +92,17 @@ class CPU extends Module{
     newaddr:=committerio.out_newaddr
     
     clk:=clk+1.U(32.W)
+    
+    //initialization
+    for (i<-0 until ALU_NUM){
+        alus(i).io.clear_valid:=false.B
+    }
+    bru.io.clear_valid:=false.B
+    lsu.io.clear_valid:=false.B
+    committer.io.clear_valid:=false.B
+    issuer.io.valid_num:=0.U
+    decoder.io.valid_num:=0.U
+
     when (halt===false.B){
         when (flush===true.B){
             issuer.io.nex_want:=newaddr
@@ -106,47 +117,44 @@ class CPU extends Module{
             lsu.io.clear_valid:=true.B
             lsu.io.clear_val=flush_val
             for (i<-0 until 32){
-                when (reg(i).prod>flush_val){
-                    reg(i).prod:=-1.S(32.W)
+                when (regs(i).prod>flush_val){
+                    regs(i).prod:=-1.S(32.W)
                 }
             }
             committer.io.clear_valid:=true.B
-            decoder.io.valid_num:=0.U(32.W)
-            issuer.io.valid_num:=0.U(32.W)
             flush:=false.B
         }.otherwise{//main cycle
             //fetcher
-            decoder.io.valid_num:=0.U(32.W)
-            issuer.io.valid_num:=0.U(32.W)
-            when(fetcher_waiting===0.U(2.W)){
-        
-                    for (i<-0 until issueWidth){
-                        decoder.io.id(i):=Icache.io.output_id(i)
-                        decoder.io.opcode(i):=Icache.io.output_value(i)
-                    }
-                    Icache_out_num := Icache.io.out_num
-                    decoder.io.valid_num:= Icache_out_num
-                    when (Icache_out_num===0.U(32.W)){
-                        io.araddr:=pc.value
-                        io.arvalid:=true.B
-                        fetcher_waiting:=1.U(2.W)
-                    }
-                }.elsewhen(fetcher_waiting===1.U(2.W)){
+            when(fetcher_waiting===0.U)
+            {
+                Icache.io.addr:=pc.value
+                for (i<-0 until issueWidth){
+                    decoder.io.id(i):=Icache.io.output_id(i)
+                    decoder.io.opcode(i):=Icache.io.output_value(i)
+                }
+                Icache_out_num := Icache.io.out_num
+                decoder.io.valid_num:= Icache_out_num
+                when (Icache_out_num===0.U&&lsu.lsuIO.out_valid===false.B&&committer.io.out_store_valid===false.B){
+                    io.araddr:=pc.value
+                    io.arvalid:=true.B
+                    fetcher_waiting:=1.U
+                }
+            }.elsewhen(fetcher_waiting===1.U){
                     when (io.arready===true.B){
                         fetcher_waiting:=2.U(2.W)
-                        io.arready:=true.B
+                        io.rready:=true.B
                     }.otherwise{
                         io.araddr:=pc.value
                         io.arvalid:=true.B
                     }
-                }.elsewhen(fetcher_waiting==2.U(2.W)){
+                }.elsewhen(fetcher_waiting==2.U){
                     when (io.rvalid===true.B){
                         fetcher_waiting:=0.U(2.W)
                         decoder.io.valid_num:=1.U(32.W)
                         decoder.io.id(0):=pc.value
                         decoder.io.opcode(0):=io.rdata
                     }.otherwise{
-                        io.arready:=true.B
+                        io.rready:=true.B
                     }
                 }
                 //handling issuer input
@@ -156,12 +164,12 @@ class CPU extends Module{
                     issuer.io.cur_op(i):=decoder.io.out_op(i)
                 }
                 for (i<-0 until 32){
-                    issuer.io.reg(i):=reg(i)
+                    issuer.io.reg(i):=regs(i)
                 }
                 for (i<-0 until ALU_NUM){
                     issuer.io.executer_space(i):=alus(i).io.out_space
                 }
-                issuer.io.robs:=committer.io.out_read_rob
+                issuer.io.robs:=committer.io.out_robs
                 issuer.io.executer_space(ALU_NUM):=lsu.io.out_space
                 issuer.io.executer_space(ALU_NUM+1):=bru.io.out_space
                 issuer.io.committer_space:=committer.io.out_space
@@ -203,11 +211,11 @@ class CPU extends Module{
                 bru.io.valid_num:=cnts(issueWidth*(ALU_NUM+2)+ALU_NUM+1)
                 //committer input
                 committer.io.valid_num:=num
-                committer.io.robs:= issuer.io.out_rob
+                committer.io.in_robs:= issuer.io.out_rob
 
                 //updating register prods
                 for (i<-0 until 32){
-                    reg(i).prod:=issuer.io.out_prod(i)
+                    regs(i).prod:=issuer.io.out_prod(i)
                 }
                 new_pc_val:= issuer.io.out_new_pc_val
                 pc.value:=new_pc_val
@@ -250,72 +258,103 @@ class CPU extends Module{
                     }
                 }
 
+                //lsu
+                lsu.lsuIO.addr_valid:=false.B
+                lsu.lsuIO.l:=committer.out_l
+                lsu.lsuIO.r:=committer.out_r
+                lsu.lsuIO.robs:=committer.out_robs
+                lsu_waiting=RegInit(0.U(2.W))
+                when (lsu_waiting===0.U){
+                    when (lsu.lsuIO.out_valid===true.B&&committer.io.out_store_valid===false.B){
+                        io.araddr:=lsu.lsuIO.out_addr
+                        io.arvalid:=true.B
+                        lsu_waiting:=1.U
+                    }
+                }.elsewhen(lsu_waiting===1.U){
+                    when (io.arready===true.B){
+                        lsu_waiting:=2.U
+                        io.rready:=true.B
+                        lsu.lsuIO.addr_received:=true.B
+                    }.otherwise{
+                        io.araddr:=lsu.lsuIO.out_addr
+                        io.arvalid:=true.B
+                    }
+                }.otherwise{
+                    when (io.rvalid===true.B){
+                        lsu_waiting:=0.U(2.W)
+                        lsu.lsuIO.addr_valid:=true.B
+                        lsu.lsuIO.addr_value:=io.rdata
+                    }.otherwise{
+                        io.rready:=true.B
+                    }
+                }
+
+                //broadcast CDBs
+                for (i<-0 until ALU_NUM){
+                    for (j<-0 until ALU_NUM){
+                        alus(j).io.cdbs(i):=RegNext(alus(i).io.out_cdb)
+                    }
+                    lsu.io.cdbs(i):=RegNext(alus(i).io.out_cdb)
+                    bru.io.cdbs(i):=RegNext(alus(i).io.out_cdb)
+                    commiter.io.cdbs(i):=RegNext(alus(i).io.out_cdb)
+                }
+                for (j<-0 until ALU_NUM)
+                {
+                    alus(j).io.cdbs(ALU_NUM):=RegNext(lsu.io.out_cdb)
+                }
+                lsu.io.cdbs(ALU_NUM):=RegNext(lsu.io.out_cdb)
+                bru.io.cdbs(ALU_NUM):=RegNext(lsu.io.out_cdb)
+                commiter.io.cdbs(ALU_NUM):=RegNext(lsu.io.out_cdb)
+                for (j<-0 until ALU_NUM)
+                {
+                    alus(j).io.cdbs(ALU_NUM+1):=RegNext(bru.io.out_cdb)
+                }
+                lsu.io.cdbs(ALU_NUM+1):=RegNext(bru.io.out_cdb)
+                bru.io.cdbs(ALU_NUM+1):=RegNext(bru.io.out_cdb)
+                commiter.io.cdbs(i):=RegNext(bru.io.out_cdb)
+
+                //committer
+                committer.io.store_received:=false.B
+                committer_waiting=RegInit(0.U(2.W))//0 initial state, 1 waiting for wready and awready, 2 waiting for bvalid
+                when (committer_waiting===0.U){
+                    when (committer.io.out_store_valid===true.B){//store
+                        io.awaddr:=committer.io.out_store_addr
+                        io.wdata:=committer.io.out_store_value
+                        io.wstrb:=committer.io.out_store_mask
+                        io.wvalid:=true.B
+                        io.awvalid:=true.B
+                        committer_waiting:=1.U
+                    }.elsewhen (committer.io.out_reg_valid===true.B)
+                    {
+                        regs(committer.io.out_reg_addr).value := committer.io.out_reg_val
+                        when (regs(committer.io.out_reg_addr).prod.asUInt === commiter.io.out_reg_prod){
+                            regs(committer.io.out_reg_addr).prod := (-1).S
+                        }
+                    }
+                }.elsewhen(committer_waiting===1.U){
+                    when (io.wready:=true.B&&io.awready:=true.B){
+                        committer_waiting:=2.U
+                    }.otherwise{
+                        io.awaddr:=committer.io.out_store_addr
+                        io.wdata:=committer.io.out_store_value
+                        io.wstrb:=committer.io.out_store_mask
+                        io.wvalid:=true.B
+                        io.awvalid:=true.B
+                    }
+                }.otherwise{
+                    when (io.bvalid:=true.B)
+                    {
+                        committer.io.store_received:=true.B
+                        committer_waiting:=0.U
+                    }
+                }
+
         }
     }.otherwise{//halt
         io.awaddr:=0x80000000.U(32.W)
         io.wstrb:=15.U(4.W)
-        io.wdata:=regs(10).value
+        io.wdata:=regs(10).value(7,0)
         io.wvalid:=true.B
         io.awvalid:=true.B
     }
-}
-
-void broadcast(CDB cdb)
-{
-    if (cdb.id == -1)
-    {
-        return;
-    }
-    alu.receive(cdb);
-    lsu.receive(cdb);
-    bru.receive(cdb);
-    committer.receive(cdb);
-}
-
-int main()
-{
-        // fetch
-        pair<int, unsigned int> fetcher_output = make_pair(pc.val, memory.fetch(pc.val));
-        // decode
-        pair<int, op> decode_output = decoder.decode();
-        // issue
-        int new_pc_val = issuer.issue(clk);
-        // execute
-        CDB alu_cdb = alu.execute();
-        CDB lsu_cdb = lsu.execute();
-        CDB bru_cdb = bru.execute();
-        // commit
-        pair<int, int> committer_output = committer.Commit();
-        int res = committer_output.first;
-        if (res < 0)
-        { // revert
-            flush_val = -res;
-            newaddr = committer_output.second;
-        }
-        // update
-        decoder.id = fetcher_output.first;
-        decoder.opcode = fetcher_output.second;
-        issuer.id = decode_output.first;
-        issuer.cur_op = decode_output.second;
-        pc.val = new_pc_val;
-        broadcast(alu_cdb);
-        broadcast(lsu_cdb);
-        broadcast(bru_cdb);
-        broadcast(pre_alu_cdb);
-        broadcast(pre_lsu_cdb);
-        broadcast(pre_bru_cdb);
-        pre_alu_cdb = alu_cdb;
-        pre_lsu_cdb = lsu_cdb;
-        pre_bru_cdb = bru_cdb;
-        alu.update();
-        lsu.update();
-        bru.update();
-        committer.update();
-        predictor.update();
-        memory.update();
-    }
-    // cout<<"clock="<<clk<<endl;
-    // cout<<"hit= "<<memory.hit<<" not hit= "<<memory.nothit<<" accuracy= "<<(double)memory.hit/(memory.hit+memory.nothit)<<endl;
-    // cout<<"branch predictor accuracy="<<(double)committer.right/committer.total<<endl;
-    return 0;
 }

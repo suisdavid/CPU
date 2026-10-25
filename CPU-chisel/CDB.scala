@@ -14,7 +14,7 @@ import chisel3.util._
 import _root_.circt.stage.ChiselStage
 
 class CDB extends Bundle{
-    val id = SInt(32.W)
+    val id = UInt(32.W)
     val dest = SInt(32.W)
     val value = UInt(32.W)
 }

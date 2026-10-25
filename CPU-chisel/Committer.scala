@@ -5,7 +5,10 @@
 //> using dep edu.berkeley.cs::chiseltest:6.0.0
 //> using options -unchecked -deprecation -feature -language:reflectiveCalls
 //> using options -Xfatal-warnings -Ywarn-unused
+
 package Committer
+
+import Config._
 import ROB._
 import CDB._
 import chisel3._
@@ -13,242 +16,125 @@ import chiseltest._
 import chiseltest.RawTester.test
 import _root_.circt.stage.ChiselStage
 
-class Committer extends Module{//unsigned
+class Committer extends Module{//needs to add branch predictor!
   val io = IO(new Bundle {
-    val valid = Input(Bool())
-    val receive = Input(Bool())
-    val cdb = Input(new CDB())
+    val valid_num = Input(UInt(32.W))
+    val in_robs = Input(Vec(issueWidth,new ROB))
+    val cdbs = Input(Vec(ALU_NUM+2, new CDB))
 
-    val clear = Input(Bool())
+    val clear_valid = Input(Bool())
 
-    val rob  = Input(new ROB())
-    val ready = Output(Bool())
-    val halt = Output(Bool())
+    val store_received = Input(Bool())
+    val out_store_valid = Output(Bool())
+    val out_store_addr = Output(UInt(32.W))
+    val out_store_value = Output(UInt(32.W))
+    val out_store_mask = Output(UInt(4.W))
+    
+    val out_reg_valid = Output(Bool())
+    val out_reg_id = Output(UInt(5.W))
+    val out_reg_val = Output(UInt(32.W))
+    val out_reg_prod = Output(UInt(32.W))
 
-    val reg_change = Output(Bool())
-    val reg_id = Output(UInt(5.W))
-    val reg_val = Output(UInt(32.W))
-    val reg_id = Output(SInt(32.W))
+    val out_flush = Output(Bool())
+    val out_flushval = Output(UInt(32.W))
+    val out_newaddr = Output(UInt(32.W))
+    val out_l = Output(UInt(4.W))
+    val out_r = Output(UInt(4.W))
+    val out_space = Output(UInt(32.W))
+    val out_robs= Output(Vec(ROBWidth,new ROB))
 
-    val flush = Output(Bool())
-    val flush_id = Output(UInt(32.W))
-    val new_pc_val = Output(UInt(32.W))
+    val out_halt=Output(Bool())
   })
-  val l = RegInit(0.U(3.W))
-  val r = RegInit(0.U(3.W))
-  val time = RegInit(0.U(8.W))
-  val buffer= Reg(new ROB())
-  val has_buffer = RegInit(false.B)
-  val robs = Reg(Vec(8, new ROB()))
-  val cur_rs = Reg(new RS())
-  //update
-  when (has_buffer){
-    robs[r.asUInt]:=buffer
-    has_buffer:=false.B
-    r:=r+1.U
-  }
-  when (time=/=0.U){
-    when (time===1.U){
-        l:=l+1.U
-    }
-    time:= time-1.U
-  }
-
-//add
-  val rd = io.valid&((r+1.U)=/=l)
-  has_buffer:=rd
-  io.ready:=rd
-  buffer:=io.rob
-  io.reg_change:=false.B
-  when((time === 0.U)&(l=/=r)&robs(l.asUInt).ready){//commit
-   when(robs(l.asUInt).type_ === 0.U){//alu
-        io.reg_change:=true.B
-        io.halt := (robs(l.asUInt).dest === 0xffffffff.U)
-        io.reg_id := robs(l.asUInt).dest
-        io.reg_val := robs(l.asUInt).value 
-        io.reg_id := robs(l.asUInt).id
-        //move the action of prod-overwriting to main module
-   }.elsewhen(robs(l.asUInt).type_(31) === false.B){//store memory
-   
-   }.otherwise{//bru
-      io.flush := robs(l.asUInt).value(0)
-      io.flush_id := robs(l.asUInt).id  //need to clear all RS > id
-      io.new_pc_vl := robs(l.asUInt).dest
-   }
-  }
-
-
-  when(io.clear){//clear
+  val l = RegInit(0.U(4.W))
+  val r = RegInit(0.U(4.W))
+  val robs = Reg(Vec(ROBWidth, new ROB))
+  val cur_rb = Reg(new ROB)
+  val init = Wire(new ROB)
+  init.id := 0.U
+  init.dest := 0.S
+  init.value := 0.U
+  init.type_ := 0.S
+  init.ready  := false.B
+  val robs = RegInit(VecInit(Seq.fill(ROBWidth)(init)))
+  io.out_l:=l
+  io.out_r:=r
+  io.out_space:=(ROBWidth-1).U-(r-l)
+  io.out_robs:=robs
+  io.out_reg_valid:=false.B
+  io.out_store_valid:=false.B
+  io.out_halt:=false.B
+  
+  when (io.clear_valid===true.B){//flush
     l:=0.U
     r:=0.U
-    time:=0.U
+  }.otherwise{
+    for (i<-0 until ALU_NUM+2)//receive CDBs
+    {
+      for (j<-0 until ROBWidth)
+      {
+        when (j.U<(r-l)&&robs(l+j.U).id===io.cdbs(i).id&&robs(l+j.U).ready===false.B)
+        {
+            when (cdbs(i).dest=/=(-2).S)//-2 is for branch operations, -1 is for halt
+            {
+                robs(l+j.U).dest:=cdbs(i).dest
+                robs(l+j.U).value:=cdbs(i).value
+            }.otherwise{
+                robs(l+j.U).value:=robs(l+j.U).value+robs(l+j.U).value+cdbs(i).value
+            }
+            robs(l+j.U).ready:=true.B
+        }
+      }
+    }
+    for (i<-0 until issueWidth)//receiving ROBs
+    {
+      when (i.U<io.valid_num){
+        robs(r+i.U):=in_robs(i)
+      }
+    }
+    r:=r+io.valid_num
+    val waiting=RegInit(false.B)
+    when (waiting===false.B){
+        when (l=/=r && robs(l).ready===true.B){//commit
+            l:=l+1.U
+            val rb = Wire(new ROB)
+            rb:=robs(l)
+            when (rb.type_ > 0.S)//store
+            {
+                io.out_store_valid:=true.B
+                io.out_store_addr:=rb.dest
+                io.out_store_value:=rb.value
+                io.out_store_mask:=MUX(rb.type_ === 1.S, 1.U, MUX(rb.type_ === 2.S, 3.U, 15.U))
+                cur_rb:=rb
+                waiting:=1.U
+            }.elsewhen (rb.type_ === 0.S)//alu
+            {
+                when (rb.dest===(-1).S){//halt
+                    io.out_halt:=true.B
+                }.otherwise{//change register
+                    io.out_reg_valid:=true.B
+                    io.out_reg_id:=rb.dest.asUInt
+                    io.out_reg_val:=rb.value
+                    io.out_reg_prod:=rb.id
+                }
+            }.otherwise//branch
+            {
+                when (rb.value(0)===1.U)
+                {        
+                    io.out_flush:=true.B
+                    io.out_flushval:=rb.id
+                    io.out_newaddr:=rb.dest.asUInt                 
+                }
+            }
+        }
+    }.otherwise{
+        when (io.store_received===true.B){
+            waiting=false.B
+        }.otherwise{
+            io.out_store_valid:=true.B
+            io.out_store_addr:=cur_rb.dest
+            io.out_store_value:=cur_rb.value
+            io.out_store_mask:=MUX(cur_rb.type_ === 1.S, 1.U, MUX(cur_rb.type_ === 2.S, 3.U, 15.U))
+        }
+    }
   }
 }
-class Committer
-{
-private:
-    ROB robs[maxk], buffer;
-    int l, r, time;
-    int debug_cnt;
-    bool has_buffer;
-
-public:
-    int total, right; // for branch predicting
-    Committer()
-    {
-        l = 0;
-        r = 0;
-        time = 0;
-        debug_cnt = 0;
-        has_buffer = 0;
-        total = right = 0;
-    }
-    bool full()
-    {
-        return (r + 1) % maxk == l;
-    }
-    void add(ROB rob)
-    {
-        buffer = rob;
-        has_buffer = 1;
-    }
-    void update()
-    {
-        if (has_buffer)
-        {
-            robs[r] = buffer;
-            r = (r + 1) % maxk;
-            has_buffer = 0;
-        }
-        if (time)
-        {
-            time--;
-            if (time == 0)
-            {
-                l = (l + 1) % maxk;
-            }
-        }
-    }
-    pair<unsigned int, bool> read(int prod)
-    {
-        pair<unsigned, bool> ans;
-        ans.second = 0;
-        for (int id = l; id != r; id = (id + 1) % maxk)
-        {
-            if (robs[id].id == prod)
-            {
-                if (robs[id].ready)
-                {
-                    ans.first = robs[id].value;
-                    ans.second = 1;
-                }
-                break;
-            }
-        }
-        return ans;
-    }
-
-    unsigned long long find(int id, int L, int R)
-    {
-        unsigned long long val[4] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
-        for (int i = l; i != r; i = (i + 1) % maxk)
-        {
-            if (robs[i].id >= id)
-            {
-                break;
-            }
-            if (robs[i].type > 0 && robs[i].ready && robs[i].dest < R && robs[i].dest + robs[i].type > L)
-            { // ready store operations that overlap
-                for (int j = 0; j < robs[i].type; j++)
-                {
-                    int offset = robs[i].dest + j - L;
-                    if (offset >= 0 && offset < R - L)
-                    {
-                        val[offset] = ((robs[i].value >> (8 * j)) & 255);
-                    }
-                }
-            }
-        }
-        return val[0] | (val[1] << 16) | (val[2] << 32) | (val[3] << 48);
-    }
-
-    pair<int, int> Commit()
-    {
-        pair<int, int> ans = make_pair(0, 0);
-        if (!time)
-        {
-            if (l != r && robs[l].ready)
-            {
-                time = 1;
-                if (robs[l].type > 0)
-                { // store memory
-                    time = 2;
-                    unsigned int value = robs[l].value;
-                    for (int i = 0; i < robs[l].type; i++)
-                    {
-                        if (!memory.store(value & 255, robs[l].dest + i))
-                        { // cache not hit
-                            time = 3;
-                        }
-                        value >>= 8;
-                    }
-                    // cout<<"memory["<<cur_rb.dest<<"] changed to "<<cur_rb.value<<"(length "<<cur_rb.type<<")"<<endl;
-                }
-                else if (robs[l].type == 0)
-                { // alu
-                    if (robs[l].dest == (unsigned int)-1)
-                    { // halt
-                        std::cout << (reg[a0].val & 255) << std::endl;
-                        halt = true;
-                    }
-                    else
-                    {
-                        reg[robs[l].dest].val = robs[l].value;
-                        //  cout<<"reg["<<cur_rb.dest<<"] changed to "<<cur_rb.value<<endl;
-                        if (reg[robs[l].dest].prod == robs[l].id)
-                        {
-                            reg[robs[l].dest].prod = -1;
-                        }
-                    }
-                }
-                else
-                { // branch
-                    total++;
-                    if (robs[l].value & 1)
-                    {                                               // needs to revert
-                        ans = make_pair(-robs[l].id, robs[l].dest); // need to clear all RS > id
-                    }
-                    else
-                    {
-                        right++;
-                    }
-                    predictor.add(-robs[l].type - 1, robs[l].value);
-                }
-            }
-        }
-        return ans;
-    }
-    void receive(CDB cdb)
-    {
-        for (int id = l; id != r; id = (id + 1) % maxk)
-        {
-            if (robs[id].id == cdb.id && robs[id].ready == false)
-            {
-                if (cdb.dest != -2) // -2 is for branch operations, -1 is for halt
-                {
-                    robs[id].dest = cdb.dest;
-                    robs[id].value = cdb.val;
-                }
-                else
-                {
-                    robs[id].value = robs[id].value * 2 + cdb.val;
-                }
-                robs[id].ready = true;
-            }
-        }
-    }
-    void clear()
-    {
-        l = r = time = 0;
-    }
-};

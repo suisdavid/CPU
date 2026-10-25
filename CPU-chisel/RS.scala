@@ -21,6 +21,6 @@ class RS extends Bundle{
     val q1 = SInt(32.W)
     val q2 = SInt(32.W)
     val dest = SInt(32.W)
-    val id = SInt(32.W)
+    val id = UInt(32.W)
     val is_halt = Bool()
 }

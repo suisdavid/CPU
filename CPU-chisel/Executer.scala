@@ -258,10 +258,10 @@ class Executer extends Module{
   val temp_rs=Wire(new RS)
   val selected=Wire(Vec(RSWidth+1,Bool()))
   val init = Wire(new CDB)
-  init.id :=(-1).S
+  init.id :=0.U
   val out_cdb= RegInit(init)
 
-  io.out_space:= (r-l)
+  io.out_space:= (RSWidth-1).U-(r-l)
   io.out_cdb:=out_cdb
   val start_process=Wire(Bool())//for telling subclasses to execute rs
   start_process:=false.B
@@ -282,15 +282,15 @@ class Executer extends Module{
       {
         when (j.U<(r-l))
         {
-            when (rss(l+j.U).q1==cdb(i).id)
+            when (rss(l+j.U).q1==io.cdbs(i).id)
             {
                 rss(l+j.U).q1:=(-1).S
-                rss(l+j.U).v1:=cdb(i).value
+                rss(l+j.U).v1:=io.cdbs(i).value
             }
-            when (rss(l+j.U).q2==cdb(i).id)
+            when (rss(l+j.U).q2==io.cdbs(i).id)
             {
                 rss(l+j.U).q2:=(-1).S
-                rss(l+j.U).v2:=cdb(i).value
+                rss(l+j.U).v2:=io.cdbs(i).value
             }
         }
       }
@@ -339,7 +339,6 @@ class Executer extends Module{
             selected(i+1):=true.B
             temp_rs:=rs
             cur_rs:=rs
-            in_process:=true.B
             for (j<-0 until i){
               rss(l+(j+1).U):=rss(i+j.U)
             }
@@ -384,22 +383,15 @@ class ALU(val id: Int) extends Executer {
   val temp_out_div_op=Reg(Bool())
   val temp_out_div_valid=RegInit(false.B)
 
-  val res= Reg(UInt(32.W))
+  val res= Wire(UInt(32.W))
+  val isMulDiv=Wire(Bool())
+  isMulDiv:=false.B
   val waiting=RegInit(false.B)
   val sgn = RegInit(false.B)//for mul and div
-  when (in_process==true.B){
-    when (io.mult_valid==(id+1).U){
-      io.out_cdb.id:=cur_rs.id
-      io.out_cdb.dest:=cur_rs.dest
-      io.out_cdb.value:=MUX(sgn,~io.mult_res+1.U,io.mult_res)
-      in_process=false.B
-    }.elsewhen (io.div_valid==(id+1).U){
-      io.out_cdb.id:=cur_rs.id
-      io.out_cdb.dest:=cur_rs.dest
-      io.out_cdb.value:=MUX(sgn,~io.div_res+1.U,io.div_res)
-      in_process=false.B
-    }.otherwise{
-      when (waiting===true.B){
+  when (in_process==true.B)
+  {
+      when (waiting===true.B)
+      {
         when (aluIO.mult_received===(i+1).U||aluIO.div_received===(i+1).U){
             waiting:=false.B
           }.otherwise{//keep sending
@@ -413,13 +405,20 @@ class ALU(val id: Int) extends Executer {
             aluIO.out_div_valid:=temp_out_div_valid
           }
       }.otherwise{//other operations
+        when (io.mult_valid==(id+1).U)
+        {
           io.out_cdb.id:=cur_rs.id
-          io.out_cdb.dest:=MUX(cur_rs.is_halt,(-1).S,cur_rs.dest)
-          io.out_cdb.value:=res
+          io.out_cdb.dest:=cur_rs.dest
+          io.out_cdb.value:=MUX(sgn,~io.mult_res+1.U,io.mult_res)
           in_process=false.B
-      }
+        }.elsewhen (io.div_valid==(id+1).U)
+        {
+          io.out_cdb.id:=cur_rs.id
+          io.out_cdb.dest:=cur_rs.dest
+          io.out_cdb.value:=MUX(sgn,~io.div_res+1.U,io.div_res)
+          in_process=false.B
+        }
     }
-
   }
   when (start_process===true.B){
     switch (temp_rs.type_){
@@ -492,6 +491,7 @@ class ALU(val id: Int) extends Executer {
       is (OP_TYPE.MUL){
         sgn:=false.B
         waiting:=true.B
+        isMulDiv:=true.B
         Seq(aluIO.out_mult_a, temp_out_mult_a).foreach { out => out := temp_rs.v1}
         Seq(aluIO.out_mult_b, temp_out_mult_b).foreach { out => out := temp_rs.v2}
         Seq(aluIO.out_mult_op, temp_out_mult_op).foreach { out => out := false.B}
@@ -500,6 +500,7 @@ class ALU(val id: Int) extends Executer {
       is (OP_TYPE.MULHU){
         sgn:=false.B
         waiting:=true.B
+        isMulDiv:=true.B
         Seq(aluIO.out_mult_a, temp_out_mult_a).foreach { out => out := temp_rs.v1}
         Seq(aluIO.out_mult_b, temp_out_mult_b).foreach { out => out := temp_rs.v2}
         Seq(aluIO.out_mult_op, temp_out_mult_op).foreach { out => out := true.B}
@@ -508,6 +509,7 @@ class ALU(val id: Int) extends Executer {
       is (OP_TYPE.MULH){
         sgn:=temp_rs.v1(31)^temp_rs.v2(31)
         waiting:=true.B
+        isMulDiv:=true.B
         Seq(aluIO.out_mult_a, temp_out_mult_a).foreach { out => out := MUX(temp_rs.v1(31),~temp_rs.v1+1.U,temp_rs.v1)}
         Seq(aluIO.out_mult_b, temp_out_mult_b).foreach { out => out := MUX(temp_rs.v2(31),~temp_rs.v2+1.U,temp_rs.v2)}
         Seq(aluIO.out_mult_op, temp_out_mult_op).foreach { out => out := true.B}
@@ -516,6 +518,7 @@ class ALU(val id: Int) extends Executer {
       is (OP_TYPE.MULHSU){
         sgn:=temp_rs.v1(31)
         waiting:=true.B
+        isMulDiv:=true.B
         Seq(aluIO.out_mult_a, temp_out_mult_a).foreach { out => out := MUX(temp_rs.v1(31),~temp_rs.v1+1.U,temp_rs.v1)}
         Seq(aluIO.out_mult_b, temp_out_mult_b).foreach { out => out := temp_rs.v2}
         Seq(aluIO.out_mult_op, temp_out_mult_op).foreach { out => out := true.B}
@@ -524,6 +527,7 @@ class ALU(val id: Int) extends Executer {
       is (OP_TYPE.DIVU){
         sgn:=false.B
         waiting:=true.B
+        isMulDiv:=true.B
         Seq(aluIO.out_div_a, temp_out_div_a).foreach { out => out := temp_rs.v1}
         Seq(aluIO.out_div_b, temp_out_div_b).foreach { out => out := temp_rs.v2}
         Seq(aluIO.out_div_op, temp_out_div_op).foreach { out => out := true.B}
@@ -535,6 +539,7 @@ class ALU(val id: Int) extends Executer {
         }.otherwise{
           sgn:=temp_rs.v1(31)^temp_rs.v2(31)
           waiting:=true.B
+          isMulDiv:=true.B
           Seq(aluIO.out_div_a, temp_out_div_a).foreach { out => out := MUX(temp_rs.v1(31),~temp_rs.v1+1.U,temp_rs.v1)}
           Seq(aluIO.out_div_b, temp_out_div_b).foreach { out => out := MUX(temp_rs.v2(31),~temp_rs.v2+1.U,temp_rs.v2)}
           Seq(aluIO.out_div_op, temp_out_div_op).foreach { out => out := true.B}
@@ -544,6 +549,7 @@ class ALU(val id: Int) extends Executer {
       is (OP_TYPE.REMU){
         sgn:=false.B
         waiting:=true.B
+        isMulDiv:=true.B
         Seq(aluIO.out_div_a, temp_out_div_a).foreach { out => out := temp_rs.v1}
         Seq(aluIO.out_div_b, temp_out_div_b).foreach { out => out := temp_rs.v2}
         Seq(aluIO.out_div_op, temp_out_div_op).foreach { out => out := false.B}
@@ -555,6 +561,7 @@ class ALU(val id: Int) extends Executer {
         }.otherwise{
           sgn:=temp_rs.v1(31)
           waiting:=true.B
+          isMulDiv:=true.B
           Seq(aluIO.out_div_a, temp_out_div_a).foreach { out => out := MUX(temp_rs.v1(31),~temp_rs.v1+1.U,temp_rs.v1)}
           Seq(aluIO.out_div_b, temp_out_div_b).foreach { out => out := MUX(temp_rs.v2(31),~temp_rs.v2+1.U,temp_rs.v2)}
           Seq(aluIO.out_div_op, temp_out_div_op).foreach { out => out := false.B}
@@ -562,84 +569,140 @@ class ALU(val id: Int) extends Executer {
         }
       }
     }
+    when (isMulDiv===true.B){
+      in_process:=true.B
+    }.otherwise{
+        io.out_cdb.id:=temp_rs.id
+        io.out_cdb.dest:=temp_rs.dest
+        io.out_cdb.value:=res
+    }
   }
 }
 
 class LSU extends Executer{
+  val lsuIO= IO(new Bundle {
+    val robs = Input(Vec(ROBWidth,new ROB))
+    val l = Input(UInt(4.W))
+    val r = Input(UInt(4.W))
 
+    val addr_valid = Input(Bool())
+    val addr_received = Input(Bool())
+    val addr_value = Input(UInt(32.W))
+    val out_valid = Output(Bool())
+    val out_addr = Output(UInt(32.W))
+  })
+  val res=Wire(UInt(32.W))
+  val wanted=Reg(UInt(32.W))
+  val waiting=RegInit(false.B)//0 already received, 1 wait for memory
+
+  lsuIO.out_valid:=false.B
+  when (in_process===true.B){
+      when (waiting===true.B){
+        when (lsuIO.addr_received===true.B){
+          waiting:=false.B
+        }.otherwise{
+          io.out_valid:=true.B
+          io.out_addr:=wanted
+        }
+      }.otherwise{
+        when (lsuIO.addr_valid===true.B){
+          io.out_cdb.id:=cur_rs.id
+          switch (cur_rs.type_)
+          {
+            is (OP_TYPE.OP_LB){
+              io.out_cdb.value:=Cat(Fill(24, lsuIO.addr_value(7)), lsuIO.addr_value(7,0))
+            }
+            is (OP_TYPE.OP_LBU){
+              rio.out_cdb.value:=lsuIO.addr_value(7,0)
+            }
+            is (OP_TYPE.OP_LH){
+              io.out_cdb.value:=Cat(Fill(16, lsuIO.addr_value(15)), lsuIO.addr_value(15,0))
+            }
+            is (OP_TYPE.OP_LHU){
+              io.out_cdb.value:=lsuIO.addr_value(15,0)
+            }
+            is (OP_TYPE.OP_LW){
+              io.out_cdb.value:=lsuIO.addr_value
+            }
+          }
+          io.out_cdb.dest:=cur_rs.dest
+          in_process:=false.B
+        }
+      }
+    }
+  val len=Wire(UInt(32.W))
+  val L=Wire(UInt(32.W))
+  val R=Wire(UInt(32.W))
+  val vals=Wire(Vec(4,UInt(9.W)))
+  for (i<-0 until 4){vals(i):=0x100.U}
+  when (start_process===true.B){
+    len:=MUX(rs.type_ === OP_TYPE.OP_LW,4.U),MUX(rs.type_ === OP_TYPE.LH||rs.type_ === OP_TYPE.LHU, 2.U,MUX(rs.type_ === OP_TYPE.LB||rs.type_ === OP_TYPE.LBU,1.U,0.U))
+    when (len=/=0.U){//load
+      L:=(temp_rs.v1.asSint+temp_rs.v2(11,0).asSInt).asUInt
+      R:=L+len
+      for (i<-0 until ROBwidth){
+        when (i.U<(lsuIO.r-lsuIO.l)){
+          val rb=Wire(new ROB)
+          rb:=lsuIo.robs(lsuIo.l+i.U)
+          when (rb.id < temp_rs.id && rb.type_ > 0.S && rb.dest.asUInt < R && rb.dest.asUInt+rb.type_.asUInt > L){
+            for (j<-0 until 4){
+              val offset = Wire(UInt(32.W))
+              offset:=rb.dest.asUInt+j.U-L
+              when (j.S < rb.type_ && offset.asSInt >= 0.S && offset< len){
+                vals(offset):=rb(i).value(8*j+7,8*j)
+              }
+            }
+          }
+        }
+      }
+      val flag=Wire(Bool())
+      flag:=false.B
+      for (i<-0 until 4)
+      {
+          when (i.U < len && vals(i)===0x100.U)
+          {
+            io.out_addr:=L
+            io.out_valid:=true.B
+            wanted:=L
+            waiting:=true.B
+            in_process:=true.B
+            flag:=true.B
+          }
+      }
+      when (flag===false.B){
+        switch (temp_rs.type_)
+        {
+          is (OP_TYPE.OP_LB){
+            res:=Cat(Fill(24, vals(0)(7)), vals(0)(7,0))
+          }
+          is (OP_TYPE.OP_LBU){
+            res:=vals(0)(7,0)
+          }
+          is (OP_TYPE.OP_LH){
+            res:=Cat(Fill(16, vals(1)(7)), vals(1)(7,0),vals(0)(7,0))
+          }
+          is (OP_TYPE.OP_LHU){
+            res:=Cat(vals(1)(7,0),vals(0)(7,0))
+          }
+          is (OP_TYPE.OP_LW){
+            res:=Cat(vals(3)(7,0),vals(2)(7,0),vals(1)(7,0),vals(0)(7,0))
+          }
+        }
+        io.out_cdb.id:=temp_rs.id
+        io.out_cdb.value:=res
+        io.out_cdb.dest:=temp_rs.dest
+      }
+    }.otherwise{//store
+      io.out_cdb.id:=temp_rs.id
+      io.out_cdb.value:=temp_rs.v2
+      io.out_cdb.dest:=temp_rs.v1.asSInt+temp_rs.dest(11,0).asSInt
+    }
+  }
 }
-
-class LSU: public Executer{
-    private:
-        CDB cur_cdb;
-    public:
-        CDB execute(){
-            int res=run();
-            if (res==1)
-            {
-                unsigned int val=0,r1=cur_rs.v1;int r2=cur_rs.v2,dest=cur_rs.dest;
-                int len=is_load(cur_rs.type); 
-                if (len){//store to load forwarding
-                    unsigned long long stlf=committer.find(cur_rs.id,r1+signed12(r2),r1+signed12(r2)+len);
-                    unsigned char vals[4]={(unsigned char)(stlf&255),(unsigned char)((stlf>>16)&255),(unsigned char)((stlf>>32)&255),(unsigned char)((stlf>>48)&255)};
-                    for (int i=0;i<len;i++){
-                        if (((stlf>>(16*i))&65535)==65535){//not found,has to read memory
-                            pair<bool,unsigned char>temp=memory.load(r1+signed12(r2)+i);
-                            vals[i]=temp.second;
-                            if (!temp.first){
-                                time=3;//cache not hit
-                            }
-                            else if (time==1){
-                                time=2;//cache hit case
-                            }
-                        }
-                    }
-                    switch (cur_rs.type){
-                        case OP_LB:
-                            val=(signed char)vals[0];
-                            break;
-                        case OP_LBU:
-                            val=vals[0];
-                            break;
-                        case OP_LH:
-                            val=(signed short)((unsigned short)vals[0]|((unsigned short)vals[1]<<8));
-                            break;
-                        case OP_LHU:
-                            val=((unsigned short)vals[0]|((unsigned short)vals[1]<<8));
-                            break;
-                        case OP_LW:
-                            val=(((unsigned int)vals[0])|((unsigned int)vals[1]<<8)|((unsigned int)vals[2]<<16)|((unsigned int)vals[3]<<24));
-                            break;
-                    }
-                }
-                else{
-                    val=r2;
-                    dest=r1+signed12(dest);
-                }
-                cur_cdb=CDB(cur_rs.id,val,dest);
-                if (--time==0){
-                    return cur_cdb;
-                }
-            }
-            else if (res==2){
-                return cur_cdb;
-            }
-            return CDB();
-        }   
-
-};
-
-
 
 
 class BRU extends Executer{
-  val res=Reg(Bool())
-  when (in_process===true.B){
-    io.out_cdb.id:=cur_rs.id
-    io.out_cdb.dest:=(-2).S
-    io.out_cdb.value:=res
-    in_process:=false.B
-  }
+  val res=Wire(Bool())
   when (start_process===true.B){
     switch (temp_rs.type_){
       is (OP_TYPE.OP_BEQ){
@@ -661,5 +724,8 @@ class BRU extends Executer{
         res:=(temp_rs.v1=/=temp_rs.v2)^temp_rs.dest
       }
     }
+    io.out_cdb.id:=temp_rs.id
+    io.out_cdb.dest:=(-2).S
+    io.out_cdb.value:=res
   }
 }
