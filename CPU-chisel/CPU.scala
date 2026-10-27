@@ -12,9 +12,12 @@ import Op._
 import CDB._
 import RS._
 import ROB._
+import Cache._
 import Decoder._
-import EXecuter._
+import Executer._
 import Committer._
+import Predictor._
+
 import chisel3._
 import chiseltest._
 import chiseltest.RawTester.test
@@ -23,7 +26,7 @@ import _root_.circt.stage.ChiselStage
 import coursier.internal.InMemoryCache
 import Config.CPUConfig.issueWidth
 
-class CPU extends Module{//priority: ready instruction< read data < write data
+class CPU extends Module{//priority: ready instruction< read data < write data < Dcache write back
     val io=IO(new Bundle{
         val araddr  = Output(UInt(32.W))
         val arvalid = Output(Bool())
@@ -58,7 +61,7 @@ class CPU extends Module{//priority: ready instruction< read data < write data
     val clk=RegInit(0.U(32.W))
     val halt=RegInit(false.B)
     val waiting_val=Reg(UInt(32.W))
-    val fetcher_waiting = RegInit(0.U(2.W))//0: initial state; 1: set arvalid=true&araddr, waiting for arready; 2: received arready=true, set rready=true, waiting for rvalid; when received rvalid, return to 0
+    
     val flush=RegInit(false.B)
     val flush_val=Reg(SInt(32.W))
     val newaddr=Reg(UInt(32.W))
@@ -69,16 +72,17 @@ class CPU extends Module{//priority: ready instruction< read data < write data
     regs(0).prod:=-1.S(32.W)
     val opcode=Wire(SInt(32.W))
 
-    val Icache=Module(new Cache)
-    val Dcache=Module(new Cache)
+    val Icache=Seq.tabulate(issueWidth) { i =>Module(new Cache(4))}//Icache(i) manages start addr mod 16 = 4i
+    val Dcache=Module(new Cache(2))
     val committer=Module(new Committer)
     val alus = Seq.tabulate(ALU_NUM) { i =>Module(new ALU(i))}
     val lsu=Module(new Executer)
     val bru=Module(new Executer)
     val mult  = Module(new Mult)
     val div  = Module(new Divider)
-    val issuer=Module(new Issuer)
-    val decoder=Module(new Decoder)
+    val issuer = Module(new Issuer)
+    val decoder = Module(new Decoder)
+    val predictor = Module(new Predictor)
 
     io.arvalid:=false.B
     io.rready:=true.B
@@ -103,8 +107,63 @@ class CPU extends Module{//priority: ready instruction< read data < write data
     issuer.io.valid_num:=0.U
     decoder.io.valid_num:=0.U
 
+    for (i<-0 until issueWidth){
+        Icache(i).io.load_valid:=false.B
+        Icache(i).io.store_valid:=false.B
+        Icache(i).io.new_valid:=false.B
+        Icache(i).io.store_received:=false.B
+        Icache(i).io.clear_status:=false.B
+    }
+    Dcache.io.load_valid:=false.B
+    Dcache.io.store_valid:=false.B
+    Dcache.io.new_valid:=false.B
+    Dcache.io.store_received:=false.B
+    Dcache.io.clear_status:=false.B
+
+
+    val fetcher_waiting = RegInit(0.U(2.W))//0: initial state; 1: set arvalid=true&araddr, waiting for arready; 2: received arready=true, set rready=true, waiting for rvalid; when received rvalid, return to 0
+    val hits = Wire(Vec(issueWidth+1,UInt(3.W)))
+    val fetcher_next = Wire(0.U(2.W))
+    val lsu_waiting=RegInit(0.U(2.W))//0 initial state, 1 waiting for Dcache, 2 waiting for memory, 3 got memory, storing into Dcache
+    val lsu_lst_addr=Reg(UInt(32.W))
+    val committer_waiting=RegInit(0.U(2.W))//0 initial state, 1 waiting for Dcache, 2 waiting for Dcache write back
+    val Dcache_waiting = RegInit(0.U(2.W))
+
     when (halt===false.B){
-        when (flush===true.B){
+        //Dcache write back  
+        when (Dcache_waiting===0.U)
+        {
+            when (Dcache.io.out_wvalid===true.B&&fetcher_waiting===0.U&&lsu_waiting===0.U)
+            {//definitely happens, no need to worry about rolling back
+                io.awaddr:=Dcache.io.out_waddr
+                io.wdata:=Dcache.io.out_wdata
+                io.wstrb:=15.U
+                io.wvalid:=true.B
+                io.awvalid:=true.B
+                Dcache_waiting:=1.U
+            }
+        }.elsewhen(Dcache_waiting===1.U){
+            when (io.wready:=true.B&&io.awready:=true.B)
+            {
+                Dcache_waiting:=2.U
+            }.otherwise
+            {
+                io.awaddr:=Dcache.io.out_waddr
+                io.wdata:=Dcache.io.out_wdata
+                io.wstrb:=15.U
+                io.wvalid:=true.B
+                io.awvalid:=true.B
+            }
+        }.otherwise{
+            when (io.bvalid:=true.B)
+            {
+                Dcache.io.store_received:=true.B
+                Dcache_waiting:=0.U
+            }
+        }
+
+
+        when (flush===true.B){//flush
             issuer.io.nex_want:=newaddr
             pc.value:=newaddr
             for (i<-0 until ALU_NUM)
@@ -112,6 +171,8 @@ class CPU extends Module{//priority: ready instruction< read data < write data
                 alus(i).io.clear_valid:=true.B
                 alus(i).io.clear_val=flush_val
             }
+            mult.io.clear_valid:=true.B
+            div.io.clear_valid:=true.B
             bru.io.clear_valid:=true.B
             bru.io.clear_val=flush_val
             lsu.io.clear_valid:=true.B
@@ -122,26 +183,46 @@ class CPU extends Module{//priority: ready instruction< read data < write data
                 }
             }
             committer.io.clear_valid:=true.B
+            fetcher_waiting:=0.U
+            lsu_waiting:=0.U
+            committer_waiting:=0.U
+            Dcache_waiting:=0.U
+            
+            for (i<-0 until issueWidth){
+                Icache(i).io.clear_status:=true.B
+            }
+            Dcache.io.clear_status:=true.B
+
             flush:=false.B
         }.otherwise{//main cycle
             //fetcher
+            fetcher_next:=fetcher_waiting
+            new_pc_val:=pc.value
             when(fetcher_waiting===0.U)
             {
-                Icache.io.addr:=pc.value
-                for (i<-0 until issueWidth){
-                    decoder.io.id(i):=Icache.io.output_id(i)
-                    decoder.io.opcode(i):=Icache.io.output_value(i)
+                hits(0):=0.U
+                for (l<-0 until issueWidth){
+                    when (pc.value(3,2)===l.U){
+                        for (i<-0 until issueWidth){
+                            hits(i+1) := Mux(hits(i)===i.U,(i+1).U,hits(i))
+                            decoder.io.id((l+i)%issueWidth):=pc.value+(4*i).U
+                            decoder.io.opcode((l+i)%issueWidth):=Icache((l+i)%issueWidth).io.out_rdata
+                            hits(i+1) := Mux(Icache((l+i)%issueWidth).io.out_hit===true.B&&hits(i)===i.U,(i+1).U, hits(i))
+                        }
+                    }
                 }
-                Icache_out_num := Icache.io.out_num
-                decoder.io.valid_num:= Icache_out_num
-                when (Icache_out_num===0.U&&lsu.lsuIO.out_valid===false.B&&committer.io.out_store_valid===false.B){
+                decoder.io.valid_num := hits(issueWidth)
+                when (hits(issueWidth)===0.U&&Dcache_waiting===false.B&&Dcache.io.out_wvalid===false.B&&lsu_waiting===0.U&&lsu.lsuIO.out_valid===false.B){//read instructions from memory
                     io.araddr:=pc.value
                     io.arvalid:=true.B
                     fetcher_waiting:=1.U
+                    fetcher_next:=1.U
                 }
+                new_pc_val := pc.value+(hits(issueWidth)<<2.U)
             }.elsewhen(fetcher_waiting===1.U){
                     when (io.arready===true.B){
-                        fetcher_waiting:=2.U(2.W)
+                        fetcher_waiting:=2.U
+                        fetcher_next:=2.U
                         io.rready:=true.B
                     }.otherwise{
                         io.araddr:=pc.value
@@ -149,23 +230,38 @@ class CPU extends Module{//priority: ready instruction< read data < write data
                     }
                 }.elsewhen(fetcher_waiting==2.U){
                     when (io.rvalid===true.B){
-                        fetcher_waiting:=0.U(2.W)
-                        decoder.io.valid_num:=1.U(32.W)
+                        fetcher_waiting:=0.U
+                        fetcher_next:=0.U
+                        decoder.io.valid_num:=1.U
                         decoder.io.id(0):=pc.value
                         decoder.io.opcode(0):=io.rdata
+                        new_pc_val:=pc.value+4.U
+                        //write in Icache
+                        for (i<-0 until issueWidth)
+                        {//other Icaches no longer need to wait for new_data
+                            when (pc.value(3,2)===i.U)
+                            {
+                                Icache(i).io.new_valid := true.B
+                                Icache(i).io.new_data := io.rdata
+                            }
+                        }
                     }.otherwise{
                         io.rready:=true.B
                     }
                 }
+
+                //predictor
+                predictor.io.qaddrs:= decoder.io.out_id
                 //handling issuer input
                 issuer.io.valid_num:=decoder.out_num
-                for (i<-0 until issueWidth){
-                    issuer.io.id(i):=decoder.io.out_id(i)
-                    issuer.io.cur_op(i):=decoder.io.out_op(i)
-                }
+                issuer.io.id:=decoder.io.out_id
+                issuer.io.cur_op:=decoder.io.out_op
+                issuer.io.predictor_result := predictor.io.out
+
                 for (i<-0 until 32){
                     issuer.io.reg(i):=regs(i)
                 }
+
                 for (i<-0 until ALU_NUM){
                     issuer.io.executer_space(i):=alus(i).io.out_space
                 }
@@ -217,14 +313,27 @@ class CPU extends Module{//priority: ready instruction< read data < write data
                 for (i<-0 until 32){
                     regs(i).prod:=issuer.io.out_prod(i)
                 }
-                new_pc_val:= issuer.io.out_new_pc_val
+                when (issuer.io.out_pc_changed===true.B)
+                {
+                    new_pc_val:= issuer.io.out_new_pc_val
+                    fetcher_waiting:=0.U
+                    fetcher_next:=0.U
+                    for (i<-0 until issueWidth){
+                        Icache(i).io.clear_status:=true.B
+                    }
+                }
                 pc.value:=new_pc_val
-                Icache.io.valid:=true.B
-                Icache.io.addr:=new_pc_val//retrieve W opcodes starting from io.addr
-
-
-
-
+                when (fetcher_next===0.U)
+                {
+                    for (l<-0 until issueWidth){
+                        when (new_pc_val(3,2)===l.U){
+                            for (i<-0 until issueWidth){
+                                Icache((i+l)%issueWidth).io.load_valid:=true.B
+                                Icache((i+l)%issueWidth).io.addr:=new_pc_val+(i*4).U
+                            }
+                        }
+                    }
+                }
 
                 //handling executer output
                 //mult,div
@@ -263,27 +372,43 @@ class CPU extends Module{//priority: ready instruction< read data < write data
                 lsu.lsuIO.l:=committer.out_l
                 lsu.lsuIO.r:=committer.out_r
                 lsu.lsuIO.robs:=committer.out_robs
-                lsu_waiting=RegInit(0.U(2.W))
                 when (lsu_waiting===0.U){
-                    when (lsu.lsuIO.out_valid===true.B&&committer.io.out_store_valid===false.B){
-                        io.araddr:=lsu.lsuIO.out_addr
-                        io.arvalid:=true.B
+                    when (lsu.lsuIO.out_valid===true.B&&Dcache_waiting===0.U&&Dcache.io.out_wvalid===false.B&&committer_waiting===0.U&&committer.io.out_store_valid===false.B){//can load only when no store
+                        Dcache.io.load_valid:=true.B
+                        Dcache.io.addr := lsu.lsuIO.out_addr
+                        lsu_lst_addr := lsu.lsuIO.out_addr
                         lsu_waiting:=1.U
+                        lsu.lsuIO.addr_received:=true.B
                     }
                 }.elsewhen(lsu_waiting===1.U){
-                    when (io.arready===true.B){
-                        lsu_waiting:=2.U
+                    when (Dcache.io.out_hit===true.B){
+                        lsu_waiting:=0.U
                         io.rready:=true.B
-                        lsu.lsuIO.addr_received:=true.B
+                        lsu.lsuIO.addr_valid:=true.B
+                        lsu.lsuIO.addr_value:=Dcache.io.out_rdata
+                    }.otherwise{//fetcher is not using memory
+                        when (fetcher_next===0.U)
+                        {
+                            io.araddr:=lsu_lst_addr
+                            io.arvalid:=true.B
+                        }
+                        lsu_waiting:=2.U
+                    }
+                }.elsewhen(lsu_waiting===2.U&&fetcher_next===0.U){
+                    when (io.arready===true.B){
+                        io.rready:=true.B
+                        lsu_waiting:=3.U
                     }.otherwise{
-                        io.araddr:=lsu.lsuIO.out_addr
+                        io.araddr:=lsu_lst_addr
                         io.arvalid:=true.B
                     }
                 }.otherwise{
                     when (io.rvalid===true.B){
-                        lsu_waiting:=0.U(2.W)
+                        lsu_waiting:=0.U
                         lsu.lsuIO.addr_valid:=true.B
                         lsu.lsuIO.addr_value:=io.rdata
+                        Dcache.io.new_valid:=true.B
+                        Dcache.io.new_data:=io.rdata
                     }.otherwise{
                         io.rready:=true.B
                     }
@@ -315,39 +440,42 @@ class CPU extends Module{//priority: ready instruction< read data < write data
 
                 //committer
                 committer.io.store_received:=false.B
-                committer_waiting=RegInit(0.U(2.W))//0 initial state, 1 waiting for wready and awready, 2 waiting for bvalid
                 when (committer_waiting===0.U){
-                    when (committer.io.out_store_valid===true.B){//store
-                        io.awaddr:=committer.io.out_store_addr
-                        io.wdata:=committer.io.out_store_value
-                        io.wstrb:=committer.io.out_store_mask
-                        io.wvalid:=true.B
-                        io.awvalid:=true.B
+                    when (committer.io.out_store_valid===true.B&&Dcache_waiting===0.U&&Dcache.io.out_wvalid===false.B){//store
+                        Dcache.io.store_valid := true.B
+                        Dcache.io.addr := committer.io.out_store_addr
+                        Dcache.io.wdata := committer.io.out_store_value
+                        Dcache.io.wmask := committer.io.out_store_mask
                         committer_waiting:=1.U
                     }.elsewhen (committer.io.out_reg_valid===true.B)
                     {
-                        regs(committer.io.out_reg_addr).value := committer.io.out_reg_val
-                        when (regs(committer.io.out_reg_addr).prod.asUInt === commiter.io.out_reg_prod){
-                            regs(committer.io.out_reg_addr).prod := (-1).S
+                        val id=Wire(Uint(5.W))
+                        id:=committer.io.out_reg_valid
+                        regs(id).value := committer.io.out_reg_val
+                        when (regs(id).prod.asUInt === commiter.io.out_reg_prod&&issuer.io.out_prod_valid(id)===false.B){//not modified by issuer
+                            regs(id).prod := (-1).S
                         }
                     }
-                }.elsewhen(committer_waiting===1.U){
-                    when (io.wready:=true.B&&io.awready:=true.B){
-                        committer_waiting:=2.U
+                }.elsewhen (committer_waiting===1.U){
+                    when (Dcache.io.out_hit===true.B){
+                        committer_waiting:=0.U
+                        committer.io.store_received:=true.B
                     }.otherwise{
-                        io.awaddr:=committer.io.out_store_addr
-                        io.wdata:=committer.io.out_store_value
-                        io.wstrb:=committer.io.out_store_mask
-                        io.wvalid:=true.B
-                        io.awvalid:=true.B
+                        committer_waiting:=2.U
                     }
                 }.otherwise{
-                    when (io.bvalid:=true.B)
-                    {
-                        committer.io.store_received:=true.B
+                    when (Dcache_waiting===0.U&&Dcache.io.out_wvalid===false.B){
                         committer_waiting:=0.U
+                        committer.io.store_received:=true.B
                     }
                 }
+
+                //predictor update
+                predictor.io.uvalid := committer.io.out_predictor_valid
+                predictor.io.uaddr := committer.io.out_predictor_addr
+                predictor.io.ures := committer.io.out_predictor_res
+
+
 
         }
     }.otherwise{//halt

@@ -9,6 +9,7 @@ package cpu2026
 
 import CPU._
 import chisel3._
+import chisel3.experimental.{ExtModule, IntParam}
 
 /** Course interface. Replace the idle outputs with your CPU implementation. */
 class StudentTop extends Module with RequireSyncReset {

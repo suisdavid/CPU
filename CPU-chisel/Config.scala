@@ -19,4 +19,16 @@ object CPUConfig {
   val RSWidth: Int = 16
   val ALU_NUM: Int = 4
   val issuerBufferWidth: Int = 16
+
+  //for Predictor
+  val PBIT: Int = 8
+  val PSIZE: Int = (1<<PBIT)
+  val HISTORY_MASK: Int = (1<<PBIT)-1
+  val KBIT: Int = 4
+  val KSIZE: Int = (1<<(PBIT+KBIT))
+
+  //for Cache
+  val setSIZE: Int = 128
+  val setBIT: Int = 7
+  val lineNum: Int = 4 
 }

@@ -150,6 +150,8 @@ class Mult extends Module{
     val a  = Input(UInt(32.W))
     val b  = Input(UInt(32.W))
     val op = Input(Bool())//select lower 32 bits or higher 32 bits, 0 for low and 1 for high
+
+    val clear_valid = Input(Bool())
     val ready = Output(UInt(32.W))
     val c = Output(UInt(32.W))
     val received = Output(UInt(32.W))
@@ -167,6 +169,9 @@ class Mult extends Module{
     val adder3=Module(new Adder)
     val adder4=Module(new Adder)
 
+    val received = RegInit(0.U(32.W))
+    val ready1 = RegInit(0.U(32.W))
+    val ready2 = RegInit(0.U(32.W))
     adder1.io.a:=p00
     adder1.io.b:=Cat(p01(15,0),0.U(16.W))
     adder3.io.a:=p11
@@ -178,8 +183,19 @@ class Mult extends Module{
     adder4.io.b:=Cat(0.U(16.W),RegNext(p10(31,16)))
 
     io.c:=Mux(RegNext(RegNext(io.op)),adder2.io.sum,adder4.io.sum)
-    io.ready:=RegNext(RegNext(io.valid, init = 0.U),init = 0.U)
-    io.received:=RegNext(io.valid,init=0.U)
+    when (io.clear_valid)
+    {
+      received:=0.U
+      ready1:=0.U
+      ready2:=0.U
+    }.otherwise
+    {
+      received:=io.valid
+      io.received:=received
+      ready1:=io.valid
+      ready2:=ready1
+      io.ready:=ready2
+  }
 }
 
 
@@ -189,6 +205,9 @@ class Divider extends Module{//unsigned
     val a  = Input(UInt(32.W))
     val b  = Input(UInt(32.W))
     val op = Input(Bool())//select quotient or remainder, 1 for quotient and 0 for remainder
+
+    val clear_valid = Input(Bool())
+
     val ready = Output(UInt(32.W))//which alu
     val c = Output(UInt(32.W))
     val received = Output(UInt(32.W))
@@ -201,6 +220,8 @@ class Divider extends Module{//unsigned
     val ops= Reg(Vec(32,Bool()))
     val r= Wire(Vec(32,Uint(32.W)))
     val subs = Seq.fill(32)(Module(new Subtracter))
+    val received = RegInit(0.U(32.W))
+    received:=io.valid
     for (i<-0 until 32){
        if (i==0){
         r(i):=Cat(0.U(31.W),io.a(31-i))
@@ -231,9 +252,15 @@ class Divider extends Module{//unsigned
         Q(i):=Cat(Q(i-1)(30,0),Mux(subs(i).io.c(31),false.B,true.B))
        }
     }
+    when (clear_valid===true.B){
+        received:=0.U
+        for (i<-0 until 32){
+          rd(i):=0.U
+        }
+    }
     io.ready:=rd(31)
     io.c:=Mux(ops(31),Q(31),R(31))
-    io.received:=RegNext(io.valid,init=0.U)
+    io.received:=received
 }
 
 
@@ -388,6 +415,9 @@ class ALU(val id: Int) extends Executer {
   isMulDiv:=false.B
   val waiting=RegInit(false.B)
   val sgn = RegInit(false.B)//for mul and div
+  when (io.clear_valid===true.B){
+    waiting:=false.B
+  }.otherwise{
   when (in_process==true.B)
   {
       when (waiting===true.B)
@@ -577,6 +607,7 @@ class ALU(val id: Int) extends Executer {
         io.out_cdb.value:=res
     }
   }
+  }
 }
 
 class LSU extends Executer{
@@ -594,42 +625,51 @@ class LSU extends Executer{
   val res=Wire(UInt(32.W))
   val wanted=Reg(UInt(32.W))
   val waiting=RegInit(false.B)//0 already received, 1 wait for memory
-
+  val canOutput= Wire(Bool())
+  canOutput:=true.B
   lsuIO.out_valid:=false.B
+
+  when (io.clear_valid===true.B){
+    waiting:=false.B
+  }.otherwise{
   when (in_process===true.B){
-      when (waiting===true.B){
-        when (lsuIO.addr_received===true.B){
+      when (waiting===true.B)
+      {
+        when (lsuIO.addr_received===true.B)
+        {
           waiting:=false.B
-        }.otherwise{
+        }.otherwise
+        {
           io.out_valid:=true.B
           io.out_addr:=wanted
-        }
-      }.otherwise{
-        when (lsuIO.addr_valid===true.B){
-          io.out_cdb.id:=cur_rs.id
-          switch (cur_rs.type_)
-          {
-            is (OP_TYPE.OP_LB){
-              io.out_cdb.value:=Cat(Fill(24, lsuIO.addr_value(7)), lsuIO.addr_value(7,0))
-            }
-            is (OP_TYPE.OP_LBU){
-              rio.out_cdb.value:=lsuIO.addr_value(7,0)
-            }
-            is (OP_TYPE.OP_LH){
-              io.out_cdb.value:=Cat(Fill(16, lsuIO.addr_value(15)), lsuIO.addr_value(15,0))
-            }
-            is (OP_TYPE.OP_LHU){
-              io.out_cdb.value:=lsuIO.addr_value(15,0)
-            }
-            is (OP_TYPE.OP_LW){
-              io.out_cdb.value:=lsuIO.addr_value
-            }
-          }
-          io.out_cdb.dest:=cur_rs.dest
-          in_process:=false.B
+          canOutput:=false.B
         }
       }
-    }
+      when (canOutput===true.B&&lsuIO.addr_valid===true.B){
+        io.out_cdb.id:=cur_rs.id
+        switch (cur_rs.type_)
+        {
+          is (OP_TYPE.OP_LB){
+            io.out_cdb.value:=Cat(Fill(24, lsuIO.addr_value(7)), lsuIO.addr_value(7,0))
+          }
+          is (OP_TYPE.OP_LBU){
+            rio.out_cdb.value:=lsuIO.addr_value(7,0)
+          }
+          is (OP_TYPE.OP_LH){
+            io.out_cdb.value:=Cat(Fill(16, lsuIO.addr_value(15)), lsuIO.addr_value(15,0))
+          }
+          is (OP_TYPE.OP_LHU){
+            io.out_cdb.value:=lsuIO.addr_value(15,0)
+          }
+          is (OP_TYPE.OP_LW){
+            io.out_cdb.value:=lsuIO.addr_value
+          }
+        }
+        io.out_cdb.dest:=cur_rs.dest
+        in_process:=false.B
+      }
+  }
+    
   val len=Wire(UInt(32.W))
   val L=Wire(UInt(32.W))
   val R=Wire(UInt(32.W))
@@ -698,34 +738,38 @@ class LSU extends Executer{
       io.out_cdb.dest:=temp_rs.v1.asSInt+temp_rs.dest(11,0).asSInt
     }
   }
+  }
 }
 
 
 class BRU extends Executer{
   val res=Wire(Bool())
-  when (start_process===true.B){
-    switch (temp_rs.type_){
-      is (OP_TYPE.OP_BEQ){
-        res:=(temp_rs.v1===temp_rs.v2)^temp_rs.dest
+  when (io.clear_valid===false.B)
+  {
+    when (start_process===true.B){
+      switch (temp_rs.type_){
+        is (OP_TYPE.OP_BEQ){
+          res:=(temp_rs.v1===temp_rs.v2)^temp_rs.dest
+        }
+        is (OP_TYPE.OP_BGE){
+          res:=(temp_rs.v1.asSInt>=temp_rs.v2.asSInt)^temp_rs.dest
+        }
+        is (OP_TYPE.OP_BGEU){
+          res:=(temp_rs.v1>=temp_rs.v2)^temp_rs.dest
+        }
+        is (OP_TYPE.OP_BLT){
+          res:=(temp_rs.v1.asSInt<temp_rs.v2.asSInt)^temp_rs.dest
+        }
+        is (OP_TYPE.OP_BLTU){
+          res:=(temp_rs.v1<temp_rs.v2)^temp_rs.dest
+        }
+        is (OP_TYPE.OP_BNE){
+          res:=(temp_rs.v1=/=temp_rs.v2)^temp_rs.dest
+        }
       }
-      is (OP_TYPE.OP_BGE){
-        res:=(temp_rs.v1.asSInt>=temp_rs.v2.asSInt)^temp_rs.dest
-      }
-      is (OP_TYPE.OP_BGEU){
-        res:=(temp_rs.v1>=temp_rs.v2)^temp_rs.dest
-      }
-      is (OP_TYPE.OP_BLT){
-        res:=(temp_rs.v1.asSInt<temp_rs.v2.asSInt)^temp_rs.dest
-      }
-      is (OP_TYPE.OP_BLTU){
-        res:=(temp_rs.v1<temp_rs.v2)^temp_rs.dest
-      }
-      is (OP_TYPE.OP_BNE){
-        res:=(temp_rs.v1=/=temp_rs.v2)^temp_rs.dest
-      }
+      io.out_cdb.id:=temp_rs.id
+      io.out_cdb.dest:=(-2).S
+      io.out_cdb.value:=res
     }
-    io.out_cdb.id:=temp_rs.id
-    io.out_cdb.dest:=(-2).S
-    io.out_cdb.value:=res
   }
 }

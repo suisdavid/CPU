@@ -2,6 +2,7 @@ package cpu2026
 
 import chisel3._
 import chisel3.util.log2Ceil
+import chisel3.experimental.{ExtModule, IntParam}
 
 /** External course SRAM; the framework supplies its simulation and synthesis models.
   * See docs/sram.md for the single-port, one-cycle read and write-mask semantics.

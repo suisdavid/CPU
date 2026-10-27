@@ -44,6 +44,10 @@ class Committer extends Module{//needs to add branch predictor!
     val out_robs= Output(Vec(ROBWidth,new ROB))
 
     val out_halt=Output(Bool())
+
+    val out_predictor_valid = Output(Bool())
+    val out_predictor_addr = Output(UInt(32.W))
+    val out_predictor_res = Output(UInt(32.W))
   })
   val l = RegInit(0.U(4.W))
   val r = RegInit(0.U(4.W))
@@ -63,10 +67,14 @@ class Committer extends Module{//needs to add branch predictor!
   io.out_reg_valid:=false.B
   io.out_store_valid:=false.B
   io.out_halt:=false.B
+  io.out_predictor_valid:=false.B
   
+  val waiting=RegInit(false.B)
+
   when (io.clear_valid===true.B){//flush
     l:=0.U
     r:=0.U
+    waiting:=false.B
   }.otherwise{
     for (i<-0 until ALU_NUM+2)//receive CDBs
     {
@@ -92,7 +100,6 @@ class Committer extends Module{//needs to add branch predictor!
       }
     }
     r:=r+io.valid_num
-    val waiting=RegInit(false.B)
     when (waiting===false.B){
         when (l=/=r && robs(l).ready===true.B){//commit
             l:=l+1.U
@@ -124,6 +131,9 @@ class Committer extends Module{//needs to add branch predictor!
                     io.out_flushval:=rb.id
                     io.out_newaddr:=rb.dest.asUInt                 
                 }
+                io.out_predictor_valid := true.B
+                io.out_predictor_addr := ~(rb.type_.asUInt)
+                io.out_predictor_value :=  rb.value
             }
         }
     }.otherwise{
