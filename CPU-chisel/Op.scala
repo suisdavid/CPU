@@ -1,10 +1,3 @@
-//> using scala 2.13.12
-//> using jvm 17
-//> using dep org.chipsalliance::chisel:6.4.0
-//> using plugin org.chipsalliance:::chisel-plugin:6.4.0
-//> using dep edu.berkeley.cs::chiseltest:6.0.0
-//> using options -unchecked -deprecation -feature -language:reflectiveCalls
-//> using options -Xfatal-warnings -Ywarn-unused
 
 package Op
 import chisel3._
@@ -57,10 +50,22 @@ object OP_TYPE extends ChiselEnum{
     OP_REMU = Value
 }
 
-class Op extends Bundle{
-    val type_ = OP_TYPE()
-    val rd=UInt(32.W)
-    val r1=UInt(32.W)
-    val r2=UInt(32.W)
-    val id=UInt(32.W)
+class Op extends Bundle {
+  val type_ = OP_TYPE()
+  val rd = UInt(5.W)
+  val r1 = UInt(5.W)
+  val r2 = UInt(5.W)
+  val imm = UInt(32.W)
+  val pc = UInt(32.W)
+  val instruction = UInt(32.W)
+  val uses1 = Bool()
+  val uses2 = Bool()
+  val writesRd = Bool()
+  val load = Bool()
+  val store = Bool()
+  val branch = Bool()
+  val jump = Bool()
+  val mul = Bool()
+  val div = Bool()
+  val illegal = Bool()
 }

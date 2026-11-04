@@ -1,17 +1,9 @@
-//> using scala 2.13.12
-//> using jvm 17
-//> using dep org.chipsalliance::chisel:6.4.0
-//> using plugin org.chipsalliance:::chisel-plugin:6.4.0
-//> using dep edu.berkeley.cs::chiseltest:6.0.0
-//> using options -unchecked -deprecation -feature -language:reflectiveCalls
-//> using options -Xfatal-warnings -Ywarn-unused
 package cpu2026
 
 import CPU._
 import chisel3._
-import chisel3.experimental.{ExtModule, IntParam}
 
-/** Course interface. Replace the idle outputs with your CPU implementation. */
+/** Exact course AXI4-Lite top-level port names. */
 class StudentTop extends Module with RequireSyncReset {
   override def desiredName = "student_top"
 
@@ -38,7 +30,6 @@ class StudentTop extends Module with RequireSyncReset {
   val bvalid  = IO(Input(Bool()))
   val bready  = IO(Output(Bool()))
 
-  // This skeleton builds but does not execute instructions or pass CPU tests.
   val cpu=Module(new CPU)
   araddr  := cpu.io.araddr
   arvalid := cpu.io.arvalid

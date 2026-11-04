@@ -1,34 +1,22 @@
-//> using scala 2.13.12
-//> using jvm 17
-//> using dep org.chipsalliance::chisel:6.4.0
-//> using plugin org.chipsalliance:::chisel-plugin:6.4.0
-//> using dep edu.berkeley.cs::chiseltest:6.0.0
-//> using options -unchecked -deprecation -feature -language:reflectiveCalls
-//> using options -Xfatal-warnings -Ywarn-unused
-
 package Config
-import chisel3._
-import chiseltest._
-import chiseltest.RawTester.test
-import chisel3.util._
-import _root_.circt.stage.ChiselStage
+import chisel3.util.log2Ceil
 
 object CPUConfig {
-  val issueWidth: Int = 4
-  val ROBWidth: Int = 16
-  val RSWidth: Int = 16
-  val ALU_NUM: Int = 4
-  val issuerBufferWidth: Int = 16
-
-  //for Predictor
-  val PBIT: Int = 8
-  val PSIZE: Int = (1<<PBIT)
-  val HISTORY_MASK: Int = (1<<PBIT)-1
-  val KBIT: Int = 4
-  val KSIZE: Int = (1<<(PBIT+KBIT))
-
-  //for Cache
-  val setSIZE: Int = 128
-  val setBIT: Int = 7
-  val lineNum: Int = 4 
+  private def param(name: String, default: Int): Int =
+    sys.props.get("cpu." + name).map(_.toInt).getOrElse(default)
+  val issueWidth = param("issueWidth", 4)
+  val ROBWidth = param("robDepth", 16)
+  val RSWidth = param("rsDepth", 16)
+  val ALU_NUM = param("aluCount", 4)
+  val setSIZE = param("cacheSets", 128)
+  val lineNum = param("cacheWays", 4)
+  val PBIT = 8
+  require(issueWidth >= 1 && issueWidth <= 8 && (issueWidth & (issueWidth - 1)) == 0)
+  require(ROBWidth >= issueWidth && ROBWidth >= 2 && (ROBWidth & (ROBWidth - 1)) == 0)
+  require(RSWidth >= issueWidth && ALU_NUM >= 1 && ALU_NUM <= RSWidth)
+  require(setSIZE >= 2 && (setSIZE & (setSIZE - 1)) == 0 && lineNum >= 1)
+  val robBits = log2Ceil(ROBWidth)
+  val setBIT = log2Ceil(setSIZE)
+  val bankBits = log2Ceil(issueWidth)
+  val cdbCount = ALU_NUM + 3 // integer lanes, shared multiplier, divider, memory
 }

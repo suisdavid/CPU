@@ -17,3 +17,9 @@ __pycache__/
 
 # Downloaded course hardware tools.
 *.AppImage
+
+# Chisel build products (generated submission RTL is deliberately tracked).
+.scala-build/
+.bsp/
+test_run_dir/
+/build-*/

@@ -1,224 +1,113 @@
-//> using scala 2.13.12
-//> using jvm 17
-//> using dep org.chipsalliance::chisel:6.4.0
-//> using plugin org.chipsalliance:::chisel-plugin:6.4.0
-//> using dep edu.berkeley.cs::chiseltest:6.0.0
-//> using options -unchecked -deprecation -feature -language:reflectiveCalls
-//> using options -Xfatal-warnings -Ywarn-unused
-
 package Decoder
-import Op._
-import Config._
 import chisel3._
-import chiseltest._
-import chiseltest.RawTester.test
 import chisel3.util._
-import _root_.circt.stage.ChiselStage
-import Config.CPUConfig.issueWidth
+import Config.CPUConfig._
+import Op._
 
-
-class Decoder extends Module{
-    val io=IO(new Bundle{
-        val valid_num = Input(UInt(32.W))
-        val id = Input(Vec(issueWidth, SInt(32.W)))
-        val opcode = Input(Vec(issueWidth, UInt(32.W)))
-        val out_num = Output(UInt(32.W))
-        val out_id = Input(Vec(issueWidth, SInt(32.W)))
-        val out_op = Input(Vec(issueWidth, new Op))
-    })
-    //init
-    val valid_num_reg=RegInit(0.U(32.W))
-    val opcode_reg=Reg(Vec(issuewidth,UInt(32.W)))
-    //decode
-    valid_num_reg:=io.valid_num
-    io.out_num:=valid_num_reg
-    for (i<-0 until issueWidth){
-        opcode_reg(i):=io.opcode(i)
-        io.out_id(i):=RegNext(io.id(i))
-        io.out_op(i).id:=0.U(32.W)
-        switch (opcode_reg(i)(6,0)){
-            is("0b0110011".U){//R
-                io.out_op(i).rd:=opcode_reg(i)(11,7)
-                io.out_op(i).r1:=opcode_reg(i)(19,15)
-                io.out_op(i).r2:=opcode_reg(i)(24,20)
-                switch(opcode_reg(i)(25,25))
-                {
-                    is("0b0".U){
-                        switch(opcode_reg(i)(14,12)){
-                            is("0b000".U){
-                                io.out_op(i).type_ := Mux(opcode_reg(i)(30),OP_TYPE.OP_SUB,OP_TYPE.OP_ADD)
-                            }
-                            is("0b111".U){
-                                io.out_op(i).type_ := OP_TYPE.OP_AND
-                            }
-                            is ("0b110".U){
-                                io.out_op(i).type_ := OP_TYPE.OP_OR
-                            }
-                            is ("0b100".U){
-                                io.out_op(i).type_ := OP_TYPE.OP_XOR
-                            }
-                            is ("0b001".U){
-                                io.out_op(i).type_ := OP_TYPE.OP_SLL
-                            }
-                            is ("0b101".U){
-                                io.out_op(i).type_ := Mux(opcode_reg(i)(30),OP_TYPE.OP_SRA,OP_TYPE.OP_SRL)
-                            }
-                            is ("0b010".U){
-                                io.out_op(i).type_ := OP_TYPE.OP_SLT
-                            }
-                            is ("0b011".U){
-                                io.out_op(i).type_ := OP_TYPE.OP_SLTU
-                            }
-                        }
-                    }
-                    is("0b1".U){//M extension
-                        switch(opcode_reg(i)(14,12)){
-                            is ("0b000".U){//low 32 bits
-                                io.out_op(i).type_ := OP_TYPE.OP_MUL
-                            }
-                            is ("0b001".U){//signed*signed, high 32 bits
-                                io.out_op(i).type_ := OP_TYPE.OP_MULH
-                            }
-                            is ("0b010".U){//signed*unsigned, high 32 bits
-                                io.out_op(i).type_ := OP_TYPE.OP_MULHSU
-                            }
-                            is ("0b011".U){//unsigned*unsigned, high 32 bits
-                                io.out_op(i).type_ := OP_TYPE.OP_MULHU
-                            }
-                            is ("0b100".U){//signed a/b, round to 0
-                                io.out_op(i).type_ := OP_TYPE.OP_DIV
-                            }
-                            is ("0b101".U){
-                                io.out_op(i).type_ := OP_TYPE.OP_DIVU
-                            }
-                            is ("0b110".U){//same sign with a
-                                io.out_op(i).type_ := OP_TYPE.OP_REM
-                            }
-                            is ("0b111".U){
-                                io.out_op(i).type_ := OP_TYPE.OP_REMU
-                            }
-                        }
-                    }
-                }
-            }
-            is("0b0010011".U){//I(*)
-                io.out_op(i).rd:=opcode_reg(i)(11,7)
-                io.out_op(i).r1:=opcode_reg(i)(19,15)
-                io.out_op(i).r2:=opcode_reg(i)(24,20)
-                switch(opcode_reg(i)(14,12)){
-                    is ("0b000".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_ADDI
-                    }
-                    is ("0b111".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_ANDI
-                    }
-                    is ("0b110".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_ORI
-                    }
-                    is ("0b100".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_XORI
-                    }
-                    is ("0b001".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_SLLI
-                    }
-                    is ("0b101".U){
-                        io.out_op(i).type_ := Mux(opcode_reg(i)(30),OP_TYPE.OP_SRAI,OP_TYPE.OP_SRLI)
-                    }
-                    is ("0b010".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_SLTI
-                    }
-                    is ("0b011".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_SLTIU
-                    }
-                }
-            }
-            is("0b0000011".U){//I memory
-                io.out_op(i).rd:=opcode_reg(i)(11,7)
-                io.out_op(i).r1:=opcode_reg(i)(19,15)
-                io.out_op(i).r2:=opcode_reg(i)(24,20)
-                switch(opcode_reg(i)(14,12)){
-                    is ("0b000".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_LB
-                    }
-                    is ("0b100".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_LBU
-                    }
-                    is ("0b001".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_LH
-                    }
-                    is ("0b101".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_LHU
-                    }
-                    is ("0b010".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_LW
-                    }
-                }
-            }
-            is("0b0100011".U){//S
-                io.out_op(i).rd:=Cat(opcode_reg(i)(31,25),opcode_reg(i)(11,7))
-                io.out_op(i).r1:=opcode_reg(i)(19,15)
-                io.out_op(i).r2:=opcode_reg(i)(24,20)
-                switch(opcode_reg(i)(14,12)){
-                    is ("0b000".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_SB
-                    }
-                    is ("0b001".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_SH
-                    }
-                    is ("0b010".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_SW
-                    }
-                }
-            }
-            is("0b1100011".U){//B
-                io.out_op(i).rd:=Cat(opcode_reg(i)(31,31),opcode_reg(i)(7,7),opcode_reg(i)(30,25),opcode_reg(i)(11,8),false.B)
-                io.out_op(i).r1:=opcode_reg(i)(19,15)
-                io.out_op(i).r2:=opcode_reg(i)(24,20)
-                switch(opcode_reg(i)(14,12)){
-                    is ("0b000".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_BEQ
-                    }
-                    is ("0b101".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_BGE
-                    }
-                    is ("0b111".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_BGEU
-                    }
-                    is ("0b100".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_BLT
-                    }
-                    is ("0b110".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_BLTU
-                    }
-                    is ("0b001".U){
-                        io.out_op(i).type_ := OP_TYPE.OP_BNE
-                    }
-                }
-            }
-            is("0b1101111".U){//JAL
-                io.out_op(i).rd:=opcode_reg(i)(11,7)
-                io.out_op(i).r1:=Cat(opcode_reg(i)(31,31),opcode_reg(i)(19,12),opcode_reg(i)(20,20),opcode_reg(i)(30,21))
-                io.out_op(i).r2:=0.U(32.W)
-                io.out_op(i).type_ := OP_TYPE.OP_JAL
-            }
-            is ("0b1100111".U){//JALR
-                io.out_op(i).rd:=opcode_reg(i)(11,7)
-                io.out_op(i).r1:=opcode_reg(i)(19,15)
-                io.out_op(i).r2:=opcode_reg(i)(24,20)
-                io.out_op(i).type_ := OP_TYPE.OP_JALR
-            }
-            is("0b0010111".U){//AUIPC
-                io.out_op(i).rd:=opcode_reg(i)(11,7)
-                io.out_op(i).r1:=Cat(opcode_reg(i)(31,12),0.U(12.W))
-                io.out_op(i).r2:=0.U(32.W)
-                io.out_op(i).type_ := OP_TYPE.OP_AUIPC
-            }
-            is("0b0110111".U){//LUI
-                io.out_op(i).rd:=opcode_reg(i)(11,7)
-                io.out_op(i).r1:=Cat(opcode_reg(i)(31,12),0.U(12.W))
-                io.out_op(i).r2:=0.U(32.W)
-                io.out_op(i).type_ := OP_TYPE.OP_LUI
-            }
+/** Combinational decode: frontend owns the valid/ready buffer. */
+class Decoder extends Module {
+  val io = IO(new Bundle {
+    val pc = Input(Vec(issueWidth, UInt(32.W)))
+    val instruction = Input(Vec(issueWidth, UInt(32.W)))
+    val out = Output(Vec(issueWidth, new Op))
+  })
+  for (i <- 0 until issueWidth) {
+    val x = io.instruction(i)
+    val o = io.out(i)
+    o := 0.U.asTypeOf(new Op)
+    o.type_ := OP_TYPE.OP_NONE
+    o.illegal := true.B
+    o.pc := io.pc(i)
+    o.instruction := x
+    o.rd := x(11, 7)
+    o.r1 := x(19, 15)
+    o.r2 := x(24, 20)
+    val immI = Cat(Fill(20, x(31)), x(31,20))
+    val immS = Cat(Fill(20, x(31)), x(31,25), x(11,7))
+    val immB = Cat(Fill(19, x(31)), x(31), x(7), x(30,25), x(11,8), 0.U(1.W))
+    val immJ = Cat(Fill(11, x(31)), x(31), x(19,12), x(20), x(30,21), 0.U(1.W))
+    def legal(t: OP_TYPE.Type): Unit = { o.type_ := t; o.illegal := false.B }
+    switch(x(6,0)) {
+      is("b0110011".U) {
+        o.uses1 := true.B; o.uses2 := true.B; o.writesRd := true.B
+        when(x(31,25) === 1.U) {
+          o.mul := !x(14); o.div := x(14)
+          switch(x(14,12)) {
+            is(0.U) { legal(OP_TYPE.OP_MUL) }
+            is(1.U) { legal(OP_TYPE.OP_MULH) }
+            is(2.U) { legal(OP_TYPE.OP_MULHSU) }
+            is(3.U) { legal(OP_TYPE.OP_MULHU) }
+            is(4.U) { legal(OP_TYPE.OP_DIV) }
+            is(5.U) { legal(OP_TYPE.OP_DIVU) }
+            is(6.U) { legal(OP_TYPE.OP_REM) }
+            is(7.U) { legal(OP_TYPE.OP_REMU) }
+          }
+        }.elsewhen(x(31,25) === 0.U) {
+          switch(x(14,12)) {
+            is(0.U) { legal(OP_TYPE.OP_ADD) }
+            is(1.U) { legal(OP_TYPE.OP_SLL) }
+            is(2.U) { legal(OP_TYPE.OP_SLT) }
+            is(3.U) { legal(OP_TYPE.OP_SLTU) }
+            is(4.U) { legal(OP_TYPE.OP_XOR) }
+            is(5.U) { legal(OP_TYPE.OP_SRL) }
+            is(6.U) { legal(OP_TYPE.OP_OR) }
+            is(7.U) { legal(OP_TYPE.OP_AND) }
+          }
+        }.elsewhen(x(31,25) === 32.U) {
+          switch(x(14,12)) {
+            is(0.U) { legal(OP_TYPE.OP_SUB) }
+            is(5.U) { legal(OP_TYPE.OP_SRA) }
+          }
         }
+      }
+      is("b0010011".U) {
+        o.uses1 := true.B; o.writesRd := true.B; o.imm := immI
+        switch(x(14,12)) {
+          is(0.U) { legal(OP_TYPE.OP_ADDI) }
+          is(2.U) { legal(OP_TYPE.OP_SLTI) }
+          is(3.U) { legal(OP_TYPE.OP_SLTIU) }
+          is(4.U) { legal(OP_TYPE.OP_XORI) }
+          is(6.U) { legal(OP_TYPE.OP_ORI) }
+          is(7.U) { legal(OP_TYPE.OP_ANDI) }
+          is(1.U) { when(x(31,25) === 0.U) { legal(OP_TYPE.OP_SLLI) } }
+          is(5.U) {
+            when(x(31,25) === 0.U) { legal(OP_TYPE.OP_SRLI) }
+            when(x(31,25) === 32.U) { legal(OP_TYPE.OP_SRAI) }
+          }
+        }
+      }
+      is("b0000011".U) {
+        o.uses1 := true.B; o.writesRd := true.B; o.load := true.B; o.imm := immI
+        switch(x(14,12)) {
+          is(0.U) { legal(OP_TYPE.OP_LB) }; is(1.U) { legal(OP_TYPE.OP_LH) }
+          is(2.U) { legal(OP_TYPE.OP_LW) }; is(4.U) { legal(OP_TYPE.OP_LBU) }
+          is(5.U) { legal(OP_TYPE.OP_LHU) }
+        }
+      }
+      is("b0100011".U) {
+        o.uses1 := true.B; o.uses2 := true.B; o.store := true.B; o.imm := immS
+        switch(x(14,12)) {
+          is(0.U) { legal(OP_TYPE.OP_SB) }; is(1.U) { legal(OP_TYPE.OP_SH) }
+          is(2.U) { legal(OP_TYPE.OP_SW) }
+        }
+      }
+      is("b1100011".U) {
+        o.uses1 := true.B; o.uses2 := true.B; o.branch := true.B; o.imm := immB
+        switch(x(14,12)) {
+          is(0.U) { legal(OP_TYPE.OP_BEQ) }; is(1.U) { legal(OP_TYPE.OP_BNE) }
+          is(4.U) { legal(OP_TYPE.OP_BLT) }; is(5.U) { legal(OP_TYPE.OP_BGE) }
+          is(6.U) { legal(OP_TYPE.OP_BLTU) }; is(7.U) { legal(OP_TYPE.OP_BGEU) }
+        }
+      }
+      is("b1101111".U) { legal(OP_TYPE.OP_JAL); o.jump := true.B; o.writesRd := true.B; o.imm := immJ }
+      is("b1100111".U) {
+        when(x(14,12) === 0.U) { legal(OP_TYPE.OP_JALR) }
+        o.jump := true.B; o.writesRd := true.B; o.uses1 := true.B; o.imm := immI
+      }
+      is("b0110111".U) { legal(OP_TYPE.OP_LUI); o.writesRd := true.B; o.imm := Cat(x(31,12),0.U(12.W)) }
+      is("b0010111".U) { legal(OP_TYPE.OP_AUIPC); o.writesRd := true.B; o.imm := Cat(x(31,12),0.U(12.W)) }
+      // Barriers are harmless here: memory operations retire serially; no self-modifying code support.
+      is("b0001111".U) { when(x(14,12) === 0.U) { legal(OP_TYPE.OP_NONE) } }
     }
+  }
 }

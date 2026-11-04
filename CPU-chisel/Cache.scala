@@ -1,235 +1,85 @@
-//> using scala 2.13.12
-//> using jvm 17
-//> using dep org.chipsalliance::chisel:6.4.0
-//> using plugin org.chipsalliance:::chisel-plugin:6.4.0
-//> using dep edu.berkeley.cs::chiseltest:6.0.0
-//> using options -unchecked -deprecation -feature -language:reflectiveCalls
-//> using options -Xfatal-warnings -Ywarn-unused
-
 package Cache
-import cpu2026._
-import Config._
-
 import chisel3._
-import chiseltest._
-import chiseltest.RawTester.test
 import chisel3.util._
-import _root_.circt.stage.ChiselStage
-import coursier.internal.InMemoryCache
-import chisel3.experimental.{ExtModule, IntParam}
-import Config.CPUConfig.setBIT
+import Config.CPUConfig._
+import cpu2026.SRAM
 
-class Cache(val offsetBIT: Int) extends Module{//issueWidth Icache, 1 Dcache
-//Icache offset=4bit, Dache offset=2bit, tagBIT=32-setBIT-offsetBIT
-    val io=IO(new Bundle{
-        val load_valid = Input(Bool())//load
-        val need_load = Input(Bool())//if cache miss when loading, whether need to wait for the new value from the memory
-        val store_valid = Input(Bool())//store
-        val addr  = Input(UInt(32.W))
-        val wdata = Input(UInt(32.W))
-        val wmask = Input(UInt(4.W))
+class MemoryRequest extends Bundle {
+  val addr = UInt(32.W)
+  val write = Bool()
+  val data = UInt(32.W)
+  val mask = UInt(4.W)
+}
+class MemoryPort extends Bundle {
+  val req = Decoupled(new MemoryRequest)
+  val resp = Flipped(Decoupled(UInt(32.W)))
+}
 
-        val new_valid = Input(Bool())
-        val new_data = Input(UInt(32.W))//the data of the new wanted addr
-        val clear_status = Input(Bool()) //no longer needs new data
-
-        val store_received = Input(Bool())
-
-        val out_hit = Output(Bool())//whether cache hit or not
-        val out_rdata = Output(UInt(32.W))
-        
-        val out_wvalid = Output(Bool())
-        val out_waddr = Output(UInt(32.W))//the discarded addr
-        val out_wdata = Output(UInt(32.W))//the discarded data
-
-    })
-    io.out_wvalid := false.B
-    val n = setSIZE * lineNum
-    val valid = RegInit(VecInit(Seq.fill(n)(false.B)))
-    val dirty = RegInit(VecInit(Seq.fill(n)(false.B)))
-    val age = RegInit(VecInit(Seq.fill(n)(0.U(2.W))))//age=0,1,2,3
-
-    val needTag = Reg(UInt(tagBIT.W))
-    val lstLoad = RegInit(false.B)
-    val lstStore = RegInit(false.B)
-    val lstData = RegInit(0.U(4.W))
-    val lstMask = RegInit(0.U(4.W))
-    val lstIdx = Reg(UInt(setBIT.W))
-    val waiting = RegInit(0.U(2.W))//0: initial state, 1 waiting for new val loaded from memory, 2 waiting for the discarded dirty value to be store into memory
-    val tags = Reg(Vec(lineNum,UInt(tagBIT.W)))
-    val datas = Reg(Vec(lineNum,UInt(32.W)))
-
-    val pre_waddr = Reg(UInt(32.W))
-    val pre_wdata = Reg(UInt(32.W))
-
-    val tagBIT=32-setBIT-offsetBIT
-    val tagRams = Seq.fill(lineNum)(Module(new SRAM(setSIZE, tagBIT, tagBIT)))
-    val dataRams = Seq.fill(lineNum)(Module(new SRAM(setSIZE, 32, 8)))
-    for (i<-0 until lineNum){
-        tagRams(i).en:=false.B
-        dataRams(i).en:=false.B
+/** One word per line, synchronous SRAM data. Write-through/no-write-allocate keeps MMIO and retirement precise.
+  * offsetBits includes the bank bits for I-cache; D-cache uses offsetBits=2.
+  */
+class Cache(val offsetBits: Int) extends Module {
+  val io = IO(new Bundle {
+    val cpu = Flipped(new MemoryPort)
+    val memory = new MemoryPort
+  })
+  val tagBits = 32 - setBIT - offsetBits
+  val waysBits = math.max(1, log2Ceil(lineNum))
+  val valid = RegInit(VecInit(Seq.fill(setSIZE)(VecInit(Seq.fill(lineNum)(false.B)))))
+  val tags = Reg(Vec(setSIZE, Vec(lineNum, UInt(tagBits.W))))
+  val victim = RegInit(VecInit(Seq.fill(setSIZE)(0.U(waysBits.W))))
+  val data = Seq.fill(lineNum)(Module(new SRAM(setSIZE, 32, 8)))
+  val idle :: lookup :: send :: waitResponse :: reply :: Nil = Enum(5)
+  val state = RegInit(idle)
+  val request = Reg(new MemoryRequest)
+  val response = Reg(UInt(32.W))
+  val chosen = Reg(UInt(waysBits.W))
+  val writeHit = Reg(Bool())
+  val index = request.addr(offsetBits+setBIT-1, offsetBits)
+  val tag = request.addr(31, offsetBits+setBIT)
+  val cacheable = request.addr(31,28) === 0.U
+  val hits = VecInit((0 until lineNum).map(w => valid(index)(w) && tags(index)(w) === tag && cacheable))
+  val invalid = VecInit((0 until lineNum).map(w => !valid(index)(w)))
+  val hitWay = if(lineNum == 1) 0.U else PriorityEncoder(hits)
+  val freeWay = if(lineNum == 1) 0.U else PriorityEncoder(invalid)
+  io.cpu.req.ready := state === idle
+  io.cpu.resp.valid := state === reply
+  io.cpu.resp.bits := response
+  io.memory.req.valid := state === send
+  io.memory.req.bits := request
+  io.memory.resp.ready := state === waitResponse
+  for(w <- 0 until lineNum) {
+    data(w).clk := clock
+    data(w).en := false.B; data(w).we := false.B
+    data(w).addr := index; data(w).wmask := 15.U; data(w).wdata := 0.U
+    when(io.cpu.req.fire) {
+      data(w).en := true.B
+      data(w).addr := io.cpu.req.bits.addr(offsetBits+setBIT-1, offsetBits)
     }
-    val tag = Wire(UInt(tagBIT.W))
-    val set_idx = Wire(UInt(setBIT.W))
-    val missed = Wire(Bool())
-    val flag=Wire(UInt(3.W))
-    val write_data = Wire(Bool())
-    val data = Wire(UInt(32.W))
-    val isdirty = Wire(Bool())
-
-    write_data:=false.B
-    missed:=false.B
-    set_idx := io.raddr(setBIT+offsetBIT-1,offsetBIT)
-    tag := io.raddr(31,setBIT+offsetBIT)
-
-    when (waiting===0.U||(waiting===1.U&&io.clear_status===true.B))
-    {
-        waiting:=0.U
-        needTag := tag
-        lstLoad := io.load_valid
-        lstStore := io.store_valid
-        lstData := io.wdata
-        lstMask := io.wmask
-        lstIdx := set_idx
-        when ((lstLoad|lstStore)===true.B)
-        {
-            flag:=0.U//0 for invalid
-            missed:=true.B
-            val threshold_age = Wire(UInt(2.U))
-            for (i<-0 until lineNum){
-                when (tagRams(i).rdata === needTag){//cache hit, need to update age
-                    io.out_hit:=true.B
-                    flag:=(i+1).U
-                    missed:=false.B
-                    io.out_rdata:=dataRams(i).rdata
-                    threshold_age:=age((i*SETSIZE).U+lstIdx)
-                    age((i*SETSIZE).U+lstIdx):=0.U
-                }
-                tags(i):=tagRams(i).rdata
-                datas(i):=dataRams(i).rdata
-            }
-            when (missed===false.B){//update age
-                for (i<-0 until lineNum)
-                {
-                    when (age((i*SETSIZE).U+lstIdx)<threshold_age)
-                    {
-                       age((i*SETSIZE).U+lstIdx):=age((i*SETSIZE).U+lstIdx)+1.U
-                    }
-                }
-            }
+  }
+  when(io.cpu.req.fire) { request := io.cpu.req.bits; state := lookup }
+  when(state === lookup) {
+    chosen := Mux(hits.asUInt.orR, hitWay, Mux(invalid.asUInt.orR, freeWay, victim(index)))
+    writeHit := hits.asUInt.orR
+    when(!request.write && hits.asUInt.orR) {
+      response := Mux1H(hits, data.map(_.rdata)); state := reply
+    }.otherwise { state := send }
+  }
+  when(io.memory.req.fire) { state := waitResponse }
+  when(io.memory.resp.fire) {
+    response := io.memory.resp.bits
+    state := reply
+    when(cacheable && (!request.write || writeHit)) {
+      for(w <- 0 until lineNum) {
+        when(chosen === w.U) {
+          data(w).en := true.B; data(w).we := true.B
+          data(w).wdata := Mux(request.write, request.data, io.memory.resp.bits)
+          data(w).wmask := Mux(request.write, request.mask, 15.U)
+          tags(index)(w) := tag; valid(index)(w) := true.B
         }
-        when (missed===false.B)//hit
-        {
-            when (lstStore===true.B)//write
-            {
-                for (i<-0 until lineNum)
-                {
-                    when ((i+1).U===flag)
-                    {
-                        dataRems(i).clk:=clock
-                        dataRams(i).en:=true.B
-                        dataRams(i).we:=true.B//write
-                        dataRams(i).addr:=lstIdx
-                        dataRams(i).wdata:=lstData
-                        dataRams(i).wmask:=lstMask
-                        dirty((i*setSIZE).U+lstIdx):=true.B
-                    }
-                }
-            }.elsewhen ((io.load_valid|io.store_valid)===true.B)
-            {
-                for (i<-0 until lineNum){
-                    tagRams(i).clk:=clock
-                    tagRams(i).en:=true.B
-                    tagRams(i).we:=false.B
-                    tagRams(i).addr:=set_idx
-                    dataRams(i).clk:=clock
-                    dataRams(i).en:=true.B
-                    dataRams(i).we:=false.B
-                    dataRams(i).addr:=set_idx
-                }
-            }
-        }.otherwise
-        {
-            when (lstStore===true.B)
-            {
-                write_data:=true.B
-                data:=lstData
-                lstLoad:=false.B
-                lstStore:=false.B
-                isdirty:=true.B //dirty val
-            }.otherwise
-            {
-                waiting:=1.U
-            }
-        }
-    }.elsewhen (waiting===1.U){
-        when (io.new_valid===true.B){//cache not hit when loading, wait for new val
-            write_data:=true.B
-            data:=io.new_data
-            waiting:=0.U
-            lstLoad:=false.B
-            lstStore:=false.B
-            isdirty:=false.B//new val loaded from memory, not dirty
-        }
-    }.otherwise{
-        when (io.store_received===true.B){
-            waiting:=0.U
-        }.otherwise{
-            io.out_wvalid:=true.B
-            io.out_waddr:=pre_waddr
-            io.out_wdata:=pre_wdata
-        }
+      }
+      when(!request.write) { victim(index) := Mux(chosen === (lineNum-1).U, 0.U, chosen+1.U) }
     }
-    when (write_data===true.B)
-    {
-        val chosen = Wire(UInt(2.W))
-        for (i<-(lineNum-1) to 0 by -1){
-            when (valid((i*SETSIZE).U+lstIdx)===false.B){
-                chosen:=i.U
-            }.elsewhen (age((i*SETSIZE).U+lstIdx)===(lineNum-1).U){//maxage,need to be replaced
-                chosen:=i.U
-                when (dirty((i*SETSIZE).U+lstIdx)===true.B){
-                    io.out_wvalid:=true.B
-                    when (missed===true.B)//missed in the current cycle
-                    {
-                        io.out_waddr:=(Cat(tagRams(i).rdata,lstIdx)<<offsetBIT.U)
-                        pre_waddr:=(Cat(tagRams(i).rdata,lstIdx)<<offsetBIT.U)
-                        io.out_wdata:=dataRams(i).rdata
-                        pre_wdata:=dataRams(i).rdata
-                    }.otherwise{
-                        io.out_waddr:=(Cat(tags(i).rdata,lstIdx)<<offsetBIT.U)
-                        pre_waddr:=(Cat(tags(i).rdata,lstIdx)<<offsetBIT.U)
-                        io.out_wdata:=datas(i).rdata
-                        pre_wdata:=datas(i).rdata
-                    }
-                    waiting:=2.U
-                }
-            }
-        }
-        for (i<-0 until lineNum)//write new val
-        {
-            when (i.U===chosen)
-            {
-                tagRams(i).clk:=clock
-                tagRams(i).en:=true.B
-                tagRams(i).we:=true.B
-                tagRams(i).addr:=lstIdx
-                tagRams(i).wdata:=needTag
-                tagRams(i).wmask:=1.U
-
-                dataRems(i).clk:=clock
-                dataRams(i).en:=true.B
-                dataRams(i).we:=true.B
-                dataRams(i).addr:=lstIdx
-                dataRams(i).wdata:=data
-                dataRams(i).wmask:=lstMask
-
-                valid((i*setSIZE).U+lstIdx):=true.B
-                dirty((i*setSIZE).U+lstIdx):=isdirty
-                age((i*setSIZE).U+lstIdx):=0.U
-            }.otherwise{
-                age((i*setSIZE).U+lstIdx):=age((i*setSIZE).U+lstIdx)+1.U
-            }
-        }
-    }
+  }
+  when(io.cpu.resp.fire) { state := idle }
 }

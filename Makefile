@@ -89,3 +89,23 @@ synth:
 clean:
 	rm -rf -- "$(BUILD)" "$(SYNTH_OUT)"
 	rm -f -- code
+
+# Chisel authoring commands. OJ's default `make` still builds the committed RTL
+# without requiring Java, Scala CLI, Maven access, or firtool on the judge.
+SCALA_CLI ?= scala-cli
+.PHONY: rtl chisel-check regress stress-build stress-test
+rtl:
+	$(SCALA_CLI) run CPU-chisel --server=false -M cpu2026.Generate
+
+chisel-check:
+	$(SCALA_CLI) compile CPU-chisel --server=false
+	$(SCALA_CLI) run CPU-chisel --server=false -M cpu2026.ModuleTests
+
+regress: build
+	$(PYTHON) tests/regression.py --sim $(BUILD)/sim
+
+stress-build:
+	$(PYTHON) tests/build_stress.py --filelist "$(FILELIST)" --jobs $(JOBS) $(if $(VERILATOR),--verilator "$(VERILATOR)",)
+
+stress-test: stress-build
+	$(PYTHON) tests/regression.py --sim build-stress/sim --stress
