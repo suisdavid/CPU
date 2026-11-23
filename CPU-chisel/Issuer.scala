@@ -84,18 +84,18 @@ class Issuer extends Module{
   when (io.out_space < io.valid_num){//buffer full
    for(i<-0 until issueWidth){
     when (i.U<io.out_space){
-       op_buffer((r+i.U)(3,0)):=io.cur_op(i)
-       id_buffer((r+i.U)(3,0)):=io.id(i)
-        predictor_buffer((r+i.U)(3,0)):=io.predictor_result(i)
+       op_buffer(ringIndex(r,i.U)):=io.cur_op(i)
+       id_buffer(ringIndex(r,i.U)):=io.id(i)
+        predictor_buffer(ringIndex(r,i.U)):=io.predictor_result(i)
     }
    }
     r:=l-1.U
   }.otherwise{
     for(i<-0 until issueWidth){
     when (i.U<io.valid_num){
-        op_buffer((r+i.U)(3,0)):=io.cur_op(i)
-        id_buffer((r+i.U)(3,0)):=io.id(i)
-        predictor_buffer((r+i.U)(3,0)):=io.predictor_result(i)
+        op_buffer(ringIndex(r,i.U)):=io.cur_op(i)
+        id_buffer(ringIndex(r,i.U)):=io.id(i)
+        predictor_buffer(ringIndex(r,i.U)):=io.predictor_result(i)
     }
    }
     r:=r+io.valid_num
@@ -122,7 +122,7 @@ class Issuer extends Module{
   when (frozen===true.B)
   {
     for (i<-0 until issueWidth){
-        when (i.U<(r-l)&&id_buffer((l+i.U)(3,0))===nex_want){
+        when (i.U<(r-l)&&id_buffer(ringIndex(l,i.U))===nex_want){
             startingPoint:=l+i.U
             found:=true.B
         }
@@ -147,7 +147,7 @@ class Issuer extends Module{
             out_num(i+1):=out_num(i)
             out_pc_val(i+1):=out_pc_val(i)
             when (should_break(i)===false.B &&i.U < (r-startingPoint)&&i.U<io.committer_space){
-                when (id_buffer((startingPoint+i.U)(3,0))=/=out_pc_val(i))//needs to change pc val
+                when (id_buffer(ringIndex(startingPoint,i.U))=/=out_pc_val(i))//needs to change pc val
                 {
                     io.out_pc_val_changed:=true.B
                     frozen:=true.B
@@ -158,7 +158,7 @@ class Issuer extends Module{
                     halt:=0.U
                     val rs=WireDefault(0.U.asTypeOf(new RS))
                     val rob=Wire(new ROB)
-                    rs.type_ := op_buffer((startingPoint+i.U)(3,0)).type_
+                    rs.type_ := op_buffer(ringIndex(startingPoint,i.U)).type_
                     rs.id:= clk+i.U
                     rs.q1:= (-1).S
                     rs.q2:= (-1).S
@@ -180,9 +180,9 @@ class Issuer extends Module{
                     val executer_type=WireDefault(0.U(32.W))
                     has_temp1:=false.B
                     has_temp2:=false.B
-                    rd:=op_buffer((startingPoint+i.U)(3,0)).rd
-                    r1:=op_buffer((startingPoint+i.U)(3,0)).r1
-                    r2:=op_buffer((startingPoint+i.U)(3,0)).r2
+                    rd:=op_buffer(ringIndex(startingPoint,i.U)).rd
+                    r1:=op_buffer(ringIndex(startingPoint,i.U)).r1
+                    r2:=op_buffer(ringIndex(startingPoint,i.U)).r2
                     val lane_prods=VecInit((0 until 32).map(j=>prods(i*32+j)))
                     val lane_spaces=VecInit((0 until ALU_NUM+2).map(j=>spaces(i*(ALU_NUM+2)+j)))
                     for(j<-0 until ALU_NUM+2){
@@ -344,12 +344,12 @@ class Issuer extends Module{
                                         rs.q2:=lane_prods(r2(4,0))
                                     }
                                 }
-                                rs.dest:=predictor_buffer((startingPoint+i.U)(3,0))(0).asUInt.zext
+                                rs.dest:=predictor_buffer(ringIndex(startingPoint,i.U))(0).asUInt.zext
                                 executer_type:=(ALU_NUM+1).U//bru
                                 rob.id:=clk+i.U
-                                rob.dest:=Mux(rs.dest=/=0.S,id_buffer((startingPoint+i.U)(3,0))+4.U,(id_buffer((startingPoint+i.U)(3,0)).asSInt+rd(12, 0).asSInt).asUInt).asSInt
-                                rob.type_ := (~id_buffer((startingPoint+i.U)(3,0))).asSInt
-                                rob.value:=predictor_buffer((startingPoint+i.U)(3,0))
+                                rob.dest:=Mux(rs.dest=/=0.S,id_buffer(ringIndex(startingPoint,i.U))+4.U,(id_buffer(ringIndex(startingPoint,i.U)).asSInt+rd(12, 0).asSInt).asUInt).asSInt
+                                rob.type_ := (~id_buffer(ringIndex(startingPoint,i.U))).asSInt
+                                rob.value:=predictor_buffer(ringIndex(startingPoint,i.U))
                                 out_pc_val(i+1):=Mux(rs.dest=/=0.S,(out_pc_val(i).asSInt+rd(12,0).asSInt).asUInt,out_pc_val(i)+4.U)
                                 halt:=2.U
                             }
@@ -358,7 +358,7 @@ class Issuer extends Module{
                             when (alu_id===ALU_NUM.U){//full alu
                                 halt:=1.U
                             }.otherwise{
-                                rs.v1:=id_buffer((startingPoint+i.U)(3,0))+4.U
+                                rs.v1:=id_buffer(ringIndex(startingPoint,i.U))+4.U
                                 rs.dest:=rd.asSInt
                                 for(j<-1 until 32){ when(rd===j.U){ prods((i+1)*32+j):=(clk+i.U).asSInt;io.out_prod_valid(j):=true.B } }
 
@@ -373,7 +373,7 @@ class Issuer extends Module{
                             when (alu_id===ALU_NUM.U||(lane_prods(r1(4,0))=/=(-1).S&&has_temp1===false.B)){//full alu or not clear rs1
                                 halt:=1.U
                             }.otherwise{
-                                rs.v1:=id_buffer((startingPoint+i.U)(3,0))+4.U
+                                rs.v1:=id_buffer(ringIndex(startingPoint,i.U))+4.U
                                 rs.dest:=rd.asSInt
                                 for(j<-1 until 32){ when(rd===j.U){ prods((i+1)*32+j):=(clk+i.U).asSInt;io.out_prod_valid(j):=true.B } }
 
@@ -389,7 +389,7 @@ class Issuer extends Module{
                             when (alu_id===ALU_NUM.U){//full alu
                                 halt:=1.U
                             }.otherwise{
-                                rs.v1:=id_buffer((startingPoint+i.U)(3,0))+r1
+                                rs.v1:=id_buffer(ringIndex(startingPoint,i.U))+r1
                                 rs.dest:=rd.asSInt
                                 for(j<-1 until 32){ when(rd===j.U){ prods((i+1)*32+j):=(clk+i.U).asSInt;io.out_prod_valid(j):=true.B } }
 

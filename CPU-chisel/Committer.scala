@@ -108,7 +108,7 @@ class Committer extends Module{//needs to add branch predictor!
     for (i<-0 until issueWidth)//receiving ROBs
     {
       when (i.U<io.valid_num){
-        robs((r+i.U)(3,0)):=io.in_robs(i)
+        robs(ringIndex(r,i.U)):=io.in_robs(i)
       }
     }
     r:=r+io.valid_num

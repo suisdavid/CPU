@@ -329,7 +329,7 @@ class Executer extends Module{
     }
     for (i<-0 until issueWidth){//receiving RS
       for (j <- 0 until RSWidth) {
-        when (i.U<io.valid_num && (r+i.U)(3,0)===j.U){ rss(j):=io.rs(i) }
+        when (i.U<io.valid_num && ringIndex(r,i.U)===j.U){ rss(j):=io.rs(i) }
       }
     }
     r:=r+io.valid_num
@@ -339,14 +339,14 @@ class Executer extends Module{
       for (i<-0 until RSWidth)
       {
         selected(i+1):=selected(i)
-        when (i.U<(r-l)&&woken((l+i.U)(3,0)).q1=== (-1).S&&woken((l+i.U)(3,0)).q2=== (-1).S && can_issue(i))
+        when (i.U<(r-l)&&woken(ringIndex(l,i.U)).q1=== (-1).S&&woken(ringIndex(l,i.U)).q2=== (-1).S && can_issue(i))
         {
           val len=Wire(UInt(32.W))
           val rs=Wire(new RS)
           val L1=Wire(UInt(32.W))
           val R1=Wire(UInt(32.W))
           val flag=Wire(Bool())
-          rs:=woken((l+i.U)(3,0))
+          rs:=woken(ringIndex(l,i.U))
           len:=Mux(rs.type_ === OP_TYPE.OP_LW,4.U(32.W),Mux(rs.type_ === OP_TYPE.OP_LH||rs.type_ === OP_TYPE.OP_LHU, 2.U(32.W),Mux(rs.type_ === OP_TYPE.OP_LB||rs.type_ === OP_TYPE.OP_LBU,1.U(32.W),0.U(32.W))))
           L1:=(rs.v1.asSInt+rs.v2(11,0).asSInt).asUInt
           R1:=L1+len
@@ -357,7 +357,7 @@ class Executer extends Module{
               val temp_rs=Wire(new RS)
               val L2=Wire(UInt(32.W))
               val R2=Wire(UInt(32.W))
-              temp_rs:=woken((l+j.U)(3,0))
+              temp_rs:=woken(ringIndex(l,j.U))
               tp := Mux(temp_rs.type_ === OP_TYPE.OP_SB,1.U(32.W),Mux(temp_rs.type_ === OP_TYPE.OP_SH, 2.U(32.W),Mux(temp_rs.type_ === OP_TYPE.OP_SW,4.U(32.W),0.U(32.W))))
               L2:=(temp_rs.v1.asSInt+temp_rs.dest(11,0).asSInt).asUInt
               R2:=L2+tp
@@ -650,7 +650,7 @@ class LSU extends Executer{
   val load_value=merged.asUInt
   // A load may not bypass an older store whose address/data is still unknown.
   for(i<-0 until RSWidth){
-    val candidate=woken((l+i.U)(3,0))
+    val candidate=woken(ringIndex(l,i.U))
     val load=candidate.type_ ===OP_TYPE.OP_LB || candidate.type_ ===OP_TYPE.OP_LBU || candidate.type_ ===OP_TYPE.OP_LH || candidate.type_ ===OP_TYPE.OP_LHU || candidate.type_ ===OP_TYPE.OP_LW
     for(j<-0 until ROBWidth){
       when(load && (j.U(4.W)-lsuIO.l)<(lsuIO.r-lsuIO.l) && lsuIO.robs(j).id<candidate.id && lsuIO.robs(j).type_ >0.S && !lsuIO.robs(j).ready){ can_issue(i):=false.B }
@@ -714,7 +714,7 @@ class LSU extends Executer{
       for (i<-0 until ROBWidth){
         when (i.U<(lsuIO.r-lsuIO.l)){
           val rb=Wire(new ROB)
-          rb:=lsuIO.robs((lsuIO.l+i.U)(3,0))
+          rb:=lsuIO.robs(ringIndex(lsuIO.l,i.U))
           when (rb.ready && rb.id < temp_rs.id && rb.type_ > 0.S && rb.dest.asUInt < R && rb.dest.asUInt+rb.type_.asUInt > L){
             for (j<-0 until 4){
               val offset = Wire(UInt(32.W))

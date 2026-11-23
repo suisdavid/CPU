@@ -123,6 +123,19 @@ def directed():
             p.emit(i(3,10,5,20,offset)); p.check(10,0x8001+k)
         # Negative load offset.
         p.emit(i(0x13,20,0,20,4),i(3,10,5,20,-2)); p.check(10,0x8001+k)
+    # Cold partial stores must fetch untouched bytes; twelve aliases force dirty eviction.
+    for k in range(12):
+        p.li(20,0x180000+k*512); p.li(5,0x80+k); p.emit(st(0,20,5,1))
+        p.emit(i(3,10,2,20,0)); p.check(10,(0x80+k)<<8)
+        p.emit(i(3,10,4,20,0)); p.check(10,0)
+        p.emit(i(3,10,5,20,0)); p.check(10,(0x80+k)<<8)
+    # Merge a forwarded byte with memory while an older division delays retirement.
+    p.li(20,0x200000);p.li(5,0x11223344);p.emit(st(2,20,5));p.emit(i(3,11,2,20,0))
+    p.li(5,0xaa);p.li(6,0x7fffffff);p.li(7,3)
+    p.emit(r(15,4,6,7,1),st(0,20,5,1),i(3,10,2,20,0));p.check(10,0x1122aa44)
+    # An older store with an unresolved base must block a younger overlapping load.
+    p.li(5,0x66778899);p.li(6,0x200000);p.li(7,1)
+    p.emit(r(21,5,6,7,1),st(2,21,5),i(3,10,2,20,0));p.check(10,0x66778899)
     return p
 
 def random_program(seed):

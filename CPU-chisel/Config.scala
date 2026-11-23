@@ -14,6 +14,15 @@ import chisel3.util._
 import _root_.circt.stage.ChiselStage
 
 object CPUConfig {
+  // Keep modulo-16 arithmetic on an explicit four-bit net before indexing packed
+  // Vec[Bundle] RTL. Otherwise Verilator 5.020 can widen an inlined index sum.
+  def ringIndex(ptr: UInt, step: UInt): UInt = {
+    val index = Wire(UInt(4.W))
+    index := ptr + step
+    dontTouch(index)
+    index
+  }
+
   val issueWidth: Int = 4
   val ROBWidth: Int = 16
   val RSWidth: Int = 16
