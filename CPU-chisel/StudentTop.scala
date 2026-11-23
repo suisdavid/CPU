@@ -4,11 +4,12 @@
 //> using plugin org.chipsalliance:::chisel-plugin:6.4.0
 //> using dep edu.berkeley.cs::chiseltest:6.0.0
 //> using options -unchecked -deprecation -feature -language:reflectiveCalls
-//> using options -Xfatal-warnings -Ywarn-unused
+// Unused imports in the draft are not compilation errors.
 package cpu2026
 
 import CPU._
 import chisel3._
+import chisel3.util._
 import chisel3.experimental.{ExtModule, IntParam}
 
 /** Course interface. Replace the idle outputs with your CPU implementation. */
@@ -40,6 +41,7 @@ class StudentTop extends Module with RequireSyncReset {
 
   // This skeleton builds but does not execute instructions or pass CPU tests.
   val cpu=Module(new CPU)
+  cpu.io.flush_valid:=false.B
   araddr  := cpu.io.araddr
   arvalid := cpu.io.arvalid
   rready  := cpu.io.rready

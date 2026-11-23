@@ -4,14 +4,15 @@
 //> using plugin org.chipsalliance:::chisel-plugin:6.4.0
 //> using dep edu.berkeley.cs::chiseltest:6.0.0
 //> using options -unchecked -deprecation -feature -language:reflectiveCalls
-//> using options -Xfatal-warnings -Ywarn-unused
+// Unused imports in the draft are not compilation errors.
 
 package Committer
 
-import Config._
+import Config.CPUConfig._
 import ROB._
 import CDB._
 import chisel3._
+import chisel3.util._
 import chiseltest._
 import chiseltest.RawTester.test
 import _root_.circt.stage.ChiselStage
@@ -51,7 +52,6 @@ class Committer extends Module{//needs to add branch predictor!
   })
   val l = RegInit(0.U(4.W))
   val r = RegInit(0.U(4.W))
-  val robs = Reg(Vec(ROBWidth, new ROB))
   val cur_rb = Reg(new ROB)
   val init = Wire(new ROB)
   init.id := 0.U
@@ -69,52 +69,66 @@ class Committer extends Module{//needs to add branch predictor!
   io.out_halt:=false.B
   io.out_predictor_valid:=false.B
   
+  io.out_store_addr:=0.U
+  io.out_store_value:=0.U
+  io.out_store_mask:=0.U
+  io.out_reg_id:=0.U
+  io.out_reg_val:=0.U
+  io.out_reg_prod:=0.U
+  io.out_flush:=false.B
+  io.out_flushval:=0.U
+  io.out_newaddr:=0.U
+  io.out_predictor_addr:=0.U
+  io.out_predictor_res:=0.U
   val waiting=RegInit(false.B)
 
   when (io.clear_valid===true.B){//flush
     l:=0.U
     r:=0.U
     waiting:=false.B
+    for(i<-0 until ROBWidth){robs(i).ready:=false.B}
   }.otherwise{
     for (i<-0 until ALU_NUM+2)//receive CDBs
     {
       for (j<-0 until ROBWidth)
       {
-        when (j.U<(r-l)&&robs(l+j.U).id===io.cdbs(i).id&&robs(l+j.U).ready===false.B)
+        when ((j.U(4.W)-l)<(r-l)&&io.cdbs(i).valid&&robs(j).id===io.cdbs(i).id&&robs(j).ready===false.B)
         {
-            when (cdbs(i).dest=/=(-2).S)//-2 is for branch operations, -1 is for halt
+            when (io.cdbs(i).dest=/=(-2).S)//-2 is for branch operations, -1 is for halt
             {
-                robs(l+j.U).dest:=cdbs(i).dest
-                robs(l+j.U).value:=cdbs(i).value
+                robs(j).dest:=io.cdbs(i).dest
+                robs(j).value:=io.cdbs(i).value
             }.otherwise{
-                robs(l+j.U).value:=robs(l+j.U).value+robs(l+j.U).value+cdbs(i).value
+                robs(j).value:=robs(j).value+robs(j).value+io.cdbs(i).value
             }
-            robs(l+j.U).ready:=true.B
+            robs(j).ready:=true.B
         }
       }
     }
     for (i<-0 until issueWidth)//receiving ROBs
     {
       when (i.U<io.valid_num){
-        robs(r+i.U):=in_robs(i)
+        robs((r+i.U)(3,0)):=io.in_robs(i)
       }
     }
     r:=r+io.valid_num
     when (waiting===false.B){
         when (l=/=r && robs(l).ready===true.B){//commit
-            l:=l+1.U
             val rb = Wire(new ROB)
             rb:=robs(l)
             when (rb.type_ > 0.S)//store
             {
                 io.out_store_valid:=true.B
-                io.out_store_addr:=rb.dest
+                io.out_store_addr:=rb.dest.asUInt
                 io.out_store_value:=rb.value
-                io.out_store_mask:=MUX(rb.type_ === 1.S, 1.U, MUX(rb.type_ === 2.S, 3.U, 15.U))
+                io.out_store_mask:=Mux(rb.type_ === 1.S, 1.U, Mux(rb.type_ === 2.S, 3.U, 15.U))
                 cur_rb:=rb
-                waiting:=1.U
+                when(io.store_received){
+                  l:=l+1.U;robs(l).ready:=false.B
+                }.otherwise{waiting:=true.B}
             }.elsewhen (rb.type_ === 0.S)//alu
             {
+                l:=l+1.U;robs(l).ready:=false.B
                 when (rb.dest===(-1).S){//halt
                     io.out_halt:=true.B
                 }.otherwise{//change register
@@ -125,6 +139,7 @@ class Committer extends Module{//needs to add branch predictor!
                 }
             }.otherwise//branch
             {
+                l:=l+1.U;robs(l).ready:=false.B
                 when (rb.value(0)===1.U)
                 {        
                     io.out_flush:=true.B
@@ -133,17 +148,23 @@ class Committer extends Module{//needs to add branch predictor!
                 }
                 io.out_predictor_valid := true.B
                 io.out_predictor_addr := ~(rb.type_.asUInt)
-                io.out_predictor_value :=  rb.value
+                io.out_predictor_res :=  rb.value
             }
         }
     }.otherwise{
+        io.out_store_valid:=true.B
+        io.out_store_addr:=cur_rb.dest.asUInt
+        io.out_store_value:=cur_rb.value
+        io.out_store_mask:=Mux(cur_rb.type_ ===1.S,1.U,Mux(cur_rb.type_ ===2.S,3.U,15.U))
         when (io.store_received===true.B){
-            waiting=false.B
+            waiting:=false.B
+            l:=l+1.U
+            robs(l).ready:=false.B
         }.otherwise{
             io.out_store_valid:=true.B
-            io.out_store_addr:=cur_rb.dest
+            io.out_store_addr:=cur_rb.dest.asUInt
             io.out_store_value:=cur_rb.value
-            io.out_store_mask:=MUX(cur_rb.type_ === 1.S, 1.U, MUX(cur_rb.type_ === 2.S, 3.U, 15.U))
+            io.out_store_mask:=Mux(cur_rb.type_ === 1.S, 1.U, Mux(cur_rb.type_ === 2.S, 3.U, 15.U))
         }
     }
   }

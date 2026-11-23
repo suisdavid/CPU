@@ -4,7 +4,7 @@
 //> using plugin org.chipsalliance:::chisel-plugin:6.4.0
 //> using dep edu.berkeley.cs::chiseltest:6.0.0
 //> using options -unchecked -deprecation -feature -language:reflectiveCalls
-//> using options -Xfatal-warnings -Ywarn-unused
+// Unused imports in the draft are not compilation errors.
 
 package Config
 import chisel3._

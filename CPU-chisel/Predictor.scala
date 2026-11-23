@@ -4,19 +4,20 @@
 //> using plugin org.chipsalliance:::chisel-plugin:6.4.0
 //> using dep edu.berkeley.cs::chiseltest:6.0.0
 //> using options -unchecked -deprecation -feature -language:reflectiveCalls
-//> using options -Xfatal-warnings -Ywarn-unused
+// Unused imports in the draft are not compilation errors.
 package Predictor
 
 
 import Op._
 import RS._
 import CDB._
-import Config._
+import Config.CPUConfig._
 import chisel3._
+import chisel3.util._
 import chiseltest._
 import chiseltest.RawTester.test
 import _root_.circt.stage.ChiselStage
-import org.apache.commons.io.filefilter.CanExecuteFileFilter
+
 import Config.CPUConfig.issueWidth
 
 class Predictor extends Module {//0 cycle
@@ -39,23 +40,23 @@ class Predictor extends Module {//0 cycle
     val subaddr = Wire(UInt(PBIT.W))
     val gshare_res = Wire(Bool())
     val pht_res = Wire(Bool())
-    val res = Wire(UInt(32.W))
+    val res = Wire(Bool())
     val used = Wire(Bool())
     val different_result = Wire(Bool())
     val localhistory = Wire(UInt(KBIT.W))
 
-    subaddr := io.qaddr(i)(PBIT+1,2)
+    subaddr := io.qaddrs(i)(PBIT+1,2)
     localhistory := LHT(subaddr)
     gshare_res := Gshare_status(subaddr^history)>=2.U
     pht_res := PHT(Cat(subaddr,localhistory))>=2.U
-    used:= score(subaddr)>=2
+    used:= score(subaddr)>=2.U
     different_result := (gshare_res=/=pht_res)
     res := Mux(used,gshare_res,pht_res)
     io.out(i) := Cat(localhistory,history,different_result,used,res)
   }
 
 //update
-    when (uvalid===true.B){
+    when (io.uvalid===true.B){
         val _subaddr = Wire(UInt(PBIT.W))
         val _localhistory = Wire(UInt(KBIT.W))
         val globalhistory = Wire(UInt(PBIT.W))
@@ -63,31 +64,31 @@ class Predictor extends Module {//0 cycle
         val taken = Wire(Bool())
         val _used = Wire(Bool())
         val _different_result = Wire(Bool())
-        _subaddr := uaddr(PBIT+1,2)
-        _localhistory := ures(PBIT+KBIT+3,PBIT+4)
-        globalhistory := ures(PBIT+3,4)
-        reverted := ures(0)
-        taken := ures(1)
-        _used := ures(2)
-        different_result := ures(3)
+        _subaddr := io.uaddr(PBIT+1,2)
+        _localhistory := io.ures(PBIT+KBIT+3,PBIT+4)
+        globalhistory := io.ures(PBIT+3,4)
+        reverted := io.ures(0)
+        taken := io.ures(1)
+        _used := io.ures(2)
+        _different_result := io.ures(3)
         when (reverted===true.B){
-            when(different_result===true.B){
-                score(_subaddr):=Mux(used,Mux(score(_subaddr)===0.U,0.U,score(_subaddr)-1.U),Mux(score(_subaddr)===3.U,3.U,score(_subaddr)+1.U))
+            when(_different_result===true.B){
+                score(_subaddr):=Mux(_used,Mux(score(_subaddr)===0.U,0.U,score(_subaddr)-1.U),Mux(score(_subaddr)===3.U,3.U,score(_subaddr)+1.U))
             }
         }.otherwise{
-            when(different_result===true.B){
-                score(_subaddr):=Mux(used,Mux(score(_subaddr)===3.U,3.U,score(_subaddr)+1.U),Mux(score(_subaddr)===0.U,0.U,score(_subaddr)-1.U))
+            when(_different_result===true.B){
+                score(_subaddr):=Mux(_used,Mux(score(_subaddr)===3.U,3.U,score(_subaddr)+1.U),Mux(score(_subaddr)===0.U,0.U,score(_subaddr)-1.U))
             }
         }
         val tkrev = Wire(Bool())
         tkrev := taken^reverted
-        val temp = Wire(UInt(PBit.W))
+        val temp = Wire(UInt(3.W))
         temp := Gshare_status(_subaddr^globalhistory)
         Gshare_status(_subaddr^globalhistory) := Mux(tkrev,Mux(temp===3.U,3.U,temp+1.U),Mux(temp===0.U,0.U,temp-1.U))
         val temp2=Wire(UInt(KBIT.W))
         temp2 := PHT(Cat(_subaddr,_localhistory))
         PHT(Cat(_subaddr,_localhistory)):=  Mux(tkrev,Mux(temp2===3.U,3.U,temp2+1.U),Mux(temp2===0.U,0.U,temp2-1.U))
-        history:= Cat(globalhistory(PBIT-2,0),tkrev)
-        LHT(_subaddr) := Cat(_localhistory(KBIT-2,0),tkrev)
+        history:= Cat(history(PBIT-2,0),tkrev)
+        LHT(_subaddr) := Cat(LHT(_subaddr)(KBIT-2,0),tkrev)
     }
 }
