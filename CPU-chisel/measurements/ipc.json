@@ -1,0 +1,57 @@
+{
+  "commit": "d55e690d7152e8819436135797ee67c918dec924",
+  "rtl_sha256": "f3e02166b5050124040ae7d220173a261e211464c9ca94fe4faac02e990de329",
+  "latency": 10,
+  "max_cycles": 100000000,
+  "instructions_source": "Official testcase metrics.json; includes final MMIO store",
+  "geomean_ipc": 0.2969101015993677,
+  "cases": [
+    {
+      "case": "perf_median",
+      "dynamic_instructions": 6961,
+      "cycles": 33567,
+      "ipc": 0.20737629219173592,
+      "passed": true
+    },
+    {
+      "case": "perf_multiply",
+      "dynamic_instructions": 21722,
+      "cycles": 37300,
+      "ipc": 0.5823592493297587,
+      "passed": true
+    },
+    {
+      "case": "perf_qsort",
+      "dynamic_instructions": 139900,
+      "cycles": 446528,
+      "ipc": 0.3133062204385839,
+      "passed": true
+    },
+    {
+      "case": "perf_rsort",
+      "dynamic_instructions": 195719,
+      "cycles": 756176,
+      "ipc": 0.2588273100442225,
+      "passed": true
+    },
+    {
+      "case": "perf_towers",
+      "dynamic_instructions": 5278,
+      "cycles": 12529,
+      "ipc": 0.42126267060419825,
+      "passed": true
+    },
+    {
+      "case": "perf_vvadd",
+      "dynamic_instructions": 4524,
+      "cycles": 27243,
+      "ipc": 0.16606100649708183,
+      "passed": true
+    }
+  ],
+  "testcases_commit": "29f980727f7d99a1842a58f34091c7579ba3fe85",
+  "simulator_sha256": "8444a52a0d88b52d5bbb35c869a6982fa9fea3030ae2e9d70a0030266ddac9ff",
+  "measurement_date": "2026-11-24",
+  "verilator": "5.020",
+  "command": "python3 scripts/testcase.py --kind perf --sim build/sim --max-cycles 100000000 --latency 10"
+}
