@@ -8,6 +8,8 @@
 
 Cache 元数据按 way/set 表示，并让每路每种元数据只有一个索引写入口；容量、查找与替换算法不变。RS/ROB 广播按物理槽更新，保留环形队列与从老到新的选择顺序，避免动态写展开为大量重复逻辑。
 
+逐文件说明见 [REPAIR_NOTES.md](REPAIR_NOTES.md)。
+
 ## 复现
 
 ```sh
@@ -15,9 +17,14 @@ scala-cli run CPU-chisel --server=false -M cpu2026.Generate
 make build APPIMAGE=
 scala-cli run CPU-chisel --server=false -M cpu2026.ModuleTests
 python3 tests/regression.py --sim build/sim --seeds 20
-python3 scripts/testcase.py --kind correctness --testcases testcases --sim build/sim --max-cycles 100000000
+for case_dir in testcases/correctness_*; do
+  [ "${case_dir##*/}" = correctness_pi ] && continue
+  python3 scripts/testcase.py --case "${case_dir##*/}" --sim build/sim --max-cycles 100000000 --latency 10
+done
 python3 tests/build_stress.py
 python3 tests/regression.py --sim build-stress/sim --seeds 20 --stress
 ```
 
-当前是恢复后的修复检查点，完整编译与回归仍在进行。以前的测试记录不能替代对本次代码的验证。未做综合、静态时序或隐藏测试。
+编译与 RTL 生成通过；模块测试通过；官方正确性 18/18 通过（排除 `pi`，`MAX_CYCLES=100000000`、`LATENCY=10`）；普通与随机阻塞 AXI 各通过 21 个程序、6,510 项自检。
+
+`qsort`、`tak` 超过默认 100 万周期，不能声称默认周期限制全部通过。完整周期与验证范围见 [VALIDATION.md](VALIDATION.md)。
