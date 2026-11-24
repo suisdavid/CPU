@@ -1,0 +1,13 @@
+{
+  "status": "failed",
+  "mode": "opt",
+  "area_um2": null,
+  "input_rtl_sha256": "f3e02166b5050124040ae7d220173a261e211464c9ca94fe4faac02e990de329",
+  "normalization": "sv2v v0.0.13",
+  "yosys": "0.63, 70a11c6bf0e8dd669f56c7da3587f78b405138e2",
+  "phase": "TECHMAP gate expansion",
+  "termination_signal": "SIGKILL (9)",
+  "suspected_cause": "Memory exhaustion; kernel OOM log unavailable",
+  "environment_total_memory_gib": 9.7,
+  "notes": "No final mapping or area result was produced. SRAM-only estimate must not be reported as total CPU area."
+}

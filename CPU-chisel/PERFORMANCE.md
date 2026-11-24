@@ -31,6 +31,12 @@ make perf SIM=build/sim MAX_CYCLES=100000000 LATENCY=10
 
 ## 面积
 
-综合尚未完成，目前不提供总面积数字。测量使用课程固定的 Yosys 0.63（`70a11c6bf0e8dd669f56c7da3587f78b405138e2`）、对应 ABC 和 ASAP7 RVT TT 库；SRAM 采用原课程 FakeRAM 模型并计入总面积。可复现入口为 `tests/measure_area.py`，采用课程 opt 模式的相同映射命令，ABC 目标周期为 2 ns；此脚本不执行 OpenSTA。
+总面积尚未完成，不提供推测值。原 packed RTL 经 sv2v 转换后的 opt 综合，在门级展开时被系统以 SIGKILL 终止；此前内存持续增长，疑似触及环境内存限制。记录见 [packed-opt-attempt.json](measurements/packed-opt-attempt.json)。
 
-原 RTL 在 Yosys 的内联 `packed struct` 端口语法处报错（`student_top.sv:851: unexpected TOK_STRUCT`）。测量前使用 sv2v v0.0.13 转换为 Verilog，未修改 CPU 源码或提交用 RTL。转换后的模型已通过 6 个性能用例与 21 个整机自检程序（6,510 项检查），结果和周期数与原 RTL 完全一致；这属于回归验证，不是形式等价证明。记录见 [normalization-validation.json](measurements/normalization-validation.json)。
+当前使用同一份 Chisel 源码，由 `tests/GenerateArea.scala` 以 `--preserve-aggregate=none` 输出展开式 RTL，再由 sv2v v0.0.13 处理剩余数组语法。CPU 架构、参数和提交用 RTL 未改动。这个面积测量输入已通过 6 个性能用例、21 个整机自检程序（6,510 项检查），结果和周期数与原版完全一致；这属于回归验证，不是形式等价证明。校验信息见 [flat-validation.json](measurements/flat-validation.json)。
+
+使用课程固定的 Yosys 0.63（`70a11c6bf0e8dd669f56c7da3587f78b405138e2`）、对应 ABC 和 ASAP7 RVT TT 库；SRAM 采用原课程 FakeRAM 模型，计入总面积。ABC 目标周期为 2 ns；本次不执行 OpenSTA，因此不报告已验证频率。
+
+为防止环境重连丢失进度，`tests/resume_area.py` 将相同的 Yosys 0.63 opt 优化命令按阶段执行，并保存带校验的 RTLIL 检查点。它不跳过优化阶段；序列化可能影响优化顺序，不能承诺与一次性运行的映射逐门一致。
+
+按综合前实例配置核对，数据与 tag SRAM 共 136,704 bit，宏面积为 5,740.255672 µm²。这只是 SRAM 部分，不是 CPU 总面积；最终结果以映射后保留的实例重新汇总。
