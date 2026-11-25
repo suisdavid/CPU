@@ -37,6 +37,47 @@ def word_cells(path):
     return modules
 
 
+def checkpoint_steps(yosys, version, checkpoints, prefix, source, items, passes, validate=None):
+    """Verify receipt links and the final file; older intermediates may be pruned."""
+    history = []
+    previous = identity(source)
+    for number, item in enumerate(items):
+        name = f"{prefix}-{number:02d}"
+        output = checkpoints / f"{name}.il"
+        temporary = output.with_suffix(".tmp.il")
+        receipt_path = checkpoints / f"{name}.json"
+        commands = ["read_rtlil " + quote(source), *passes(item),
+                    "write_rtlil " + quote(temporary)]
+        fingerprint = hashlib.sha256(json.dumps([previous, commands, version],
+                                               sort_keys=True).encode()).hexdigest()
+        if receipt_path.exists():
+            receipt = json.loads(receipt_path.read_text())
+            if (receipt["signature"] != fingerprint or receipt["input"] != previous
+                    or receipt["commands"] != commands
+                    or receipt["output"]["path"] != str(output)):
+                raise ValueError(f"Changed inputs/commands at {name}; refusing stale checkpoint")
+            print(f"Reusing {prefix}: {item} ({number+1}/{len(items)})", flush=True)
+        else:
+            if identity(source) != previous:
+                raise ValueError(f"Checkpoint missing or checksum changed: {source}")
+            print(f"Running {prefix}: {item} ({number+1}/{len(items)})", flush=True)
+            run_yosys(yosys, checkpoints, name, commands)
+            if validate:
+                validate(item, temporary)
+            temporary.replace(output)
+            receipt = {"module": item, "signature": fingerprint, "input": previous,
+                       "output": identity(output), "commands": commands}
+            atomic_json(receipt_path, receipt)
+            if number > 0:
+                source.unlink(missing_ok=True)
+        history.append(receipt)
+        source = output
+        previous = receipt["output"]
+    if identity(source) != previous:
+        raise ValueError(f"Final checkpoint missing or checksum changed: {source}")
+    return history, source
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--script", type=Path, required=True)
@@ -54,38 +95,22 @@ def main():
     if identity(source)["sha256"] != state["checkpoint_sha256"]:
         parser.error("Pre-techmap checkpoint checksum mismatch")
     modules = sorted(word_cells(source))
-    history = []
-    for number, module in enumerate(modules):
-        name = f"module-{number:02d}"
-        output = checkpoints / f"{name}.il"
-        temporary = output.with_suffix(".tmp.il")
-        receipt_path = checkpoints / f"{name}.json"
-        commands = ["read_rtlil " + quote(source), "select " + module,
-                    "techmap", "opt_clean -purge", "opt -fast", "opt_clean -purge",
-                    "select *", "write_rtlil " + quote(temporary)]
-        fingerprint = hashlib.sha256(json.dumps([identity(source), commands, version],
-                                               sort_keys=True).encode()).hexdigest()
-        if receipt_path.exists():
-            receipt = json.loads(receipt_path.read_text())
-            if receipt["signature"] != fingerprint or receipt["output"] != identity(output):
-                parser.error(f"Changed inputs/output at {name}; refusing stale checkpoint")
-            print(f"Reusing {module} ({number+1}/{len(modules)})", flush=True)
-        else:
-            print(f"Mapping {module} ({number+1}/{len(modules)})", flush=True)
-            run_yosys(yosys, checkpoints, name, commands)
-            if word_cells(temporary).get(module):
-                raise ValueError(f"Unmapped word-level cells remain in {module}")
-            temporary.replace(output)
-            receipt = {"module": module, "signature": fingerprint, "input": identity(source),
-                       "output": identity(output), "commands": commands}
-            atomic_json(receipt_path, receipt)
-        history.append(receipt)
-        source = output
+    def mapped_module(module, path):
+        if word_cells(path).get(module):
+            raise ValueError(f"Unmapped word-level cells remain in {module}")
+    history, source = checkpoint_steps(yosys, version, checkpoints, "module", source, modules,
+        lambda module: ["select " + module, "techmap", "opt_clean -purge", "opt -fast",
+                        "opt_clean -purge", "select *"], mapped_module)
     if word_cells(source):
         raise ValueError("Unmapped word-level cells remain")
     result = out / "module-result"
     result.mkdir(exist_ok=True)
-    commands = ["read_rtlil " + quote(source), *stages[7], *stages[8]]
+    abc_index = next(i for i, line in enumerate(stages[8]) if line.startswith("abc "))
+    prepared, source = checkpoint_steps(yosys, version, checkpoints, "libmap", source,
+        ["dfflibmap"], lambda _: [*stages[7], *stages[8][:abc_index]])
+    abc_history, source = checkpoint_steps(yosys, version, checkpoints, "abc", source, modules,
+        lambda module: ["select " + module, stages[8][abc_index], "clean -purge", "select *"])
+    commands = ["read_rtlil " + quote(source), *stages[8][abc_index+1:]]
     for filename in ("stat.json", "design.json", "mapped.v"):
         commands = [line.replace(quote(out / filename), quote(result / filename))
                     for line in commands]
@@ -100,6 +125,7 @@ def main():
               "unmodified_course_opt": False, "base_flow_signature": signature,
               "tools": {"yosys": version}, "inputs": identities + [identity(RAM_SOURCE)],
               "pre_techmap_checkpoint": state, "modules": history,
+              "dfflibmap": prepared, "abc_modules": abc_history,
               "final_commands": commands, "mapped_verilog": identity(result / "mapped.v")}
     atomic_json(result / "report.json", report)
     print(json.dumps({k: v for k, v in area.items()
