@@ -40,3 +40,12 @@ make perf SIM=build/sim MAX_CYCLES=100000000 LATENCY=10
 为防止环境重连丢失进度，`tests/resume_area.py` 将相同的 Yosys 0.63 opt 优化命令按阶段执行，并保存带校验的 RTLIL 检查点。它不跳过优化阶段；序列化可能影响优化顺序，不能承诺与一次性运行的映射逐门一致。
 
 按综合前实例配置核对，数据与 tag SRAM 共 136,704 bit，宏面积为 5,740.255672 µm²。这只是 SRAM 部分，不是 CPU 总面积；最终结果以映射后保留的实例重新汇总。
+
+## 2026-11-25 续跑状态
+
+- 展开式 RTL 的分阶段 opt 综合已完成零起始编号 0–5 阶段；第 6 阶段 `techmap` 被 SIGKILL 终止，尚未生成映射面积。
+- 尝试 `techmap -max_iter 1; opt -fast; clean -purge` 后，第一轮展开完成，但随后寄存器优化也被 SIGKILL 终止。观察到内存明显增长；无法取得内核 OOM 日志，因此内存耗尽仍为推断。
+- 随后启动课程 `diagnose` 模式（`synth -top student_top -noabc -hieropt`），最后可读日志显示模块连接检查为 0 problems，正在优化。之后执行环境不可用，最终状态及面积尚未取得，不能记为综合通过。
+- 续跑时优先检查 `build/area-hier/diagnose/report.json`、`synth.log` 和 `../cpu-tools/area-hier.log`。保留层次的面积应标注为 diagnose，不能直接当作默认 opt 模式的评测面积。
+
+已完成的 opt 检查点：`build/area-flat/opt/checkpoints/stage-05.il`，SHA-256 为 `f170b64e0f30daa8350f2c79c0e0fc283b815af0b354f5e3fd4d4b22e51d70b8`；输入及命令签名为 `502e8d2f5e954a6d0edfc854f256502955266d91e95cda6538bd892713e908e5`。检查点未提交至 Git，恢复后必须先确认文件存在及校验值一致。这些尝试均未修改 CPU 硬件源码、配置或提交用 RTL。
