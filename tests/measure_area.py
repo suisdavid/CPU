@@ -32,7 +32,10 @@ def main():
     parser.add_argument("--asap7-lib", type=Path, required=True)
     parser.add_argument("--filelist", type=Path, default=ROOT / "verilog/filelist.f")
     parser.add_argument("--out", type=Path, default=ROOT / "build/area")
-    parser.add_argument("--mode", choices=("opt", "diagnose"), default="opt")
+    parser.add_argument("--mode", choices=("opt", "diagnose", "hierarchy"), default="opt",
+                        help="hierarchy preserves modules without the course opt_hier pass")
+    parser.add_argument("--prepare-only", action="store_true",
+                        help="Prepare elaboration, SRAM models and synth.ys for checkpointed runs")
     args = parser.parse_args()
     yosys, abc, sv2v = map(executable, (args.yosys, args.abc, args.sv2v))
     sources = [p for p in read_sources(args.filelist) if p != RAM_SOURCE]
@@ -61,10 +64,10 @@ def main():
     library_args = " ".join("-liberty " + quote(p) for p in libs)
     all_library_args = " ".join("-liberty " + quote(p) for p in [*libs, *ram_libs])
     seq = next(p for p in libs if "_SEQ_" in p.name)
-    run_yosys(yosys, out, "synth", [
+    commands = [
         "read_json " + quote(prepared), "read_verilog " + quote(wrappers),
         *library_reads, "hierarchy -check -top student_top",
-        "synth -top student_top -noabc " + ("-flatten" if args.mode == "opt" else "-hieropt"),
+        "synth -top student_top -noabc" + {"opt": " -flatten", "diagnose": " -hieropt", "hierarchy": ""}[args.mode],
         "check -assert", "select -assert-none a:init t:$dlatch* t:$_DLATCH*",
         "dfflibmap -liberty " + quote(seq),
         "abc -exe " + quote(abc) + " " + library_args + " -D 2000",
@@ -77,7 +80,13 @@ def main():
         "design -reset", *library_reads,
         "read_verilog " + quote(out / "mapped.v"),
         "hierarchy -check -top student_top", "check -assert -mapped",
-    ])
+    ]
+    if args.prepare_only:
+        script = out / "synth.ys"
+        script.write_text("\n".join(commands) + "\n")
+        print(f"Prepared: {script}")
+        return
+    run_yosys(yosys, out, "synth", commands)
     area = area_report(json.loads((out / "design.json").read_text()),
                        json.loads((out / "stat.json").read_text()), macros)
     report = {"mode": args.mode, "area": area, "sram_model": MODEL,

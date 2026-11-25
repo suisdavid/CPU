@@ -2,7 +2,7 @@
 """Resume the course Yosys 0.63 opt flow at verified RTLIL checkpoints.
 
 Run measure_area.py first to prepare synth.ys and SRAM libraries. This expands
-the exact `synth -top student_top -noabc -flatten` command from the pinned
+the `synth -top student_top -noabc [-flatten]` command from the pinned
 Yosys source into stages; no optimization pass is omitted. Intermediate RTLIL
 serialization may change optimization ordering, so this is identified in the
 result rather than claimed to be a bit-identical monolithic mapping.
@@ -19,22 +19,21 @@ from measure_area import MODEL, RAM_SOURCE, area_report, executable, identity, q
 YOSYS_COMMIT = "70a11c6bf0e8dd669f56c7da3587f78b405138e2"
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--script", type=Path, required=True)
-    parser.add_argument("--yosys", default="yosys")
-    args = parser.parse_args()
-    yosys = executable(args.yosys)
+def configuration(script, yosys):
+    """Fingerprint the original course flow and all inputs for safe resumption."""
     version = subprocess.check_output([yosys, "-V"], text=True).strip()
     if YOSYS_COMMIT not in version:
-        parser.error("The checkpoint pass sequence requires the pinned course Yosys 0.63 commit")
-    out = args.script.resolve().parent
-    lines = args.script.read_text().splitlines()
-    split = lines.index("synth -top student_top -noabc -flatten")
+        raise ValueError("The checkpoint pass sequence requires the pinned course Yosys 0.63 commit")
+    out = script.resolve().parent
+    lines = script.read_text().splitlines()
+    split = next(i for i, line in enumerate(lines) if line.startswith("synth "))
+    if lines[split] not in ("synth -top student_top -noabc -flatten", "synth -top student_top -noabc"):
+        raise ValueError("Only the opt or hierarchy flow is supported")
+    flatten = ["flatten"] if lines[split].endswith(" -flatten") else []
     # Verified against techlibs/common/synth.cc at YOSYS_COMMIT.
     stages = [
-        lines[:split] + ["hierarchy -check -top student_top", "proc", "flatten",
-                        "opt_expr", "opt_clean", "check"],
+        lines[:split] + ["hierarchy -check -top student_top", "proc"] + flatten +
+                       ["opt_expr", "opt_clean", "check"],
         ["opt -nodffe -nosdff"],
         ["fsm", "opt"],
         ["wreduce", "peepopt", "opt_clean", "alumacc", "share"],
@@ -49,6 +48,18 @@ def main():
     abc = Path(re.search(r'abc -exe "([^"]+)"', "\n".join(lines)).group(1))
     identities = [identity(p) for p in [*input_paths, abc, out / "student_top.v"]]
     signature = hashlib.sha256(json.dumps([version, stages, identities], sort_keys=True).encode()).hexdigest()
+    return out, version, stages, identities, signature
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--script", type=Path, required=True)
+    parser.add_argument("--yosys", default="yosys")
+    parser.add_argument("--stop-before-techmap", action="store_true",
+                        help="Save stages 0-5 only, ready for hierarchical_area.py")
+    args = parser.parse_args()
+    yosys = executable(args.yosys)
+    out, version, stages, identities, signature = configuration(args.script, yosys)
     checkpoints = out / "checkpoints"
     checkpoints.mkdir(exist_ok=True)
     manifest = checkpoints / "state.json"
@@ -64,6 +75,9 @@ def main():
         if identity(last)["sha256"] != state["checkpoint_sha256"]:
             parser.error("Last checkpoint is missing or its checksum changed")
     for index in range(completed + 1, len(stages)):
+        if args.stop_before_techmap and index >= 6:
+            print("Pre-techmap checkpoint is ready")
+            return
         commands = ([] if index == 0 else
                     ["read_rtlil " + quote(checkpoints / f"stage-{index - 1:02d}.il")])
         commands += stages[index]
@@ -84,9 +98,9 @@ def main():
     macros = json.loads((out / "ram/manifest.json").read_text())["macros"]
     area = area_report(json.loads((out / "design.json").read_text()),
                        json.loads((out / "stat.json").read_text()), macros)
-    report = {"mode": "opt", "area": area, "sram_model": MODEL,
+    report = {"mode": "opt" if "flatten" in stages[0] else "hierarchy", "area": area, "sram_model": MODEL,
               "timing_analyzed": False, "abc_target_period_ns": 2.0,
-              "execution": "Yosys 0.63 default opt passes with RTLIL checkpoints",
+              "execution": "Yosys 0.63 synth passes with RTLIL checkpoints",
               "checkpoint_signature": signature, "tools": {"yosys": version},
               "inputs": identities + [identity(RAM_SOURCE)],
               "stages": stages}

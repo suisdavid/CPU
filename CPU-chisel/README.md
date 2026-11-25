@@ -16,6 +16,7 @@ Cache 元数据按 way/set 表示，并让每路每种元数据只有一个索�
 scala-cli run CPU-chisel --server=false -M cpu2026.Generate
 make build APPIMAGE=
 scala-cli run CPU-chisel --server=false -M cpu2026.ModuleTests
+scala-cli run CPU-chisel --server=false -M cpu2026.CommitterTests
 python3 tests/regression.py --sim build/sim --seeds 20
 for case_dir in testcases/correctness_*; do
   [ "${case_dir##*/}" = correctness_pi ] && continue
@@ -25,6 +26,6 @@ python3 tests/build_stress.py
 python3 tests/regression.py --sim build-stress/sim --seeds 20 --stress
 ```
 
-编译与 RTL 生成通过；模块测试通过；官方正确性 18/18 通过（排除 `pi`，`MAX_CYCLES=100000000`、`LATENCY=10`）；普通与随机阻塞 AXI 各通过 21 个程序、6,510 项自检。
+编译与 RTL 生成通过；模块测试通过；官方正确性 18/18 通过（排除 `pi`，`MAX_CYCLES=100000000`、`LATENCY=10`）；普通与随机阻塞 AXI 各通过 21 个程序、6,574 项自检。
 
-`qsort`、`tak` 超过默认 100 万周期，不能声称默认周期限制全部通过。完整周期与验证范围见 [VALIDATION.md](VALIDATION.md)。
+`qsort`、`tak` 超过默认 100 万周期，不能声称默认周期限制全部通过。当前 Committer 每周期最多按序退休 issueWidth（4）条，store 串行且每周期最多更新一个分支；完整周期与验证范围见 [VALIDATION_ISSUEWIDTH.md](VALIDATION_ISSUEWIDTH.md)，IPC 与面积见 [PERFORMANCE.md](PERFORMANCE.md)。

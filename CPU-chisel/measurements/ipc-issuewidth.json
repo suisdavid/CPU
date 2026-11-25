@@ -1,0 +1,77 @@
+{
+  "hardware_base_commit": "d99f3a2bba40f3359d39a11d31fc5a427b56c123",
+  "architecture": "issueWidth-wide in-order retirement; one branch update and a serial store boundary",
+  "issue_width": 4,
+  "rtl_sha256": "f3843a649f09385b383eb00ea9c63e384618abd9ecba186f049e70a614eb16a1",
+  "source_sha256": {
+    "CPU-chisel/CPU.scala": "13ca1dde2e9b4c3d269e73c985df2779276db73b2a74bac1e6e726951432f846",
+    "CPU-chisel/Committer.scala": "2b832b5f557788f4a4b9a6a02726bd32db32bf72c0d0a803322943ef883ff170"
+  },
+  "latency": 10,
+  "max_cycles": 100000000,
+  "instructions_source": "Official testcase metrics.json; includes final MMIO store",
+  "geomean_ipc": 0.3025303017987908,
+  "baseline_geomean_ipc": 0.2969101015993677,
+  "geomean_improvement_percent": 1.8928962568631746,
+  "cases": [
+    {
+      "case": "perf_median",
+      "dynamic_instructions": 6961,
+      "cycles": 33152,
+      "ipc": 0.20997224903474904,
+      "passed": true,
+      "baseline_cycles": 33567,
+      "ipc_change_percent": 1.251809845559837
+    },
+    {
+      "case": "perf_multiply",
+      "dynamic_instructions": 21722,
+      "cycles": 36238,
+      "ipc": 0.5994260168883493,
+      "passed": true,
+      "baseline_cycles": 37300,
+      "ipc_change_percent": 2.9306253104475877
+    },
+    {
+      "case": "perf_qsort",
+      "dynamic_instructions": 139900,
+      "cycles": 434035,
+      "ipc": 0.3223242365247042,
+      "passed": true,
+      "baseline_cycles": 446528,
+      "ipc_change_percent": 2.8783393044339745
+    },
+    {
+      "case": "perf_rsort",
+      "dynamic_instructions": 195719,
+      "cycles": 750111,
+      "ipc": 0.2609200504991928,
+      "passed": true,
+      "baseline_cycles": 756176,
+      "ipc_change_percent": 0.8085470017104246
+    },
+    {
+      "case": "perf_towers",
+      "dynamic_instructions": 5278,
+      "cycles": 11984,
+      "ipc": 0.44042056074766356,
+      "passed": true,
+      "baseline_cycles": 12529,
+      "ipc_change_percent": 4.547730307076092
+    },
+    {
+      "case": "perf_vvadd",
+      "dynamic_instructions": 4524,
+      "cycles": 27509,
+      "ipc": 0.1644552691846305,
+      "passed": true,
+      "baseline_cycles": 27243,
+      "ipc_change_percent": -0.9669562688574662
+    }
+  ],
+  "testcases_commit": "29f980727f7d99a1842a58f34091c7579ba3fe85",
+  "simulator_sha256": "e9076f2f561f7a6bb0d2353c9543c6dfa8f9cb0e385b95162711a1b324c37029",
+  "measurement_date": "2026-11-25",
+  "verilator": "5.020",
+  "command": "python3 scripts/testcase.py --kind perf --sim build/multicommit/sim --max-cycles 100000000 --latency 10"
+}

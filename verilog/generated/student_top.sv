@@ -856,10 +856,11 @@ module Committer(
   output [31:0]                                                                                                          io_out_store_addr,
                                                                                                                          io_out_store_value,
   output [3:0]                                                                                                           io_out_store_mask,
-  output                                                                                                                 io_out_reg_valid,
-  output [4:0]                                                                                                           io_out_reg_id,
-  output [31:0]                                                                                                          io_out_reg_val,
+  output [3:0]                                                                                                           io_out_reg_valid,
+  output [3:0][4:0]                                                                                                      io_out_reg_id,
+  output [3:0][31:0]                                                                                                     io_out_reg_val,
                                                                                                                          io_out_reg_prod,
+  output [2:0]                                                                                                           io_out_commit_num,
   output                                                                                                                 io_out_flush,
   output [31:0]                                                                                                          io_out_flushval,
                                                                                                                          io_out_newaddr,
@@ -873,7 +874,12 @@ module Committer(
                                                                                                                          io_out_predictor_res
 );
 
+  wire        _GEN;
+  wire        _GEN_0;
+  wire        _GEN_1;
+  wire        _GEN_2;
   reg  [3:0]  l;
+  wire [3:0]  index_4 = l;
   reg  [3:0]  r;
   wire [3:0]  index = r;
   struct packed {logic [31:0] id; logic [31:0] value; logic [31:0] dest; logic [31:0] type_; logic ready; }
@@ -882,523 +888,612 @@ module Committer(
     robs;
   wire [3:0]  _io_out_space_T = r - l;
   reg         waiting;
+  wire [2:0]  _io_out_commit_num_T_5 =
+    {1'h0, {1'h0, _GEN_2} + {1'h0, _GEN_1}} + {1'h0, {1'h0, _GEN_0} + {1'h0, _GEN}};
   wire [3:0]  index_1 = r + 4'h1;
   wire [3:0]  index_2 = r + 4'h2;
   wire [3:0]  index_3 = r + 4'h3;
-  wire
-    struct packed {logic [31:0] id; logic [31:0] value; logic [31:0] dest; logic [31:0] type_; logic ready; }
-    rb = robs[l];
-  wire        _GEN = l != r & rb.ready;
-  wire        _GEN_0 = $signed(rb.type_) > 32'sh0;
-  wire        _GEN_1 = _GEN & _GEN_0;
-  wire        _GEN_2 = ~waiting & _GEN;
-  wire        _GEN_3 = io_clear_valid | ~_GEN_2 | _GEN_0 | (|rb.type_) | (&rb.dest);
-  wire        _GEN_4 = _GEN_0 | ~(|rb.type_);
-  wire        _GEN_5 = io_clear_valid | ~_GEN_2 | _GEN_4 | ~(rb.value[0]);
-  wire        _GEN_6 = io_clear_valid | ~_GEN_2 | _GEN_4;
-  wire        _GEN_7 = 4'h0 - l < _io_out_space_T;
-  wire        _GEN_8 =
-    _GEN_7 & io_cdbs[3'h0].valid & robs[4'h0].id == io_cdbs[3'h0].id & ~robs[4'h0].ready;
-  wire        _GEN_9 = io_cdbs[3'h0].dest == 32'hFFFFFFFE;
-  wire [31:0] _GEN_10 = {robs[4'h0].value[30:0], 1'h0};
-  wire        _GEN_11 = 4'h1 - l < _io_out_space_T;
-  wire        _GEN_12 =
-    _GEN_11 & io_cdbs[3'h0].valid & robs[4'h1].id == io_cdbs[3'h0].id & ~robs[4'h1].ready;
-  wire [31:0] _GEN_13 = {robs[4'h1].value[30:0], 1'h0};
-  wire        _GEN_14 = 4'h2 - l < _io_out_space_T;
-  wire        _GEN_15 =
-    _GEN_14 & io_cdbs[3'h0].valid & robs[4'h2].id == io_cdbs[3'h0].id & ~robs[4'h2].ready;
-  wire [31:0] _GEN_16 = {robs[4'h2].value[30:0], 1'h0};
-  wire        _GEN_17 = 4'h3 - l < _io_out_space_T;
+  wire        _GEN_3 = ~io_clear_valid & (|_io_out_space_T) & robs[index_4].ready;
+  wire [31:0] _GEN_4 = waiting ? cur_rb.id : robs[index_4].id;
+  wire [31:0] _GEN_5 = waiting ? cur_rb.value : robs[index_4].value;
+  wire [31:0] _GEN_6 = waiting ? cur_rb.dest : robs[index_4].dest;
+  wire [31:0] _GEN_7 = waiting ? cur_rb.type_ : robs[index_4].type_;
+  wire        _GEN_8 = $signed(_GEN_7) > 32'sh0;
+  wire        _GEN_9 = _GEN_3 & _GEN_8;
+  wire        _GEN_10 = _GEN_3 & _GEN_8;
+  wire        _GEN_11 = _GEN_7 == 32'h0;
+  wire        _GEN_12 = io_clear_valid | ~_GEN_3 | _GEN_8 | ~_GEN_11 | (&_GEN_6);
+  assign _GEN_2 = ~io_clear_valid & _GEN_3 & (~_GEN_8 | io_store_received);
+  wire        _GEN_13 = _GEN_8 | _GEN_11;
+  wire        _GEN_14 = _GEN_3 & ~_GEN_13;
+  wire        _GEN_15 = ~io_clear_valid & _GEN_14;
+  wire        _GEN_16 = ~_GEN_3 | _GEN_13 | ~(_GEN_5[0]);
+  wire        _GEN_17 = ~_GEN_3 | _GEN_13;
+  wire [3:0]  index_5 = l + 4'h1;
   wire        _GEN_18 =
-    _GEN_17 & io_cdbs[3'h0].valid & robs[4'h3].id == io_cdbs[3'h0].id & ~robs[4'h3].ready;
-  wire [31:0] _GEN_19 = {robs[4'h3].value[30:0], 1'h0};
-  wire        _GEN_20 = 4'h4 - l < _io_out_space_T;
-  wire        _GEN_21 =
-    _GEN_20 & io_cdbs[3'h0].valid & robs[4'h4].id == io_cdbs[3'h0].id & ~robs[4'h4].ready;
-  wire [31:0] _GEN_22 = {robs[4'h4].value[30:0], 1'h0};
-  wire        _GEN_23 = 4'h5 - l < _io_out_space_T;
-  wire        _GEN_24 =
-    _GEN_23 & io_cdbs[3'h0].valid & robs[4'h5].id == io_cdbs[3'h0].id & ~robs[4'h5].ready;
-  wire [31:0] _GEN_25 = {robs[4'h5].value[30:0], 1'h0};
-  wire        _GEN_26 = 4'h6 - l < _io_out_space_T;
-  wire        _GEN_27 =
-    _GEN_26 & io_cdbs[3'h0].valid & robs[4'h6].id == io_cdbs[3'h0].id & ~robs[4'h6].ready;
-  wire [31:0] _GEN_28 = {robs[4'h6].value[30:0], 1'h0};
-  wire        _GEN_29 = 4'h7 - l < _io_out_space_T;
-  wire        _GEN_30 =
-    _GEN_29 & io_cdbs[3'h0].valid & robs[4'h7].id == io_cdbs[3'h0].id & ~robs[4'h7].ready;
-  wire [31:0] _GEN_31 = {robs[4'h7].value[30:0], 1'h0};
-  wire        _GEN_32 = 4'h8 - l < _io_out_space_T;
-  wire        _GEN_33 =
-    _GEN_32 & io_cdbs[3'h0].valid & robs[4'h8].id == io_cdbs[3'h0].id & ~robs[4'h8].ready;
-  wire [31:0] _GEN_34 = {robs[4'h8].value[30:0], 1'h0};
-  wire        _GEN_35 = 4'h9 - l < _io_out_space_T;
-  wire        _GEN_36 =
-    _GEN_35 & io_cdbs[3'h0].valid & robs[4'h9].id == io_cdbs[3'h0].id & ~robs[4'h9].ready;
-  wire [31:0] _GEN_37 = {robs[4'h9].value[30:0], 1'h0};
-  wire        _GEN_38 = 4'hA - l < _io_out_space_T;
-  wire        _GEN_39 =
-    _GEN_38 & io_cdbs[3'h0].valid & robs[4'hA].id == io_cdbs[3'h0].id & ~robs[4'hA].ready;
-  wire [31:0] _GEN_40 = {robs[4'hA].value[30:0], 1'h0};
-  wire        _GEN_41 = 4'hB - l < _io_out_space_T;
+    ~io_clear_valid & _GEN_3 & ~_GEN_8 & (_GEN_11 ? ~(&_GEN_6) : ~(_GEN_5[0]))
+    & (|(_io_out_space_T[3:1])) & robs[index_5].ready;
+  wire        _GEN_19 = $signed(robs[index_5].type_) > 32'sh0;
+  wire        _GEN_20 = _GEN_18 & _GEN_19;
+  wire        _GEN_21 = robs[index_5].type_ == 32'h0;
+  wire        _GEN_22 =
+    io_clear_valid | ~_GEN_18 | _GEN_19 | ~_GEN_21 | (&robs[index_5].dest);
+  assign _GEN_1 =
+    ~io_clear_valid & _GEN_18 & (_GEN_19 ? io_store_received : _GEN_21 | ~_GEN_15);
+  wire        _GEN_23 = _GEN_19 | _GEN_21;
+  wire        _GEN_24 = ~io_clear_valid & _GEN_18 & ~_GEN_23 | _GEN_15;
+  wire        _GEN_25 = ~_GEN_15 & robs[index_5].value[0];
+  wire        _GEN_26 = ~_GEN_18 | _GEN_23 | ~_GEN_25;
+  wire        _GEN_27 = ~_GEN_18 | _GEN_23 | _GEN_15;
+  wire [3:0]  index_6 = l + 4'h2;
+  wire        _GEN_28 =
+    ~io_clear_valid & _GEN_18 & ~_GEN_19
+    & (_GEN_21 ? ~(&robs[index_5].dest) : ~_GEN_15 & ~(robs[index_5].value[0]))
+    & _io_out_space_T > 4'h2 & robs[index_6].ready;
+  wire        _GEN_29 = $signed(robs[index_6].type_) > 32'sh0;
+  wire        _GEN_30 = _GEN_28 & _GEN_29;
+  wire        _GEN_31 = robs[index_6].type_ == 32'h0;
+  wire        _GEN_32 =
+    io_clear_valid | ~_GEN_28 | _GEN_29 | ~_GEN_31 | (&robs[index_6].dest);
+  assign _GEN_0 =
+    ~io_clear_valid & _GEN_28 & (_GEN_29 ? io_store_received : _GEN_31 | ~_GEN_24);
+  wire        _GEN_33 = _GEN_29 | _GEN_31;
+  wire        _GEN_34 = ~io_clear_valid & _GEN_28 & ~_GEN_33 | _GEN_24;
+  wire        _GEN_35 = ~_GEN_24 & robs[index_6].value[0];
+  wire        _GEN_36 = ~_GEN_28 | _GEN_33 | ~_GEN_35;
+  wire        _GEN_37 = ~_GEN_28 | _GEN_33 | _GEN_24;
+  wire [3:0]  index_7 = l + 4'h3;
+  wire        _GEN_38 =
+    ~io_clear_valid & _GEN_28 & ~_GEN_29
+    & (_GEN_31 ? ~(&robs[index_6].dest) : ~_GEN_24 & ~(robs[index_6].value[0]))
+    & (|(_io_out_space_T[3:2])) & robs[index_7].ready;
+  wire        _GEN_39 = $signed(robs[index_7].type_) > 32'sh0;
+  wire        _GEN_40 = _GEN_38 & _GEN_39;
+  wire        _GEN_41 = robs[index_7].type_ == 32'h0;
   wire        _GEN_42 =
-    _GEN_41 & io_cdbs[3'h0].valid & robs[4'hB].id == io_cdbs[3'h0].id & ~robs[4'hB].ready;
-  wire [31:0] _GEN_43 = {robs[4'hB].value[30:0], 1'h0};
-  wire        _GEN_44 = 4'hC - l < _io_out_space_T;
-  wire        _GEN_45 =
-    _GEN_44 & io_cdbs[3'h0].valid & robs[4'hC].id == io_cdbs[3'h0].id & ~robs[4'hC].ready;
-  wire [31:0] _GEN_46 = {robs[4'hC].value[30:0], 1'h0};
-  wire        _GEN_47 = 4'hD - l < _io_out_space_T;
+    io_clear_valid | ~_GEN_38 | _GEN_39 | ~_GEN_41 | (&robs[index_7].dest);
+  assign _GEN =
+    ~io_clear_valid & _GEN_38 & (_GEN_39 ? io_store_received : _GEN_41 | ~_GEN_34);
+  wire        _GEN_43 = _GEN_39 | _GEN_41;
+  wire        _GEN_44 = ~_GEN_34 & robs[index_7].value[0];
+  wire        _GEN_45 = ~_GEN_38 | _GEN_43 | ~_GEN_44;
+  wire        _GEN_46 = ~_GEN_38 | _GEN_43 | _GEN_34;
+  wire        _GEN_47 = 4'h0 - l < _io_out_space_T;
   wire        _GEN_48 =
-    _GEN_47 & io_cdbs[3'h0].valid & robs[4'hD].id == io_cdbs[3'h0].id & ~robs[4'hD].ready;
-  wire [31:0] _GEN_49 = {robs[4'hD].value[30:0], 1'h0};
-  wire        _GEN_50 = 4'hE - l < _io_out_space_T;
-  wire        _GEN_51 =
-    _GEN_50 & io_cdbs[3'h0].valid & robs[4'hE].id == io_cdbs[3'h0].id & ~robs[4'hE].ready;
-  wire [31:0] _GEN_52 = {robs[4'hE].value[30:0], 1'h0};
-  wire        _GEN_53 = 4'hF - l < _io_out_space_T;
-  wire        _GEN_54 =
-    _GEN_53 & io_cdbs[3'h0].valid & robs[4'hF].id == io_cdbs[3'h0].id & ~robs[4'hF].ready;
-  wire [31:0] _GEN_55 = {robs[4'hF].value[30:0], 1'h0};
-  wire        _GEN_56 =
-    _GEN_7 & io_cdbs[3'h1].valid & robs[4'h0].id == io_cdbs[3'h1].id & ~robs[4'h0].ready;
-  wire        _GEN_57 = io_cdbs[3'h1].dest == 32'hFFFFFFFE;
+    _GEN_47 & io_cdbs[3'h0].valid & robs[4'h0].id == io_cdbs[3'h0].id & ~robs[4'h0].ready;
+  wire        _GEN_49 = io_cdbs[3'h0].dest == 32'hFFFFFFFE;
+  wire [31:0] _GEN_50 = {robs[4'h0].value[30:0], 1'h0};
+  wire        _GEN_51 = 4'h1 - l < _io_out_space_T;
+  wire        _GEN_52 =
+    _GEN_51 & io_cdbs[3'h0].valid & robs[4'h1].id == io_cdbs[3'h0].id & ~robs[4'h1].ready;
+  wire [31:0] _GEN_53 = {robs[4'h1].value[30:0], 1'h0};
+  wire        _GEN_54 = 4'h2 - l < _io_out_space_T;
+  wire        _GEN_55 =
+    _GEN_54 & io_cdbs[3'h0].valid & robs[4'h2].id == io_cdbs[3'h0].id & ~robs[4'h2].ready;
+  wire [31:0] _GEN_56 = {robs[4'h2].value[30:0], 1'h0};
+  wire        _GEN_57 = 4'h3 - l < _io_out_space_T;
   wire        _GEN_58 =
-    _GEN_11 & io_cdbs[3'h1].valid & robs[4'h1].id == io_cdbs[3'h1].id & ~robs[4'h1].ready;
-  wire        _GEN_59 =
-    _GEN_14 & io_cdbs[3'h1].valid & robs[4'h2].id == io_cdbs[3'h1].id & ~robs[4'h2].ready;
-  wire        _GEN_60 =
-    _GEN_17 & io_cdbs[3'h1].valid & robs[4'h3].id == io_cdbs[3'h1].id & ~robs[4'h3].ready;
+    _GEN_57 & io_cdbs[3'h0].valid & robs[4'h3].id == io_cdbs[3'h0].id & ~robs[4'h3].ready;
+  wire [31:0] _GEN_59 = {robs[4'h3].value[30:0], 1'h0};
+  wire        _GEN_60 = 4'h4 - l < _io_out_space_T;
   wire        _GEN_61 =
-    _GEN_20 & io_cdbs[3'h1].valid & robs[4'h4].id == io_cdbs[3'h1].id & ~robs[4'h4].ready;
-  wire        _GEN_62 =
-    _GEN_23 & io_cdbs[3'h1].valid & robs[4'h5].id == io_cdbs[3'h1].id & ~robs[4'h5].ready;
-  wire        _GEN_63 =
-    _GEN_26 & io_cdbs[3'h1].valid & robs[4'h6].id == io_cdbs[3'h1].id & ~robs[4'h6].ready;
+    _GEN_60 & io_cdbs[3'h0].valid & robs[4'h4].id == io_cdbs[3'h0].id & ~robs[4'h4].ready;
+  wire [31:0] _GEN_62 = {robs[4'h4].value[30:0], 1'h0};
+  wire        _GEN_63 = 4'h5 - l < _io_out_space_T;
   wire        _GEN_64 =
-    _GEN_29 & io_cdbs[3'h1].valid & robs[4'h7].id == io_cdbs[3'h1].id & ~robs[4'h7].ready;
-  wire        _GEN_65 =
-    _GEN_32 & io_cdbs[3'h1].valid & robs[4'h8].id == io_cdbs[3'h1].id & ~robs[4'h8].ready;
-  wire        _GEN_66 =
-    _GEN_35 & io_cdbs[3'h1].valid & robs[4'h9].id == io_cdbs[3'h1].id & ~robs[4'h9].ready;
+    _GEN_63 & io_cdbs[3'h0].valid & robs[4'h5].id == io_cdbs[3'h0].id & ~robs[4'h5].ready;
+  wire [31:0] _GEN_65 = {robs[4'h5].value[30:0], 1'h0};
+  wire        _GEN_66 = 4'h6 - l < _io_out_space_T;
   wire        _GEN_67 =
-    _GEN_38 & io_cdbs[3'h1].valid & robs[4'hA].id == io_cdbs[3'h1].id & ~robs[4'hA].ready;
-  wire        _GEN_68 =
-    _GEN_41 & io_cdbs[3'h1].valid & robs[4'hB].id == io_cdbs[3'h1].id & ~robs[4'hB].ready;
-  wire        _GEN_69 =
-    _GEN_44 & io_cdbs[3'h1].valid & robs[4'hC].id == io_cdbs[3'h1].id & ~robs[4'hC].ready;
+    _GEN_66 & io_cdbs[3'h0].valid & robs[4'h6].id == io_cdbs[3'h0].id & ~robs[4'h6].ready;
+  wire [31:0] _GEN_68 = {robs[4'h6].value[30:0], 1'h0};
+  wire        _GEN_69 = 4'h7 - l < _io_out_space_T;
   wire        _GEN_70 =
-    _GEN_47 & io_cdbs[3'h1].valid & robs[4'hD].id == io_cdbs[3'h1].id & ~robs[4'hD].ready;
-  wire        _GEN_71 =
-    _GEN_50 & io_cdbs[3'h1].valid & robs[4'hE].id == io_cdbs[3'h1].id & ~robs[4'hE].ready;
-  wire        _GEN_72 =
-    _GEN_53 & io_cdbs[3'h1].valid & robs[4'hF].id == io_cdbs[3'h1].id & ~robs[4'hF].ready;
+    _GEN_69 & io_cdbs[3'h0].valid & robs[4'h7].id == io_cdbs[3'h0].id & ~robs[4'h7].ready;
+  wire [31:0] _GEN_71 = {robs[4'h7].value[30:0], 1'h0};
+  wire        _GEN_72 = 4'h8 - l < _io_out_space_T;
   wire        _GEN_73 =
-    _GEN_7 & io_cdbs[3'h2].valid & robs[4'h0].id == io_cdbs[3'h2].id & ~robs[4'h0].ready;
-  wire        _GEN_74 = io_cdbs[3'h2].dest == 32'hFFFFFFFE;
-  wire        _GEN_75 =
-    _GEN_11 & io_cdbs[3'h2].valid & robs[4'h1].id == io_cdbs[3'h2].id & ~robs[4'h1].ready;
+    _GEN_72 & io_cdbs[3'h0].valid & robs[4'h8].id == io_cdbs[3'h0].id & ~robs[4'h8].ready;
+  wire [31:0] _GEN_74 = {robs[4'h8].value[30:0], 1'h0};
+  wire        _GEN_75 = 4'h9 - l < _io_out_space_T;
   wire        _GEN_76 =
-    _GEN_14 & io_cdbs[3'h2].valid & robs[4'h2].id == io_cdbs[3'h2].id & ~robs[4'h2].ready;
-  wire        _GEN_77 =
-    _GEN_17 & io_cdbs[3'h2].valid & robs[4'h3].id == io_cdbs[3'h2].id & ~robs[4'h3].ready;
-  wire        _GEN_78 =
-    _GEN_20 & io_cdbs[3'h2].valid & robs[4'h4].id == io_cdbs[3'h2].id & ~robs[4'h4].ready;
+    _GEN_75 & io_cdbs[3'h0].valid & robs[4'h9].id == io_cdbs[3'h0].id & ~robs[4'h9].ready;
+  wire [31:0] _GEN_77 = {robs[4'h9].value[30:0], 1'h0};
+  wire        _GEN_78 = 4'hA - l < _io_out_space_T;
   wire        _GEN_79 =
-    _GEN_23 & io_cdbs[3'h2].valid & robs[4'h5].id == io_cdbs[3'h2].id & ~robs[4'h5].ready;
-  wire        _GEN_80 =
-    _GEN_26 & io_cdbs[3'h2].valid & robs[4'h6].id == io_cdbs[3'h2].id & ~robs[4'h6].ready;
-  wire        _GEN_81 =
-    _GEN_29 & io_cdbs[3'h2].valid & robs[4'h7].id == io_cdbs[3'h2].id & ~robs[4'h7].ready;
+    _GEN_78 & io_cdbs[3'h0].valid & robs[4'hA].id == io_cdbs[3'h0].id & ~robs[4'hA].ready;
+  wire [31:0] _GEN_80 = {robs[4'hA].value[30:0], 1'h0};
+  wire        _GEN_81 = 4'hB - l < _io_out_space_T;
   wire        _GEN_82 =
-    _GEN_32 & io_cdbs[3'h2].valid & robs[4'h8].id == io_cdbs[3'h2].id & ~robs[4'h8].ready;
-  wire        _GEN_83 =
-    _GEN_35 & io_cdbs[3'h2].valid & robs[4'h9].id == io_cdbs[3'h2].id & ~robs[4'h9].ready;
-  wire        _GEN_84 =
-    _GEN_38 & io_cdbs[3'h2].valid & robs[4'hA].id == io_cdbs[3'h2].id & ~robs[4'hA].ready;
+    _GEN_81 & io_cdbs[3'h0].valid & robs[4'hB].id == io_cdbs[3'h0].id & ~robs[4'hB].ready;
+  wire [31:0] _GEN_83 = {robs[4'hB].value[30:0], 1'h0};
+  wire        _GEN_84 = 4'hC - l < _io_out_space_T;
   wire        _GEN_85 =
-    _GEN_41 & io_cdbs[3'h2].valid & robs[4'hB].id == io_cdbs[3'h2].id & ~robs[4'hB].ready;
-  wire        _GEN_86 =
-    _GEN_44 & io_cdbs[3'h2].valid & robs[4'hC].id == io_cdbs[3'h2].id & ~robs[4'hC].ready;
-  wire        _GEN_87 =
-    _GEN_47 & io_cdbs[3'h2].valid & robs[4'hD].id == io_cdbs[3'h2].id & ~robs[4'hD].ready;
+    _GEN_84 & io_cdbs[3'h0].valid & robs[4'hC].id == io_cdbs[3'h0].id & ~robs[4'hC].ready;
+  wire [31:0] _GEN_86 = {robs[4'hC].value[30:0], 1'h0};
+  wire        _GEN_87 = 4'hD - l < _io_out_space_T;
   wire        _GEN_88 =
-    _GEN_50 & io_cdbs[3'h2].valid & robs[4'hE].id == io_cdbs[3'h2].id & ~robs[4'hE].ready;
-  wire        _GEN_89 =
-    _GEN_53 & io_cdbs[3'h2].valid & robs[4'hF].id == io_cdbs[3'h2].id & ~robs[4'hF].ready;
-  wire        _GEN_90 =
-    _GEN_7 & io_cdbs[3'h3].valid & robs[4'h0].id == io_cdbs[3'h3].id & ~robs[4'h0].ready;
-  wire        _GEN_91 = io_cdbs[3'h3].dest == 32'hFFFFFFFE;
-  wire        _GEN_92 =
-    _GEN_11 & io_cdbs[3'h3].valid & robs[4'h1].id == io_cdbs[3'h3].id & ~robs[4'h1].ready;
-  wire        _GEN_93 =
-    _GEN_14 & io_cdbs[3'h3].valid & robs[4'h2].id == io_cdbs[3'h3].id & ~robs[4'h2].ready;
+    _GEN_87 & io_cdbs[3'h0].valid & robs[4'hD].id == io_cdbs[3'h0].id & ~robs[4'hD].ready;
+  wire [31:0] _GEN_89 = {robs[4'hD].value[30:0], 1'h0};
+  wire        _GEN_90 = 4'hE - l < _io_out_space_T;
+  wire        _GEN_91 =
+    _GEN_90 & io_cdbs[3'h0].valid & robs[4'hE].id == io_cdbs[3'h0].id & ~robs[4'hE].ready;
+  wire [31:0] _GEN_92 = {robs[4'hE].value[30:0], 1'h0};
+  wire        _GEN_93 = 4'hF - l < _io_out_space_T;
   wire        _GEN_94 =
-    _GEN_17 & io_cdbs[3'h3].valid & robs[4'h3].id == io_cdbs[3'h3].id & ~robs[4'h3].ready;
-  wire        _GEN_95 =
-    _GEN_20 & io_cdbs[3'h3].valid & robs[4'h4].id == io_cdbs[3'h3].id & ~robs[4'h4].ready;
+    _GEN_93 & io_cdbs[3'h0].valid & robs[4'hF].id == io_cdbs[3'h0].id & ~robs[4'hF].ready;
+  wire [31:0] _GEN_95 = {robs[4'hF].value[30:0], 1'h0};
   wire        _GEN_96 =
-    _GEN_23 & io_cdbs[3'h3].valid & robs[4'h5].id == io_cdbs[3'h3].id & ~robs[4'h5].ready;
-  wire        _GEN_97 =
-    _GEN_26 & io_cdbs[3'h3].valid & robs[4'h6].id == io_cdbs[3'h3].id & ~robs[4'h6].ready;
+    _GEN_47 & io_cdbs[3'h1].valid & robs[4'h0].id == io_cdbs[3'h1].id & ~robs[4'h0].ready;
+  wire        _GEN_97 = io_cdbs[3'h1].dest == 32'hFFFFFFFE;
   wire        _GEN_98 =
-    _GEN_29 & io_cdbs[3'h3].valid & robs[4'h7].id == io_cdbs[3'h3].id & ~robs[4'h7].ready;
+    _GEN_51 & io_cdbs[3'h1].valid & robs[4'h1].id == io_cdbs[3'h1].id & ~robs[4'h1].ready;
   wire        _GEN_99 =
-    _GEN_32 & io_cdbs[3'h3].valid & robs[4'h8].id == io_cdbs[3'h3].id & ~robs[4'h8].ready;
+    _GEN_54 & io_cdbs[3'h1].valid & robs[4'h2].id == io_cdbs[3'h1].id & ~robs[4'h2].ready;
   wire        _GEN_100 =
-    _GEN_35 & io_cdbs[3'h3].valid & robs[4'h9].id == io_cdbs[3'h3].id & ~robs[4'h9].ready;
+    _GEN_57 & io_cdbs[3'h1].valid & robs[4'h3].id == io_cdbs[3'h1].id & ~robs[4'h3].ready;
   wire        _GEN_101 =
-    _GEN_38 & io_cdbs[3'h3].valid & robs[4'hA].id == io_cdbs[3'h3].id & ~robs[4'hA].ready;
+    _GEN_60 & io_cdbs[3'h1].valid & robs[4'h4].id == io_cdbs[3'h1].id & ~robs[4'h4].ready;
   wire        _GEN_102 =
-    _GEN_41 & io_cdbs[3'h3].valid & robs[4'hB].id == io_cdbs[3'h3].id & ~robs[4'hB].ready;
+    _GEN_63 & io_cdbs[3'h1].valid & robs[4'h5].id == io_cdbs[3'h1].id & ~robs[4'h5].ready;
   wire        _GEN_103 =
-    _GEN_44 & io_cdbs[3'h3].valid & robs[4'hC].id == io_cdbs[3'h3].id & ~robs[4'hC].ready;
+    _GEN_66 & io_cdbs[3'h1].valid & robs[4'h6].id == io_cdbs[3'h1].id & ~robs[4'h6].ready;
   wire        _GEN_104 =
-    _GEN_47 & io_cdbs[3'h3].valid & robs[4'hD].id == io_cdbs[3'h3].id & ~robs[4'hD].ready;
+    _GEN_69 & io_cdbs[3'h1].valid & robs[4'h7].id == io_cdbs[3'h1].id & ~robs[4'h7].ready;
   wire        _GEN_105 =
-    _GEN_50 & io_cdbs[3'h3].valid & robs[4'hE].id == io_cdbs[3'h3].id & ~robs[4'hE].ready;
+    _GEN_72 & io_cdbs[3'h1].valid & robs[4'h8].id == io_cdbs[3'h1].id & ~robs[4'h8].ready;
   wire        _GEN_106 =
-    _GEN_53 & io_cdbs[3'h3].valid & robs[4'hF].id == io_cdbs[3'h3].id & ~robs[4'hF].ready;
+    _GEN_75 & io_cdbs[3'h1].valid & robs[4'h9].id == io_cdbs[3'h1].id & ~robs[4'h9].ready;
   wire        _GEN_107 =
-    _GEN_7 & io_cdbs[3'h4].valid & robs[4'h0].id == io_cdbs[3'h4].id & ~robs[4'h0].ready;
-  wire        _GEN_108 = io_cdbs[3'h4].dest == 32'hFFFFFFFE;
+    _GEN_78 & io_cdbs[3'h1].valid & robs[4'hA].id == io_cdbs[3'h1].id & ~robs[4'hA].ready;
+  wire        _GEN_108 =
+    _GEN_81 & io_cdbs[3'h1].valid & robs[4'hB].id == io_cdbs[3'h1].id & ~robs[4'hB].ready;
   wire        _GEN_109 =
-    _GEN_11 & io_cdbs[3'h4].valid & robs[4'h1].id == io_cdbs[3'h4].id & ~robs[4'h1].ready;
+    _GEN_84 & io_cdbs[3'h1].valid & robs[4'hC].id == io_cdbs[3'h1].id & ~robs[4'hC].ready;
   wire        _GEN_110 =
-    _GEN_14 & io_cdbs[3'h4].valid & robs[4'h2].id == io_cdbs[3'h4].id & ~robs[4'h2].ready;
+    _GEN_87 & io_cdbs[3'h1].valid & robs[4'hD].id == io_cdbs[3'h1].id & ~robs[4'hD].ready;
   wire        _GEN_111 =
-    _GEN_17 & io_cdbs[3'h4].valid & robs[4'h3].id == io_cdbs[3'h4].id & ~robs[4'h3].ready;
+    _GEN_90 & io_cdbs[3'h1].valid & robs[4'hE].id == io_cdbs[3'h1].id & ~robs[4'hE].ready;
   wire        _GEN_112 =
-    _GEN_20 & io_cdbs[3'h4].valid & robs[4'h4].id == io_cdbs[3'h4].id & ~robs[4'h4].ready;
+    _GEN_93 & io_cdbs[3'h1].valid & robs[4'hF].id == io_cdbs[3'h1].id & ~robs[4'hF].ready;
   wire        _GEN_113 =
-    _GEN_23 & io_cdbs[3'h4].valid & robs[4'h5].id == io_cdbs[3'h4].id & ~robs[4'h5].ready;
-  wire        _GEN_114 =
-    _GEN_26 & io_cdbs[3'h4].valid & robs[4'h6].id == io_cdbs[3'h4].id & ~robs[4'h6].ready;
+    _GEN_47 & io_cdbs[3'h2].valid & robs[4'h0].id == io_cdbs[3'h2].id & ~robs[4'h0].ready;
+  wire        _GEN_114 = io_cdbs[3'h2].dest == 32'hFFFFFFFE;
   wire        _GEN_115 =
-    _GEN_29 & io_cdbs[3'h4].valid & robs[4'h7].id == io_cdbs[3'h4].id & ~robs[4'h7].ready;
+    _GEN_51 & io_cdbs[3'h2].valid & robs[4'h1].id == io_cdbs[3'h2].id & ~robs[4'h1].ready;
   wire        _GEN_116 =
-    _GEN_32 & io_cdbs[3'h4].valid & robs[4'h8].id == io_cdbs[3'h4].id & ~robs[4'h8].ready;
+    _GEN_54 & io_cdbs[3'h2].valid & robs[4'h2].id == io_cdbs[3'h2].id & ~robs[4'h2].ready;
   wire        _GEN_117 =
-    _GEN_35 & io_cdbs[3'h4].valid & robs[4'h9].id == io_cdbs[3'h4].id & ~robs[4'h9].ready;
+    _GEN_57 & io_cdbs[3'h2].valid & robs[4'h3].id == io_cdbs[3'h2].id & ~robs[4'h3].ready;
   wire        _GEN_118 =
-    _GEN_38 & io_cdbs[3'h4].valid & robs[4'hA].id == io_cdbs[3'h4].id & ~robs[4'hA].ready;
+    _GEN_60 & io_cdbs[3'h2].valid & robs[4'h4].id == io_cdbs[3'h2].id & ~robs[4'h4].ready;
   wire        _GEN_119 =
-    _GEN_41 & io_cdbs[3'h4].valid & robs[4'hB].id == io_cdbs[3'h4].id & ~robs[4'hB].ready;
+    _GEN_63 & io_cdbs[3'h2].valid & robs[4'h5].id == io_cdbs[3'h2].id & ~robs[4'h5].ready;
   wire        _GEN_120 =
-    _GEN_44 & io_cdbs[3'h4].valid & robs[4'hC].id == io_cdbs[3'h4].id & ~robs[4'hC].ready;
+    _GEN_66 & io_cdbs[3'h2].valid & robs[4'h6].id == io_cdbs[3'h2].id & ~robs[4'h6].ready;
   wire        _GEN_121 =
-    _GEN_47 & io_cdbs[3'h4].valid & robs[4'hD].id == io_cdbs[3'h4].id & ~robs[4'hD].ready;
+    _GEN_69 & io_cdbs[3'h2].valid & robs[4'h7].id == io_cdbs[3'h2].id & ~robs[4'h7].ready;
   wire        _GEN_122 =
-    _GEN_50 & io_cdbs[3'h4].valid & robs[4'hE].id == io_cdbs[3'h4].id & ~robs[4'hE].ready;
+    _GEN_72 & io_cdbs[3'h2].valid & robs[4'h8].id == io_cdbs[3'h2].id & ~robs[4'h8].ready;
   wire        _GEN_123 =
-    _GEN_53 & io_cdbs[3'h4].valid & robs[4'hF].id == io_cdbs[3'h4].id & ~robs[4'hF].ready;
+    _GEN_75 & io_cdbs[3'h2].valid & robs[4'h9].id == io_cdbs[3'h2].id & ~robs[4'h9].ready;
   wire        _GEN_124 =
-    _GEN_7 & io_cdbs[3'h5].valid & robs[4'h0].id == io_cdbs[3'h5].id & ~robs[4'h0].ready;
-  wire        _GEN_125 = io_cdbs[3'h5].dest == 32'hFFFFFFFE;
+    _GEN_78 & io_cdbs[3'h2].valid & robs[4'hA].id == io_cdbs[3'h2].id & ~robs[4'hA].ready;
+  wire        _GEN_125 =
+    _GEN_81 & io_cdbs[3'h2].valid & robs[4'hB].id == io_cdbs[3'h2].id & ~robs[4'hB].ready;
   wire        _GEN_126 =
-    _GEN_11 & io_cdbs[3'h5].valid & robs[4'h1].id == io_cdbs[3'h5].id & ~robs[4'h1].ready;
+    _GEN_84 & io_cdbs[3'h2].valid & robs[4'hC].id == io_cdbs[3'h2].id & ~robs[4'hC].ready;
   wire        _GEN_127 =
-    _GEN_14 & io_cdbs[3'h5].valid & robs[4'h2].id == io_cdbs[3'h5].id & ~robs[4'h2].ready;
+    _GEN_87 & io_cdbs[3'h2].valid & robs[4'hD].id == io_cdbs[3'h2].id & ~robs[4'hD].ready;
   wire        _GEN_128 =
-    _GEN_17 & io_cdbs[3'h5].valid & robs[4'h3].id == io_cdbs[3'h5].id & ~robs[4'h3].ready;
+    _GEN_90 & io_cdbs[3'h2].valid & robs[4'hE].id == io_cdbs[3'h2].id & ~robs[4'hE].ready;
   wire        _GEN_129 =
-    _GEN_20 & io_cdbs[3'h5].valid & robs[4'h4].id == io_cdbs[3'h5].id & ~robs[4'h4].ready;
+    _GEN_93 & io_cdbs[3'h2].valid & robs[4'hF].id == io_cdbs[3'h2].id & ~robs[4'hF].ready;
   wire        _GEN_130 =
-    _GEN_23 & io_cdbs[3'h5].valid & robs[4'h5].id == io_cdbs[3'h5].id & ~robs[4'h5].ready;
-  wire        _GEN_131 =
-    _GEN_26 & io_cdbs[3'h5].valid & robs[4'h6].id == io_cdbs[3'h5].id & ~robs[4'h6].ready;
+    _GEN_47 & io_cdbs[3'h3].valid & robs[4'h0].id == io_cdbs[3'h3].id & ~robs[4'h0].ready;
+  wire        _GEN_131 = io_cdbs[3'h3].dest == 32'hFFFFFFFE;
   wire        _GEN_132 =
-    _GEN_29 & io_cdbs[3'h5].valid & robs[4'h7].id == io_cdbs[3'h5].id & ~robs[4'h7].ready;
+    _GEN_51 & io_cdbs[3'h3].valid & robs[4'h1].id == io_cdbs[3'h3].id & ~robs[4'h1].ready;
   wire        _GEN_133 =
-    _GEN_32 & io_cdbs[3'h5].valid & robs[4'h8].id == io_cdbs[3'h5].id & ~robs[4'h8].ready;
+    _GEN_54 & io_cdbs[3'h3].valid & robs[4'h2].id == io_cdbs[3'h3].id & ~robs[4'h2].ready;
   wire        _GEN_134 =
-    _GEN_35 & io_cdbs[3'h5].valid & robs[4'h9].id == io_cdbs[3'h5].id & ~robs[4'h9].ready;
+    _GEN_57 & io_cdbs[3'h3].valid & robs[4'h3].id == io_cdbs[3'h3].id & ~robs[4'h3].ready;
   wire        _GEN_135 =
-    _GEN_38 & io_cdbs[3'h5].valid & robs[4'hA].id == io_cdbs[3'h5].id & ~robs[4'hA].ready;
+    _GEN_60 & io_cdbs[3'h3].valid & robs[4'h4].id == io_cdbs[3'h3].id & ~robs[4'h4].ready;
   wire        _GEN_136 =
-    _GEN_41 & io_cdbs[3'h5].valid & robs[4'hB].id == io_cdbs[3'h5].id & ~robs[4'hB].ready;
+    _GEN_63 & io_cdbs[3'h3].valid & robs[4'h5].id == io_cdbs[3'h3].id & ~robs[4'h5].ready;
   wire        _GEN_137 =
-    _GEN_44 & io_cdbs[3'h5].valid & robs[4'hC].id == io_cdbs[3'h5].id & ~robs[4'hC].ready;
+    _GEN_66 & io_cdbs[3'h3].valid & robs[4'h6].id == io_cdbs[3'h3].id & ~robs[4'h6].ready;
   wire        _GEN_138 =
-    _GEN_47 & io_cdbs[3'h5].valid & robs[4'hD].id == io_cdbs[3'h5].id & ~robs[4'hD].ready;
+    _GEN_69 & io_cdbs[3'h3].valid & robs[4'h7].id == io_cdbs[3'h3].id & ~robs[4'h7].ready;
   wire        _GEN_139 =
-    _GEN_50 & io_cdbs[3'h5].valid & robs[4'hE].id == io_cdbs[3'h5].id & ~robs[4'hE].ready;
+    _GEN_72 & io_cdbs[3'h3].valid & robs[4'h8].id == io_cdbs[3'h3].id & ~robs[4'h8].ready;
   wire        _GEN_140 =
-    _GEN_53 & io_cdbs[3'h5].valid & robs[4'hF].id == io_cdbs[3'h5].id & ~robs[4'hF].ready;
-  wire        _GEN_141 = (|io_valid_num) & index == 4'h0;
-  wire        _GEN_142 = (|io_valid_num) & index == 4'h1;
-  wire        _GEN_143 = (|io_valid_num) & index == 4'h2;
-  wire        _GEN_144 = (|io_valid_num) & index == 4'h3;
-  wire        _GEN_145 = (|io_valid_num) & index == 4'h4;
-  wire        _GEN_146 = (|io_valid_num) & index == 4'h5;
-  wire        _GEN_147 = (|io_valid_num) & index == 4'h6;
-  wire        _GEN_148 = (|io_valid_num) & index == 4'h7;
-  wire        _GEN_149 = (|io_valid_num) & index == 4'h8;
-  wire        _GEN_150 = (|io_valid_num) & index == 4'h9;
-  wire        _GEN_151 = (|io_valid_num) & index == 4'hA;
-  wire        _GEN_152 = (|io_valid_num) & index == 4'hB;
-  wire        _GEN_153 = (|io_valid_num) & index == 4'hC;
-  wire        _GEN_154 = (|io_valid_num) & index == 4'hD;
-  wire        _GEN_155 = (|io_valid_num) & index == 4'hE;
-  wire        _GEN_156 = (|io_valid_num) & (&index);
-  wire        _GEN_157 = (|(io_valid_num[31:1])) & index_1 == 4'h0;
-  wire        _GEN_158 = (|(io_valid_num[31:1])) & index_1 == 4'h1;
-  wire        _GEN_159 = (|(io_valid_num[31:1])) & index_1 == 4'h2;
-  wire        _GEN_160 = (|(io_valid_num[31:1])) & index_1 == 4'h3;
-  wire        _GEN_161 = (|(io_valid_num[31:1])) & index_1 == 4'h4;
-  wire        _GEN_162 = (|(io_valid_num[31:1])) & index_1 == 4'h5;
-  wire        _GEN_163 = (|(io_valid_num[31:1])) & index_1 == 4'h6;
-  wire        _GEN_164 = (|(io_valid_num[31:1])) & index_1 == 4'h7;
-  wire        _GEN_165 = (|(io_valid_num[31:1])) & index_1 == 4'h8;
-  wire        _GEN_166 = (|(io_valid_num[31:1])) & index_1 == 4'h9;
-  wire        _GEN_167 = (|(io_valid_num[31:1])) & index_1 == 4'hA;
-  wire        _GEN_168 = (|(io_valid_num[31:1])) & index_1 == 4'hB;
-  wire        _GEN_169 = (|(io_valid_num[31:1])) & index_1 == 4'hC;
-  wire        _GEN_170 = (|(io_valid_num[31:1])) & index_1 == 4'hD;
-  wire        _GEN_171 = (|(io_valid_num[31:1])) & index_1 == 4'hE;
-  wire        _GEN_172 = (|(io_valid_num[31:1])) & (&index_1);
-  wire        _GEN_173 = io_valid_num > 32'h2;
-  wire        _GEN_174 = _GEN_173 & index_2 == 4'h0;
-  wire        _GEN_175 = _GEN_173 & index_2 == 4'h1;
-  wire        _GEN_176 = _GEN_173 & index_2 == 4'h2;
-  wire        _GEN_177 = _GEN_173 & index_2 == 4'h3;
-  wire        _GEN_178 = _GEN_173 & index_2 == 4'h4;
-  wire        _GEN_179 = _GEN_173 & index_2 == 4'h5;
-  wire        _GEN_180 = _GEN_173 & index_2 == 4'h6;
-  wire        _GEN_181 = _GEN_173 & index_2 == 4'h7;
-  wire        _GEN_182 = _GEN_173 & index_2 == 4'h8;
-  wire        _GEN_183 = _GEN_173 & index_2 == 4'h9;
-  wire        _GEN_184 = _GEN_173 & index_2 == 4'hA;
-  wire        _GEN_185 = _GEN_173 & index_2 == 4'hB;
-  wire        _GEN_186 = _GEN_173 & index_2 == 4'hC;
-  wire        _GEN_187 = _GEN_173 & index_2 == 4'hD;
-  wire        _GEN_188 = _GEN_173 & index_2 == 4'hE;
-  wire        _GEN_189 = _GEN_173 & (&index_2);
-  wire        _GEN_190 = (|(io_valid_num[31:2])) & index_3 == 4'h0;
-  wire        _GEN_191 =
-    _GEN_190
+    _GEN_75 & io_cdbs[3'h3].valid & robs[4'h9].id == io_cdbs[3'h3].id & ~robs[4'h9].ready;
+  wire        _GEN_141 =
+    _GEN_78 & io_cdbs[3'h3].valid & robs[4'hA].id == io_cdbs[3'h3].id & ~robs[4'hA].ready;
+  wire        _GEN_142 =
+    _GEN_81 & io_cdbs[3'h3].valid & robs[4'hB].id == io_cdbs[3'h3].id & ~robs[4'hB].ready;
+  wire        _GEN_143 =
+    _GEN_84 & io_cdbs[3'h3].valid & robs[4'hC].id == io_cdbs[3'h3].id & ~robs[4'hC].ready;
+  wire        _GEN_144 =
+    _GEN_87 & io_cdbs[3'h3].valid & robs[4'hD].id == io_cdbs[3'h3].id & ~robs[4'hD].ready;
+  wire        _GEN_145 =
+    _GEN_90 & io_cdbs[3'h3].valid & robs[4'hE].id == io_cdbs[3'h3].id & ~robs[4'hE].ready;
+  wire        _GEN_146 =
+    _GEN_93 & io_cdbs[3'h3].valid & robs[4'hF].id == io_cdbs[3'h3].id & ~robs[4'hF].ready;
+  wire        _GEN_147 =
+    _GEN_47 & io_cdbs[3'h4].valid & robs[4'h0].id == io_cdbs[3'h4].id & ~robs[4'h0].ready;
+  wire        _GEN_148 = io_cdbs[3'h4].dest == 32'hFFFFFFFE;
+  wire        _GEN_149 =
+    _GEN_51 & io_cdbs[3'h4].valid & robs[4'h1].id == io_cdbs[3'h4].id & ~robs[4'h1].ready;
+  wire        _GEN_150 =
+    _GEN_54 & io_cdbs[3'h4].valid & robs[4'h2].id == io_cdbs[3'h4].id & ~robs[4'h2].ready;
+  wire        _GEN_151 =
+    _GEN_57 & io_cdbs[3'h4].valid & robs[4'h3].id == io_cdbs[3'h4].id & ~robs[4'h3].ready;
+  wire        _GEN_152 =
+    _GEN_60 & io_cdbs[3'h4].valid & robs[4'h4].id == io_cdbs[3'h4].id & ~robs[4'h4].ready;
+  wire        _GEN_153 =
+    _GEN_63 & io_cdbs[3'h4].valid & robs[4'h5].id == io_cdbs[3'h4].id & ~robs[4'h5].ready;
+  wire        _GEN_154 =
+    _GEN_66 & io_cdbs[3'h4].valid & robs[4'h6].id == io_cdbs[3'h4].id & ~robs[4'h6].ready;
+  wire        _GEN_155 =
+    _GEN_69 & io_cdbs[3'h4].valid & robs[4'h7].id == io_cdbs[3'h4].id & ~robs[4'h7].ready;
+  wire        _GEN_156 =
+    _GEN_72 & io_cdbs[3'h4].valid & robs[4'h8].id == io_cdbs[3'h4].id & ~robs[4'h8].ready;
+  wire        _GEN_157 =
+    _GEN_75 & io_cdbs[3'h4].valid & robs[4'h9].id == io_cdbs[3'h4].id & ~robs[4'h9].ready;
+  wire        _GEN_158 =
+    _GEN_78 & io_cdbs[3'h4].valid & robs[4'hA].id == io_cdbs[3'h4].id & ~robs[4'hA].ready;
+  wire        _GEN_159 =
+    _GEN_81 & io_cdbs[3'h4].valid & robs[4'hB].id == io_cdbs[3'h4].id & ~robs[4'hB].ready;
+  wire        _GEN_160 =
+    _GEN_84 & io_cdbs[3'h4].valid & robs[4'hC].id == io_cdbs[3'h4].id & ~robs[4'hC].ready;
+  wire        _GEN_161 =
+    _GEN_87 & io_cdbs[3'h4].valid & robs[4'hD].id == io_cdbs[3'h4].id & ~robs[4'hD].ready;
+  wire        _GEN_162 =
+    _GEN_90 & io_cdbs[3'h4].valid & robs[4'hE].id == io_cdbs[3'h4].id & ~robs[4'hE].ready;
+  wire        _GEN_163 =
+    _GEN_93 & io_cdbs[3'h4].valid & robs[4'hF].id == io_cdbs[3'h4].id & ~robs[4'hF].ready;
+  wire        _GEN_164 =
+    _GEN_47 & io_cdbs[3'h5].valid & robs[4'h0].id == io_cdbs[3'h5].id & ~robs[4'h0].ready;
+  wire        _GEN_165 = io_cdbs[3'h5].dest == 32'hFFFFFFFE;
+  wire        _GEN_166 =
+    _GEN_51 & io_cdbs[3'h5].valid & robs[4'h1].id == io_cdbs[3'h5].id & ~robs[4'h1].ready;
+  wire        _GEN_167 =
+    _GEN_54 & io_cdbs[3'h5].valid & robs[4'h2].id == io_cdbs[3'h5].id & ~robs[4'h2].ready;
+  wire        _GEN_168 =
+    _GEN_57 & io_cdbs[3'h5].valid & robs[4'h3].id == io_cdbs[3'h5].id & ~robs[4'h3].ready;
+  wire        _GEN_169 =
+    _GEN_60 & io_cdbs[3'h5].valid & robs[4'h4].id == io_cdbs[3'h5].id & ~robs[4'h4].ready;
+  wire        _GEN_170 =
+    _GEN_63 & io_cdbs[3'h5].valid & robs[4'h5].id == io_cdbs[3'h5].id & ~robs[4'h5].ready;
+  wire        _GEN_171 =
+    _GEN_66 & io_cdbs[3'h5].valid & robs[4'h6].id == io_cdbs[3'h5].id & ~robs[4'h6].ready;
+  wire        _GEN_172 =
+    _GEN_69 & io_cdbs[3'h5].valid & robs[4'h7].id == io_cdbs[3'h5].id & ~robs[4'h7].ready;
+  wire        _GEN_173 =
+    _GEN_72 & io_cdbs[3'h5].valid & robs[4'h8].id == io_cdbs[3'h5].id & ~robs[4'h8].ready;
+  wire        _GEN_174 =
+    _GEN_75 & io_cdbs[3'h5].valid & robs[4'h9].id == io_cdbs[3'h5].id & ~robs[4'h9].ready;
+  wire        _GEN_175 =
+    _GEN_78 & io_cdbs[3'h5].valid & robs[4'hA].id == io_cdbs[3'h5].id & ~robs[4'hA].ready;
+  wire        _GEN_176 =
+    _GEN_81 & io_cdbs[3'h5].valid & robs[4'hB].id == io_cdbs[3'h5].id & ~robs[4'hB].ready;
+  wire        _GEN_177 =
+    _GEN_84 & io_cdbs[3'h5].valid & robs[4'hC].id == io_cdbs[3'h5].id & ~robs[4'hC].ready;
+  wire        _GEN_178 =
+    _GEN_87 & io_cdbs[3'h5].valid & robs[4'hD].id == io_cdbs[3'h5].id & ~robs[4'hD].ready;
+  wire        _GEN_179 =
+    _GEN_90 & io_cdbs[3'h5].valid & robs[4'hE].id == io_cdbs[3'h5].id & ~robs[4'hE].ready;
+  wire        _GEN_180 =
+    _GEN_93 & io_cdbs[3'h5].valid & robs[4'hF].id == io_cdbs[3'h5].id & ~robs[4'hF].ready;
+  wire        _GEN_181 = (|io_valid_num) & index == 4'h0;
+  wire        _GEN_182 = (|io_valid_num) & index == 4'h1;
+  wire        _GEN_183 = (|io_valid_num) & index == 4'h2;
+  wire        _GEN_184 = (|io_valid_num) & index == 4'h3;
+  wire        _GEN_185 = (|io_valid_num) & index == 4'h4;
+  wire        _GEN_186 = (|io_valid_num) & index == 4'h5;
+  wire        _GEN_187 = (|io_valid_num) & index == 4'h6;
+  wire        _GEN_188 = (|io_valid_num) & index == 4'h7;
+  wire        _GEN_189 = (|io_valid_num) & index == 4'h8;
+  wire        _GEN_190 = (|io_valid_num) & index == 4'h9;
+  wire        _GEN_191 = (|io_valid_num) & index == 4'hA;
+  wire        _GEN_192 = (|io_valid_num) & index == 4'hB;
+  wire        _GEN_193 = (|io_valid_num) & index == 4'hC;
+  wire        _GEN_194 = (|io_valid_num) & index == 4'hD;
+  wire        _GEN_195 = (|io_valid_num) & index == 4'hE;
+  wire        _GEN_196 = (|io_valid_num) & (&index);
+  wire        _GEN_197 = (|(io_valid_num[31:1])) & index_1 == 4'h0;
+  wire        _GEN_198 = (|(io_valid_num[31:1])) & index_1 == 4'h1;
+  wire        _GEN_199 = (|(io_valid_num[31:1])) & index_1 == 4'h2;
+  wire        _GEN_200 = (|(io_valid_num[31:1])) & index_1 == 4'h3;
+  wire        _GEN_201 = (|(io_valid_num[31:1])) & index_1 == 4'h4;
+  wire        _GEN_202 = (|(io_valid_num[31:1])) & index_1 == 4'h5;
+  wire        _GEN_203 = (|(io_valid_num[31:1])) & index_1 == 4'h6;
+  wire        _GEN_204 = (|(io_valid_num[31:1])) & index_1 == 4'h7;
+  wire        _GEN_205 = (|(io_valid_num[31:1])) & index_1 == 4'h8;
+  wire        _GEN_206 = (|(io_valid_num[31:1])) & index_1 == 4'h9;
+  wire        _GEN_207 = (|(io_valid_num[31:1])) & index_1 == 4'hA;
+  wire        _GEN_208 = (|(io_valid_num[31:1])) & index_1 == 4'hB;
+  wire        _GEN_209 = (|(io_valid_num[31:1])) & index_1 == 4'hC;
+  wire        _GEN_210 = (|(io_valid_num[31:1])) & index_1 == 4'hD;
+  wire        _GEN_211 = (|(io_valid_num[31:1])) & index_1 == 4'hE;
+  wire        _GEN_212 = (|(io_valid_num[31:1])) & (&index_1);
+  wire        _GEN_213 = io_valid_num > 32'h2;
+  wire        _GEN_214 = _GEN_213 & index_2 == 4'h0;
+  wire        _GEN_215 = _GEN_213 & index_2 == 4'h1;
+  wire        _GEN_216 = _GEN_213 & index_2 == 4'h2;
+  wire        _GEN_217 = _GEN_213 & index_2 == 4'h3;
+  wire        _GEN_218 = _GEN_213 & index_2 == 4'h4;
+  wire        _GEN_219 = _GEN_213 & index_2 == 4'h5;
+  wire        _GEN_220 = _GEN_213 & index_2 == 4'h6;
+  wire        _GEN_221 = _GEN_213 & index_2 == 4'h7;
+  wire        _GEN_222 = _GEN_213 & index_2 == 4'h8;
+  wire        _GEN_223 = _GEN_213 & index_2 == 4'h9;
+  wire        _GEN_224 = _GEN_213 & index_2 == 4'hA;
+  wire        _GEN_225 = _GEN_213 & index_2 == 4'hB;
+  wire        _GEN_226 = _GEN_213 & index_2 == 4'hC;
+  wire        _GEN_227 = _GEN_213 & index_2 == 4'hD;
+  wire        _GEN_228 = _GEN_213 & index_2 == 4'hE;
+  wire        _GEN_229 = _GEN_213 & (&index_2);
+  wire        _GEN_230 = (|(io_valid_num[31:2])) & index_3 == 4'h0;
+  wire        _GEN_231 =
+    _GEN_230
       ? io_in_robs[2'h3].ready
-      : _GEN_174
+      : _GEN_214
           ? io_in_robs[2'h2].ready
-          : _GEN_157
+          : _GEN_197
               ? io_in_robs[2'h1].ready
-              : _GEN_141
+              : _GEN_181
                   ? io_in_robs[2'h0].ready
-                  : _GEN_124 | _GEN_107 | _GEN_90 | _GEN_73 | _GEN_56 | _GEN_8
+                  : _GEN_164 | _GEN_147 | _GEN_130 | _GEN_113 | _GEN_96 | _GEN_48
                     | robs[4'h0].ready;
-  wire        _GEN_192 = (|(io_valid_num[31:2])) & index_3 == 4'h1;
-  wire        _GEN_193 =
-    _GEN_192
+  wire        _GEN_232 = (|(io_valid_num[31:2])) & index_3 == 4'h1;
+  wire        _GEN_233 =
+    _GEN_232
       ? io_in_robs[2'h3].ready
-      : _GEN_175
+      : _GEN_215
           ? io_in_robs[2'h2].ready
-          : _GEN_158
+          : _GEN_198
               ? io_in_robs[2'h1].ready
-              : _GEN_142
+              : _GEN_182
                   ? io_in_robs[2'h0].ready
-                  : _GEN_126 | _GEN_109 | _GEN_92 | _GEN_75 | _GEN_58 | _GEN_12
+                  : _GEN_166 | _GEN_149 | _GEN_132 | _GEN_115 | _GEN_98 | _GEN_52
                     | robs[4'h1].ready;
-  wire        _GEN_194 = (|(io_valid_num[31:2])) & index_3 == 4'h2;
-  wire        _GEN_195 =
-    _GEN_194
+  wire        _GEN_234 = (|(io_valid_num[31:2])) & index_3 == 4'h2;
+  wire        _GEN_235 =
+    _GEN_234
       ? io_in_robs[2'h3].ready
-      : _GEN_176
+      : _GEN_216
           ? io_in_robs[2'h2].ready
-          : _GEN_159
+          : _GEN_199
               ? io_in_robs[2'h1].ready
-              : _GEN_143
+              : _GEN_183
                   ? io_in_robs[2'h0].ready
-                  : _GEN_127 | _GEN_110 | _GEN_93 | _GEN_76 | _GEN_59 | _GEN_15
+                  : _GEN_167 | _GEN_150 | _GEN_133 | _GEN_116 | _GEN_99 | _GEN_55
                     | robs[4'h2].ready;
-  wire        _GEN_196 = (|(io_valid_num[31:2])) & index_3 == 4'h3;
-  wire        _GEN_197 =
-    _GEN_196
+  wire        _GEN_236 = (|(io_valid_num[31:2])) & index_3 == 4'h3;
+  wire        _GEN_237 =
+    _GEN_236
       ? io_in_robs[2'h3].ready
-      : _GEN_177
+      : _GEN_217
           ? io_in_robs[2'h2].ready
-          : _GEN_160
+          : _GEN_200
               ? io_in_robs[2'h1].ready
-              : _GEN_144
+              : _GEN_184
                   ? io_in_robs[2'h0].ready
-                  : _GEN_128 | _GEN_111 | _GEN_94 | _GEN_77 | _GEN_60 | _GEN_18
+                  : _GEN_168 | _GEN_151 | _GEN_134 | _GEN_117 | _GEN_100 | _GEN_58
                     | robs[4'h3].ready;
-  wire        _GEN_198 = (|(io_valid_num[31:2])) & index_3 == 4'h4;
-  wire        _GEN_199 =
-    _GEN_198
+  wire        _GEN_238 = (|(io_valid_num[31:2])) & index_3 == 4'h4;
+  wire        _GEN_239 =
+    _GEN_238
       ? io_in_robs[2'h3].ready
-      : _GEN_178
+      : _GEN_218
           ? io_in_robs[2'h2].ready
-          : _GEN_161
+          : _GEN_201
               ? io_in_robs[2'h1].ready
-              : _GEN_145
+              : _GEN_185
                   ? io_in_robs[2'h0].ready
-                  : _GEN_129 | _GEN_112 | _GEN_95 | _GEN_78 | _GEN_61 | _GEN_21
+                  : _GEN_169 | _GEN_152 | _GEN_135 | _GEN_118 | _GEN_101 | _GEN_61
                     | robs[4'h4].ready;
-  wire        _GEN_200 = (|(io_valid_num[31:2])) & index_3 == 4'h5;
-  wire        _GEN_201 =
-    _GEN_200
+  wire        _GEN_240 = (|(io_valid_num[31:2])) & index_3 == 4'h5;
+  wire        _GEN_241 =
+    _GEN_240
       ? io_in_robs[2'h3].ready
-      : _GEN_179
+      : _GEN_219
           ? io_in_robs[2'h2].ready
-          : _GEN_162
+          : _GEN_202
               ? io_in_robs[2'h1].ready
-              : _GEN_146
+              : _GEN_186
                   ? io_in_robs[2'h0].ready
-                  : _GEN_130 | _GEN_113 | _GEN_96 | _GEN_79 | _GEN_62 | _GEN_24
+                  : _GEN_170 | _GEN_153 | _GEN_136 | _GEN_119 | _GEN_102 | _GEN_64
                     | robs[4'h5].ready;
-  wire        _GEN_202 = (|(io_valid_num[31:2])) & index_3 == 4'h6;
-  wire        _GEN_203 =
-    _GEN_202
+  wire        _GEN_242 = (|(io_valid_num[31:2])) & index_3 == 4'h6;
+  wire        _GEN_243 =
+    _GEN_242
       ? io_in_robs[2'h3].ready
-      : _GEN_180
+      : _GEN_220
           ? io_in_robs[2'h2].ready
-          : _GEN_163
+          : _GEN_203
               ? io_in_robs[2'h1].ready
-              : _GEN_147
+              : _GEN_187
                   ? io_in_robs[2'h0].ready
-                  : _GEN_131 | _GEN_114 | _GEN_97 | _GEN_80 | _GEN_63 | _GEN_27
+                  : _GEN_171 | _GEN_154 | _GEN_137 | _GEN_120 | _GEN_103 | _GEN_67
                     | robs[4'h6].ready;
-  wire        _GEN_204 = (|(io_valid_num[31:2])) & index_3 == 4'h7;
-  wire        _GEN_205 =
-    _GEN_204
+  wire        _GEN_244 = (|(io_valid_num[31:2])) & index_3 == 4'h7;
+  wire        _GEN_245 =
+    _GEN_244
       ? io_in_robs[2'h3].ready
-      : _GEN_181
+      : _GEN_221
           ? io_in_robs[2'h2].ready
-          : _GEN_164
+          : _GEN_204
               ? io_in_robs[2'h1].ready
-              : _GEN_148
+              : _GEN_188
                   ? io_in_robs[2'h0].ready
-                  : _GEN_132 | _GEN_115 | _GEN_98 | _GEN_81 | _GEN_64 | _GEN_30
+                  : _GEN_172 | _GEN_155 | _GEN_138 | _GEN_121 | _GEN_104 | _GEN_70
                     | robs[4'h7].ready;
-  wire        _GEN_206 = (|(io_valid_num[31:2])) & index_3 == 4'h8;
-  wire        _GEN_207 =
-    _GEN_206
+  wire        _GEN_246 = (|(io_valid_num[31:2])) & index_3 == 4'h8;
+  wire        _GEN_247 =
+    _GEN_246
       ? io_in_robs[2'h3].ready
-      : _GEN_182
+      : _GEN_222
           ? io_in_robs[2'h2].ready
-          : _GEN_165
+          : _GEN_205
               ? io_in_robs[2'h1].ready
-              : _GEN_149
+              : _GEN_189
                   ? io_in_robs[2'h0].ready
-                  : _GEN_133 | _GEN_116 | _GEN_99 | _GEN_82 | _GEN_65 | _GEN_33
+                  : _GEN_173 | _GEN_156 | _GEN_139 | _GEN_122 | _GEN_105 | _GEN_73
                     | robs[4'h8].ready;
-  wire        _GEN_208 = (|(io_valid_num[31:2])) & index_3 == 4'h9;
-  wire        _GEN_209 =
-    _GEN_208
+  wire        _GEN_248 = (|(io_valid_num[31:2])) & index_3 == 4'h9;
+  wire        _GEN_249 =
+    _GEN_248
       ? io_in_robs[2'h3].ready
-      : _GEN_183
+      : _GEN_223
           ? io_in_robs[2'h2].ready
-          : _GEN_166
+          : _GEN_206
               ? io_in_robs[2'h1].ready
-              : _GEN_150
+              : _GEN_190
                   ? io_in_robs[2'h0].ready
-                  : _GEN_134 | _GEN_117 | _GEN_100 | _GEN_83 | _GEN_66 | _GEN_36
+                  : _GEN_174 | _GEN_157 | _GEN_140 | _GEN_123 | _GEN_106 | _GEN_76
                     | robs[4'h9].ready;
-  wire        _GEN_210 = (|(io_valid_num[31:2])) & index_3 == 4'hA;
-  wire        _GEN_211 =
-    _GEN_210
+  wire        _GEN_250 = (|(io_valid_num[31:2])) & index_3 == 4'hA;
+  wire        _GEN_251 =
+    _GEN_250
       ? io_in_robs[2'h3].ready
-      : _GEN_184
+      : _GEN_224
           ? io_in_robs[2'h2].ready
-          : _GEN_167
+          : _GEN_207
               ? io_in_robs[2'h1].ready
-              : _GEN_151
+              : _GEN_191
                   ? io_in_robs[2'h0].ready
-                  : _GEN_135 | _GEN_118 | _GEN_101 | _GEN_84 | _GEN_67 | _GEN_39
+                  : _GEN_175 | _GEN_158 | _GEN_141 | _GEN_124 | _GEN_107 | _GEN_79
                     | robs[4'hA].ready;
-  wire        _GEN_212 = (|(io_valid_num[31:2])) & index_3 == 4'hB;
-  wire        _GEN_213 =
-    _GEN_212
+  wire        _GEN_252 = (|(io_valid_num[31:2])) & index_3 == 4'hB;
+  wire        _GEN_253 =
+    _GEN_252
       ? io_in_robs[2'h3].ready
-      : _GEN_185
+      : _GEN_225
           ? io_in_robs[2'h2].ready
-          : _GEN_168
+          : _GEN_208
               ? io_in_robs[2'h1].ready
-              : _GEN_152
+              : _GEN_192
                   ? io_in_robs[2'h0].ready
-                  : _GEN_136 | _GEN_119 | _GEN_102 | _GEN_85 | _GEN_68 | _GEN_42
+                  : _GEN_176 | _GEN_159 | _GEN_142 | _GEN_125 | _GEN_108 | _GEN_82
                     | robs[4'hB].ready;
-  wire        _GEN_214 = (|(io_valid_num[31:2])) & index_3 == 4'hC;
-  wire        _GEN_215 =
-    _GEN_214
+  wire        _GEN_254 = (|(io_valid_num[31:2])) & index_3 == 4'hC;
+  wire        _GEN_255 =
+    _GEN_254
       ? io_in_robs[2'h3].ready
-      : _GEN_186
+      : _GEN_226
           ? io_in_robs[2'h2].ready
-          : _GEN_169
+          : _GEN_209
               ? io_in_robs[2'h1].ready
-              : _GEN_153
+              : _GEN_193
                   ? io_in_robs[2'h0].ready
-                  : _GEN_137 | _GEN_120 | _GEN_103 | _GEN_86 | _GEN_69 | _GEN_45
+                  : _GEN_177 | _GEN_160 | _GEN_143 | _GEN_126 | _GEN_109 | _GEN_85
                     | robs[4'hC].ready;
-  wire        _GEN_216 = (|(io_valid_num[31:2])) & index_3 == 4'hD;
-  wire        _GEN_217 =
-    _GEN_216
+  wire        _GEN_256 = (|(io_valid_num[31:2])) & index_3 == 4'hD;
+  wire        _GEN_257 =
+    _GEN_256
       ? io_in_robs[2'h3].ready
-      : _GEN_187
+      : _GEN_227
           ? io_in_robs[2'h2].ready
-          : _GEN_170
+          : _GEN_210
               ? io_in_robs[2'h1].ready
-              : _GEN_154
+              : _GEN_194
                   ? io_in_robs[2'h0].ready
-                  : _GEN_138 | _GEN_121 | _GEN_104 | _GEN_87 | _GEN_70 | _GEN_48
+                  : _GEN_178 | _GEN_161 | _GEN_144 | _GEN_127 | _GEN_110 | _GEN_88
                     | robs[4'hD].ready;
-  wire        _GEN_218 = (|(io_valid_num[31:2])) & index_3 == 4'hE;
-  wire        _GEN_219 =
-    _GEN_218
+  wire        _GEN_258 = (|(io_valid_num[31:2])) & index_3 == 4'hE;
+  wire        _GEN_259 =
+    _GEN_258
       ? io_in_robs[2'h3].ready
-      : _GEN_188
+      : _GEN_228
           ? io_in_robs[2'h2].ready
-          : _GEN_171
+          : _GEN_211
               ? io_in_robs[2'h1].ready
-              : _GEN_155
+              : _GEN_195
                   ? io_in_robs[2'h0].ready
-                  : _GEN_139 | _GEN_122 | _GEN_105 | _GEN_88 | _GEN_71 | _GEN_51
+                  : _GEN_179 | _GEN_162 | _GEN_145 | _GEN_128 | _GEN_111 | _GEN_91
                     | robs[4'hE].ready;
-  wire        _GEN_220 = (|(io_valid_num[31:2])) & (&index_3);
-  wire        _GEN_221 =
-    _GEN_220
+  wire        _GEN_260 = (|(io_valid_num[31:2])) & (&index_3);
+  wire        _GEN_261 =
+    _GEN_260
       ? io_in_robs[2'h3].ready
-      : _GEN_189
+      : _GEN_229
           ? io_in_robs[2'h2].ready
-          : _GEN_172
+          : _GEN_212
               ? io_in_robs[2'h1].ready
-              : _GEN_156
+              : _GEN_196
                   ? io_in_robs[2'h0].ready
-                  : _GEN_140 | _GEN_123 | _GEN_106 | _GEN_89 | _GEN_72 | _GEN_54
+                  : _GEN_180 | _GEN_163 | _GEN_146 | _GEN_129 | _GEN_112 | _GEN_94
                     | robs[4'hF].ready;
-  wire        _GEN_222 = l == 4'h0;
-  wire        _GEN_223 = ~(io_store_received & _GEN_222) & _GEN_191;
-  wire        _GEN_224 = l == 4'h1;
-  wire        _GEN_225 = ~(io_store_received & _GEN_224) & _GEN_193;
-  wire        _GEN_226 = l == 4'h2;
-  wire        _GEN_227 = ~(io_store_received & _GEN_226) & _GEN_195;
-  wire        _GEN_228 = l == 4'h3;
-  wire        _GEN_229 = ~(io_store_received & _GEN_228) & _GEN_197;
-  wire        _GEN_230 = l == 4'h4;
-  wire        _GEN_231 = ~(io_store_received & _GEN_230) & _GEN_199;
-  wire        _GEN_232 = l == 4'h5;
-  wire        _GEN_233 = ~(io_store_received & _GEN_232) & _GEN_201;
-  wire        _GEN_234 = l == 4'h6;
-  wire        _GEN_235 = ~(io_store_received & _GEN_234) & _GEN_203;
-  wire        _GEN_236 = l == 4'h7;
-  wire        _GEN_237 = ~(io_store_received & _GEN_236) & _GEN_205;
-  wire        _GEN_238 = l == 4'h8;
-  wire        _GEN_239 = ~(io_store_received & _GEN_238) & _GEN_207;
-  wire        _GEN_240 = l == 4'h9;
-  wire        _GEN_241 = ~(io_store_received & _GEN_240) & _GEN_209;
-  wire        _GEN_242 = l == 4'hA;
-  wire        _GEN_243 = ~(io_store_received & _GEN_242) & _GEN_211;
-  wire        _GEN_244 = l == 4'hB;
-  wire        _GEN_245 = ~(io_store_received & _GEN_244) & _GEN_213;
-  wire        _GEN_246 = l == 4'hC;
-  wire        _GEN_247 = ~(io_store_received & _GEN_246) & _GEN_215;
-  wire        _GEN_248 = l == 4'hD;
-  wire        _GEN_249 = ~(io_store_received & _GEN_248) & _GEN_217;
-  wire        _GEN_250 = l == 4'hE;
-  wire        _GEN_251 = ~(io_store_received & _GEN_250) & _GEN_219;
-  wire        _GEN_252 = ~(io_store_received & (&l)) & _GEN_221;
-  wire        _GEN_253 = io_clear_valid | ~(~waiting & _GEN_1);
+  wire        _GEN_262 = _GEN_2 & index_4 == 4'h0;
+  wire        _GEN_263 = _GEN_2 & index_4 == 4'h1;
+  wire        _GEN_264 = _GEN_2 & index_4 == 4'h2;
+  wire        _GEN_265 = _GEN_2 & index_4 == 4'h3;
+  wire        _GEN_266 = _GEN_2 & index_4 == 4'h4;
+  wire        _GEN_267 = _GEN_2 & index_4 == 4'h5;
+  wire        _GEN_268 = _GEN_2 & index_4 == 4'h6;
+  wire        _GEN_269 = _GEN_2 & index_4 == 4'h7;
+  wire        _GEN_270 = _GEN_2 & index_4 == 4'h8;
+  wire        _GEN_271 = _GEN_2 & index_4 == 4'h9;
+  wire        _GEN_272 = _GEN_2 & index_4 == 4'hA;
+  wire        _GEN_273 = _GEN_2 & index_4 == 4'hB;
+  wire        _GEN_274 = _GEN_2 & index_4 == 4'hC;
+  wire        _GEN_275 = _GEN_2 & index_4 == 4'hD;
+  wire        _GEN_276 = _GEN_2 & index_4 == 4'hE;
+  wire        _GEN_277 = _GEN_2 & (&index_4);
+  wire        _GEN_278 =
+    _GEN_1 ? ~(index_5 == 4'h0 | _GEN_262) & _GEN_231 : ~_GEN_262 & _GEN_231;
+  wire        _GEN_279 =
+    _GEN_1 ? ~(index_5 == 4'h1 | _GEN_263) & _GEN_233 : ~_GEN_263 & _GEN_233;
+  wire        _GEN_280 =
+    _GEN_1 ? ~(index_5 == 4'h2 | _GEN_264) & _GEN_235 : ~_GEN_264 & _GEN_235;
+  wire        _GEN_281 =
+    _GEN_1 ? ~(index_5 == 4'h3 | _GEN_265) & _GEN_237 : ~_GEN_265 & _GEN_237;
+  wire        _GEN_282 =
+    _GEN_1 ? ~(index_5 == 4'h4 | _GEN_266) & _GEN_239 : ~_GEN_266 & _GEN_239;
+  wire        _GEN_283 =
+    _GEN_1 ? ~(index_5 == 4'h5 | _GEN_267) & _GEN_241 : ~_GEN_267 & _GEN_241;
+  wire        _GEN_284 =
+    _GEN_1 ? ~(index_5 == 4'h6 | _GEN_268) & _GEN_243 : ~_GEN_268 & _GEN_243;
+  wire        _GEN_285 =
+    _GEN_1 ? ~(index_5 == 4'h7 | _GEN_269) & _GEN_245 : ~_GEN_269 & _GEN_245;
+  wire        _GEN_286 =
+    _GEN_1 ? ~(index_5 == 4'h8 | _GEN_270) & _GEN_247 : ~_GEN_270 & _GEN_247;
+  wire        _GEN_287 =
+    _GEN_1 ? ~(index_5 == 4'h9 | _GEN_271) & _GEN_249 : ~_GEN_271 & _GEN_249;
+  wire        _GEN_288 =
+    _GEN_1 ? ~(index_5 == 4'hA | _GEN_272) & _GEN_251 : ~_GEN_272 & _GEN_251;
+  wire        _GEN_289 =
+    _GEN_1 ? ~(index_5 == 4'hB | _GEN_273) & _GEN_253 : ~_GEN_273 & _GEN_253;
+  wire        _GEN_290 =
+    _GEN_1 ? ~(index_5 == 4'hC | _GEN_274) & _GEN_255 : ~_GEN_274 & _GEN_255;
+  wire        _GEN_291 =
+    _GEN_1 ? ~(index_5 == 4'hD | _GEN_275) & _GEN_257 : ~_GEN_275 & _GEN_257;
+  wire        _GEN_292 =
+    _GEN_1 ? ~(index_5 == 4'hE | _GEN_276) & _GEN_259 : ~_GEN_276 & _GEN_259;
+  wire        _GEN_293 =
+    _GEN_1 ? ~((&index_5) | _GEN_277) & _GEN_261 : ~_GEN_277 & _GEN_261;
+  wire        _GEN_294 = _GEN_0 & index_6 == 4'h0;
+  wire        _GEN_295 = _GEN_0 & index_6 == 4'h1;
+  wire        _GEN_296 = _GEN_0 & index_6 == 4'h2;
+  wire        _GEN_297 = _GEN_0 & index_6 == 4'h3;
+  wire        _GEN_298 = _GEN_0 & index_6 == 4'h4;
+  wire        _GEN_299 = _GEN_0 & index_6 == 4'h5;
+  wire        _GEN_300 = _GEN_0 & index_6 == 4'h6;
+  wire        _GEN_301 = _GEN_0 & index_6 == 4'h7;
+  wire        _GEN_302 = _GEN_0 & index_6 == 4'h8;
+  wire        _GEN_303 = _GEN_0 & index_6 == 4'h9;
+  wire        _GEN_304 = _GEN_0 & index_6 == 4'hA;
+  wire        _GEN_305 = _GEN_0 & index_6 == 4'hB;
+  wire        _GEN_306 = _GEN_0 & index_6 == 4'hC;
+  wire        _GEN_307 = _GEN_0 & index_6 == 4'hD;
+  wire        _GEN_308 = _GEN_0 & index_6 == 4'hE;
+  wire        _GEN_309 = _GEN_0 & (&index_6);
+  wire        _GEN_310 = ~_GEN_10 | waiting;
   always @(posedge clock) begin
     if (reset) begin
       l <= 4'h0;
@@ -1428,87 +1523,74 @@ module Committer(
         r <= 4'h0;
       end
       else begin
-        if (waiting) begin
-          if (io_store_received)
-            l <= l + 4'h1;
-        end
-        else if (_GEN) begin
-          if (_GEN_0) begin
-            if (io_store_received)
-              l <= l + 4'h1;
-          end
-          else if (|rb.type_)
-            l <= l + 4'h1;
-          else
-            l <= l + 4'h1;
-        end
+        l <= l + {1'h0, _io_out_commit_num_T_5};
         r <= r + io_valid_num[3:0];
       end
       robs[4'h0] <=
         '{id:
             (io_clear_valid
                ? robs[4'h0].id
-               : _GEN_190
+               : _GEN_230
                    ? io_in_robs[2'h3].id
-                   : _GEN_174
+                   : _GEN_214
                        ? io_in_robs[2'h2].id
-                       : _GEN_157
+                       : _GEN_197
                            ? io_in_robs[2'h1].id
-                           : _GEN_141 ? io_in_robs[2'h0].id : robs[4'h0].id),
+                           : _GEN_181 ? io_in_robs[2'h0].id : robs[4'h0].id),
           value:
             (io_clear_valid
                ? robs[4'h0].value
-               : _GEN_190
+               : _GEN_230
                    ? io_in_robs[2'h3].value
-                   : _GEN_174
+                   : _GEN_214
                        ? io_in_robs[2'h2].value
-                       : _GEN_157
+                       : _GEN_197
                            ? io_in_robs[2'h1].value
-                           : _GEN_141
+                           : _GEN_181
                                ? io_in_robs[2'h0].value
-                               : _GEN_124
-                                   ? (_GEN_125
-                                        ? _GEN_10 + io_cdbs[3'h5].value
+                               : _GEN_164
+                                   ? (_GEN_165
+                                        ? _GEN_50 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_107
-                                       ? (_GEN_108
-                                            ? _GEN_10 + io_cdbs[3'h4].value
+                                   : _GEN_147
+                                       ? (_GEN_148
+                                            ? _GEN_50 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_90
-                                           ? (_GEN_91
-                                                ? _GEN_10 + io_cdbs[3'h3].value
+                                       : _GEN_130
+                                           ? (_GEN_131
+                                                ? _GEN_50 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_73
-                                               ? (_GEN_74
-                                                    ? _GEN_10 + io_cdbs[3'h2].value
+                                           : _GEN_113
+                                               ? (_GEN_114
+                                                    ? _GEN_50 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_56
-                                                   ? (_GEN_57
-                                                        ? _GEN_10 + io_cdbs[3'h1].value
+                                               : _GEN_96
+                                                   ? (_GEN_97
+                                                        ? _GEN_50 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_8
-                                                       ? (_GEN_9
-                                                            ? _GEN_10
+                                                   : _GEN_48
+                                                       ? (_GEN_49
+                                                            ? _GEN_50
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'h0].value),
           dest:
             (io_clear_valid
                ? robs[4'h0].dest
-               : _GEN_190
+               : _GEN_230
                    ? io_in_robs[2'h3].dest
-                   : _GEN_174
+                   : _GEN_214
                        ? io_in_robs[2'h2].dest
-                       : _GEN_157
+                       : _GEN_197
                            ? io_in_robs[2'h1].dest
-                           : _GEN_141
+                           : _GEN_181
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_124 | _GEN_125
-                                   ? (~_GEN_107 | _GEN_108
-                                        ? (~_GEN_90 | _GEN_91
-                                             ? (~_GEN_73 | _GEN_74
-                                                  ? (~_GEN_56 | _GEN_57
-                                                       ? (~_GEN_8 | _GEN_9
+                               : ~_GEN_164 | _GEN_165
+                                   ? (~_GEN_147 | _GEN_148
+                                        ? (~_GEN_130 | _GEN_131
+                                             ? (~_GEN_113 | _GEN_114
+                                                  ? (~_GEN_96 | _GEN_97
+                                                       ? (~_GEN_48 | _GEN_49
                                                             ? robs[4'h0].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -1519,83 +1601,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'h0].type_
-               : _GEN_190
+               : _GEN_230
                    ? io_in_robs[2'h3].type_
-                   : _GEN_174
+                   : _GEN_214
                        ? io_in_robs[2'h2].type_
-                       : _GEN_157
+                       : _GEN_197
                            ? io_in_robs[2'h1].type_
-                           : _GEN_141 ? io_in_robs[2'h0].type_ : robs[4'h0].type_),
+                           : _GEN_181 ? io_in_robs[2'h0].type_ : robs[4'h0].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_223
-                  : _GEN ? (_GEN_0 ? _GEN_223 : ~_GEN_222 & _GEN_191) : _GEN_191))};
+             & (_GEN ? ~(index_7 == 4'h0 | _GEN_294) & _GEN_278 : ~_GEN_294 & _GEN_278))};
       robs[4'h1] <=
         '{id:
             (io_clear_valid
                ? robs[4'h1].id
-               : _GEN_192
+               : _GEN_232
                    ? io_in_robs[2'h3].id
-                   : _GEN_175
+                   : _GEN_215
                        ? io_in_robs[2'h2].id
-                       : _GEN_158
+                       : _GEN_198
                            ? io_in_robs[2'h1].id
-                           : _GEN_142 ? io_in_robs[2'h0].id : robs[4'h1].id),
+                           : _GEN_182 ? io_in_robs[2'h0].id : robs[4'h1].id),
           value:
             (io_clear_valid
                ? robs[4'h1].value
-               : _GEN_192
+               : _GEN_232
                    ? io_in_robs[2'h3].value
-                   : _GEN_175
+                   : _GEN_215
                        ? io_in_robs[2'h2].value
-                       : _GEN_158
+                       : _GEN_198
                            ? io_in_robs[2'h1].value
-                           : _GEN_142
+                           : _GEN_182
                                ? io_in_robs[2'h0].value
-                               : _GEN_126
-                                   ? (_GEN_125
-                                        ? _GEN_13 + io_cdbs[3'h5].value
+                               : _GEN_166
+                                   ? (_GEN_165
+                                        ? _GEN_53 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_109
-                                       ? (_GEN_108
-                                            ? _GEN_13 + io_cdbs[3'h4].value
+                                   : _GEN_149
+                                       ? (_GEN_148
+                                            ? _GEN_53 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_92
-                                           ? (_GEN_91
-                                                ? _GEN_13 + io_cdbs[3'h3].value
+                                       : _GEN_132
+                                           ? (_GEN_131
+                                                ? _GEN_53 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_75
-                                               ? (_GEN_74
-                                                    ? _GEN_13 + io_cdbs[3'h2].value
+                                           : _GEN_115
+                                               ? (_GEN_114
+                                                    ? _GEN_53 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_58
-                                                   ? (_GEN_57
-                                                        ? _GEN_13 + io_cdbs[3'h1].value
+                                               : _GEN_98
+                                                   ? (_GEN_97
+                                                        ? _GEN_53 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_12
-                                                       ? (_GEN_9
-                                                            ? _GEN_13
+                                                   : _GEN_52
+                                                       ? (_GEN_49
+                                                            ? _GEN_53
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'h1].value),
           dest:
             (io_clear_valid
                ? robs[4'h1].dest
-               : _GEN_192
+               : _GEN_232
                    ? io_in_robs[2'h3].dest
-                   : _GEN_175
+                   : _GEN_215
                        ? io_in_robs[2'h2].dest
-                       : _GEN_158
+                       : _GEN_198
                            ? io_in_robs[2'h1].dest
-                           : _GEN_142
+                           : _GEN_182
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_126 | _GEN_125
-                                   ? (~_GEN_109 | _GEN_108
-                                        ? (~_GEN_92 | _GEN_91
-                                             ? (~_GEN_75 | _GEN_74
-                                                  ? (~_GEN_58 | _GEN_57
-                                                       ? (~_GEN_12 | _GEN_9
+                               : ~_GEN_166 | _GEN_165
+                                   ? (~_GEN_149 | _GEN_148
+                                        ? (~_GEN_132 | _GEN_131
+                                             ? (~_GEN_115 | _GEN_114
+                                                  ? (~_GEN_98 | _GEN_97
+                                                       ? (~_GEN_52 | _GEN_49
                                                             ? robs[4'h1].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -1606,83 +1686,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'h1].type_
-               : _GEN_192
+               : _GEN_232
                    ? io_in_robs[2'h3].type_
-                   : _GEN_175
+                   : _GEN_215
                        ? io_in_robs[2'h2].type_
-                       : _GEN_158
+                       : _GEN_198
                            ? io_in_robs[2'h1].type_
-                           : _GEN_142 ? io_in_robs[2'h0].type_ : robs[4'h1].type_),
+                           : _GEN_182 ? io_in_robs[2'h0].type_ : robs[4'h1].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_225
-                  : _GEN ? (_GEN_0 ? _GEN_225 : ~_GEN_224 & _GEN_193) : _GEN_193))};
+             & (_GEN ? ~(index_7 == 4'h1 | _GEN_295) & _GEN_279 : ~_GEN_295 & _GEN_279))};
       robs[4'h2] <=
         '{id:
             (io_clear_valid
                ? robs[4'h2].id
-               : _GEN_194
+               : _GEN_234
                    ? io_in_robs[2'h3].id
-                   : _GEN_176
+                   : _GEN_216
                        ? io_in_robs[2'h2].id
-                       : _GEN_159
+                       : _GEN_199
                            ? io_in_robs[2'h1].id
-                           : _GEN_143 ? io_in_robs[2'h0].id : robs[4'h2].id),
+                           : _GEN_183 ? io_in_robs[2'h0].id : robs[4'h2].id),
           value:
             (io_clear_valid
                ? robs[4'h2].value
-               : _GEN_194
+               : _GEN_234
                    ? io_in_robs[2'h3].value
-                   : _GEN_176
+                   : _GEN_216
                        ? io_in_robs[2'h2].value
-                       : _GEN_159
+                       : _GEN_199
                            ? io_in_robs[2'h1].value
-                           : _GEN_143
+                           : _GEN_183
                                ? io_in_robs[2'h0].value
-                               : _GEN_127
-                                   ? (_GEN_125
-                                        ? _GEN_16 + io_cdbs[3'h5].value
+                               : _GEN_167
+                                   ? (_GEN_165
+                                        ? _GEN_56 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_110
-                                       ? (_GEN_108
-                                            ? _GEN_16 + io_cdbs[3'h4].value
+                                   : _GEN_150
+                                       ? (_GEN_148
+                                            ? _GEN_56 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_93
-                                           ? (_GEN_91
-                                                ? _GEN_16 + io_cdbs[3'h3].value
+                                       : _GEN_133
+                                           ? (_GEN_131
+                                                ? _GEN_56 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_76
-                                               ? (_GEN_74
-                                                    ? _GEN_16 + io_cdbs[3'h2].value
+                                           : _GEN_116
+                                               ? (_GEN_114
+                                                    ? _GEN_56 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_59
-                                                   ? (_GEN_57
-                                                        ? _GEN_16 + io_cdbs[3'h1].value
+                                               : _GEN_99
+                                                   ? (_GEN_97
+                                                        ? _GEN_56 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_15
-                                                       ? (_GEN_9
-                                                            ? _GEN_16
+                                                   : _GEN_55
+                                                       ? (_GEN_49
+                                                            ? _GEN_56
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'h2].value),
           dest:
             (io_clear_valid
                ? robs[4'h2].dest
-               : _GEN_194
+               : _GEN_234
                    ? io_in_robs[2'h3].dest
-                   : _GEN_176
+                   : _GEN_216
                        ? io_in_robs[2'h2].dest
-                       : _GEN_159
+                       : _GEN_199
                            ? io_in_robs[2'h1].dest
-                           : _GEN_143
+                           : _GEN_183
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_127 | _GEN_125
-                                   ? (~_GEN_110 | _GEN_108
-                                        ? (~_GEN_93 | _GEN_91
-                                             ? (~_GEN_76 | _GEN_74
-                                                  ? (~_GEN_59 | _GEN_57
-                                                       ? (~_GEN_15 | _GEN_9
+                               : ~_GEN_167 | _GEN_165
+                                   ? (~_GEN_150 | _GEN_148
+                                        ? (~_GEN_133 | _GEN_131
+                                             ? (~_GEN_116 | _GEN_114
+                                                  ? (~_GEN_99 | _GEN_97
+                                                       ? (~_GEN_55 | _GEN_49
                                                             ? robs[4'h2].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -1693,83 +1771,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'h2].type_
-               : _GEN_194
+               : _GEN_234
                    ? io_in_robs[2'h3].type_
-                   : _GEN_176
+                   : _GEN_216
                        ? io_in_robs[2'h2].type_
-                       : _GEN_159
+                       : _GEN_199
                            ? io_in_robs[2'h1].type_
-                           : _GEN_143 ? io_in_robs[2'h0].type_ : robs[4'h2].type_),
+                           : _GEN_183 ? io_in_robs[2'h0].type_ : robs[4'h2].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_227
-                  : _GEN ? (_GEN_0 ? _GEN_227 : ~_GEN_226 & _GEN_195) : _GEN_195))};
+             & (_GEN ? ~(index_7 == 4'h2 | _GEN_296) & _GEN_280 : ~_GEN_296 & _GEN_280))};
       robs[4'h3] <=
         '{id:
             (io_clear_valid
                ? robs[4'h3].id
-               : _GEN_196
+               : _GEN_236
                    ? io_in_robs[2'h3].id
-                   : _GEN_177
+                   : _GEN_217
                        ? io_in_robs[2'h2].id
-                       : _GEN_160
+                       : _GEN_200
                            ? io_in_robs[2'h1].id
-                           : _GEN_144 ? io_in_robs[2'h0].id : robs[4'h3].id),
+                           : _GEN_184 ? io_in_robs[2'h0].id : robs[4'h3].id),
           value:
             (io_clear_valid
                ? robs[4'h3].value
-               : _GEN_196
+               : _GEN_236
                    ? io_in_robs[2'h3].value
-                   : _GEN_177
+                   : _GEN_217
                        ? io_in_robs[2'h2].value
-                       : _GEN_160
+                       : _GEN_200
                            ? io_in_robs[2'h1].value
-                           : _GEN_144
+                           : _GEN_184
                                ? io_in_robs[2'h0].value
-                               : _GEN_128
-                                   ? (_GEN_125
-                                        ? _GEN_19 + io_cdbs[3'h5].value
+                               : _GEN_168
+                                   ? (_GEN_165
+                                        ? _GEN_59 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_111
-                                       ? (_GEN_108
-                                            ? _GEN_19 + io_cdbs[3'h4].value
+                                   : _GEN_151
+                                       ? (_GEN_148
+                                            ? _GEN_59 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_94
-                                           ? (_GEN_91
-                                                ? _GEN_19 + io_cdbs[3'h3].value
+                                       : _GEN_134
+                                           ? (_GEN_131
+                                                ? _GEN_59 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_77
-                                               ? (_GEN_74
-                                                    ? _GEN_19 + io_cdbs[3'h2].value
+                                           : _GEN_117
+                                               ? (_GEN_114
+                                                    ? _GEN_59 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_60
-                                                   ? (_GEN_57
-                                                        ? _GEN_19 + io_cdbs[3'h1].value
+                                               : _GEN_100
+                                                   ? (_GEN_97
+                                                        ? _GEN_59 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_18
-                                                       ? (_GEN_9
-                                                            ? _GEN_19
+                                                   : _GEN_58
+                                                       ? (_GEN_49
+                                                            ? _GEN_59
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'h3].value),
           dest:
             (io_clear_valid
                ? robs[4'h3].dest
-               : _GEN_196
+               : _GEN_236
                    ? io_in_robs[2'h3].dest
-                   : _GEN_177
+                   : _GEN_217
                        ? io_in_robs[2'h2].dest
-                       : _GEN_160
+                       : _GEN_200
                            ? io_in_robs[2'h1].dest
-                           : _GEN_144
+                           : _GEN_184
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_128 | _GEN_125
-                                   ? (~_GEN_111 | _GEN_108
-                                        ? (~_GEN_94 | _GEN_91
-                                             ? (~_GEN_77 | _GEN_74
-                                                  ? (~_GEN_60 | _GEN_57
-                                                       ? (~_GEN_18 | _GEN_9
+                               : ~_GEN_168 | _GEN_165
+                                   ? (~_GEN_151 | _GEN_148
+                                        ? (~_GEN_134 | _GEN_131
+                                             ? (~_GEN_117 | _GEN_114
+                                                  ? (~_GEN_100 | _GEN_97
+                                                       ? (~_GEN_58 | _GEN_49
                                                             ? robs[4'h3].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -1780,83 +1856,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'h3].type_
-               : _GEN_196
+               : _GEN_236
                    ? io_in_robs[2'h3].type_
-                   : _GEN_177
+                   : _GEN_217
                        ? io_in_robs[2'h2].type_
-                       : _GEN_160
+                       : _GEN_200
                            ? io_in_robs[2'h1].type_
-                           : _GEN_144 ? io_in_robs[2'h0].type_ : robs[4'h3].type_),
+                           : _GEN_184 ? io_in_robs[2'h0].type_ : robs[4'h3].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_229
-                  : _GEN ? (_GEN_0 ? _GEN_229 : ~_GEN_228 & _GEN_197) : _GEN_197))};
+             & (_GEN ? ~(index_7 == 4'h3 | _GEN_297) & _GEN_281 : ~_GEN_297 & _GEN_281))};
       robs[4'h4] <=
         '{id:
             (io_clear_valid
                ? robs[4'h4].id
-               : _GEN_198
+               : _GEN_238
                    ? io_in_robs[2'h3].id
-                   : _GEN_178
+                   : _GEN_218
                        ? io_in_robs[2'h2].id
-                       : _GEN_161
+                       : _GEN_201
                            ? io_in_robs[2'h1].id
-                           : _GEN_145 ? io_in_robs[2'h0].id : robs[4'h4].id),
+                           : _GEN_185 ? io_in_robs[2'h0].id : robs[4'h4].id),
           value:
             (io_clear_valid
                ? robs[4'h4].value
-               : _GEN_198
+               : _GEN_238
                    ? io_in_robs[2'h3].value
-                   : _GEN_178
+                   : _GEN_218
                        ? io_in_robs[2'h2].value
-                       : _GEN_161
+                       : _GEN_201
                            ? io_in_robs[2'h1].value
-                           : _GEN_145
+                           : _GEN_185
                                ? io_in_robs[2'h0].value
-                               : _GEN_129
-                                   ? (_GEN_125
-                                        ? _GEN_22 + io_cdbs[3'h5].value
+                               : _GEN_169
+                                   ? (_GEN_165
+                                        ? _GEN_62 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_112
-                                       ? (_GEN_108
-                                            ? _GEN_22 + io_cdbs[3'h4].value
+                                   : _GEN_152
+                                       ? (_GEN_148
+                                            ? _GEN_62 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_95
-                                           ? (_GEN_91
-                                                ? _GEN_22 + io_cdbs[3'h3].value
+                                       : _GEN_135
+                                           ? (_GEN_131
+                                                ? _GEN_62 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_78
-                                               ? (_GEN_74
-                                                    ? _GEN_22 + io_cdbs[3'h2].value
+                                           : _GEN_118
+                                               ? (_GEN_114
+                                                    ? _GEN_62 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_61
-                                                   ? (_GEN_57
-                                                        ? _GEN_22 + io_cdbs[3'h1].value
+                                               : _GEN_101
+                                                   ? (_GEN_97
+                                                        ? _GEN_62 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_21
-                                                       ? (_GEN_9
-                                                            ? _GEN_22
+                                                   : _GEN_61
+                                                       ? (_GEN_49
+                                                            ? _GEN_62
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'h4].value),
           dest:
             (io_clear_valid
                ? robs[4'h4].dest
-               : _GEN_198
+               : _GEN_238
                    ? io_in_robs[2'h3].dest
-                   : _GEN_178
+                   : _GEN_218
                        ? io_in_robs[2'h2].dest
-                       : _GEN_161
+                       : _GEN_201
                            ? io_in_robs[2'h1].dest
-                           : _GEN_145
+                           : _GEN_185
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_129 | _GEN_125
-                                   ? (~_GEN_112 | _GEN_108
-                                        ? (~_GEN_95 | _GEN_91
-                                             ? (~_GEN_78 | _GEN_74
-                                                  ? (~_GEN_61 | _GEN_57
-                                                       ? (~_GEN_21 | _GEN_9
+                               : ~_GEN_169 | _GEN_165
+                                   ? (~_GEN_152 | _GEN_148
+                                        ? (~_GEN_135 | _GEN_131
+                                             ? (~_GEN_118 | _GEN_114
+                                                  ? (~_GEN_101 | _GEN_97
+                                                       ? (~_GEN_61 | _GEN_49
                                                             ? robs[4'h4].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -1867,83 +1941,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'h4].type_
-               : _GEN_198
+               : _GEN_238
                    ? io_in_robs[2'h3].type_
-                   : _GEN_178
+                   : _GEN_218
                        ? io_in_robs[2'h2].type_
-                       : _GEN_161
+                       : _GEN_201
                            ? io_in_robs[2'h1].type_
-                           : _GEN_145 ? io_in_robs[2'h0].type_ : robs[4'h4].type_),
+                           : _GEN_185 ? io_in_robs[2'h0].type_ : robs[4'h4].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_231
-                  : _GEN ? (_GEN_0 ? _GEN_231 : ~_GEN_230 & _GEN_199) : _GEN_199))};
+             & (_GEN ? ~(index_7 == 4'h4 | _GEN_298) & _GEN_282 : ~_GEN_298 & _GEN_282))};
       robs[4'h5] <=
         '{id:
             (io_clear_valid
                ? robs[4'h5].id
-               : _GEN_200
+               : _GEN_240
                    ? io_in_robs[2'h3].id
-                   : _GEN_179
+                   : _GEN_219
                        ? io_in_robs[2'h2].id
-                       : _GEN_162
+                       : _GEN_202
                            ? io_in_robs[2'h1].id
-                           : _GEN_146 ? io_in_robs[2'h0].id : robs[4'h5].id),
+                           : _GEN_186 ? io_in_robs[2'h0].id : robs[4'h5].id),
           value:
             (io_clear_valid
                ? robs[4'h5].value
-               : _GEN_200
+               : _GEN_240
                    ? io_in_robs[2'h3].value
-                   : _GEN_179
+                   : _GEN_219
                        ? io_in_robs[2'h2].value
-                       : _GEN_162
+                       : _GEN_202
                            ? io_in_robs[2'h1].value
-                           : _GEN_146
+                           : _GEN_186
                                ? io_in_robs[2'h0].value
-                               : _GEN_130
-                                   ? (_GEN_125
-                                        ? _GEN_25 + io_cdbs[3'h5].value
+                               : _GEN_170
+                                   ? (_GEN_165
+                                        ? _GEN_65 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_113
-                                       ? (_GEN_108
-                                            ? _GEN_25 + io_cdbs[3'h4].value
+                                   : _GEN_153
+                                       ? (_GEN_148
+                                            ? _GEN_65 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_96
-                                           ? (_GEN_91
-                                                ? _GEN_25 + io_cdbs[3'h3].value
+                                       : _GEN_136
+                                           ? (_GEN_131
+                                                ? _GEN_65 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_79
-                                               ? (_GEN_74
-                                                    ? _GEN_25 + io_cdbs[3'h2].value
+                                           : _GEN_119
+                                               ? (_GEN_114
+                                                    ? _GEN_65 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_62
-                                                   ? (_GEN_57
-                                                        ? _GEN_25 + io_cdbs[3'h1].value
+                                               : _GEN_102
+                                                   ? (_GEN_97
+                                                        ? _GEN_65 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_24
-                                                       ? (_GEN_9
-                                                            ? _GEN_25
+                                                   : _GEN_64
+                                                       ? (_GEN_49
+                                                            ? _GEN_65
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'h5].value),
           dest:
             (io_clear_valid
                ? robs[4'h5].dest
-               : _GEN_200
+               : _GEN_240
                    ? io_in_robs[2'h3].dest
-                   : _GEN_179
+                   : _GEN_219
                        ? io_in_robs[2'h2].dest
-                       : _GEN_162
+                       : _GEN_202
                            ? io_in_robs[2'h1].dest
-                           : _GEN_146
+                           : _GEN_186
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_130 | _GEN_125
-                                   ? (~_GEN_113 | _GEN_108
-                                        ? (~_GEN_96 | _GEN_91
-                                             ? (~_GEN_79 | _GEN_74
-                                                  ? (~_GEN_62 | _GEN_57
-                                                       ? (~_GEN_24 | _GEN_9
+                               : ~_GEN_170 | _GEN_165
+                                   ? (~_GEN_153 | _GEN_148
+                                        ? (~_GEN_136 | _GEN_131
+                                             ? (~_GEN_119 | _GEN_114
+                                                  ? (~_GEN_102 | _GEN_97
+                                                       ? (~_GEN_64 | _GEN_49
                                                             ? robs[4'h5].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -1954,83 +2026,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'h5].type_
-               : _GEN_200
+               : _GEN_240
                    ? io_in_robs[2'h3].type_
-                   : _GEN_179
+                   : _GEN_219
                        ? io_in_robs[2'h2].type_
-                       : _GEN_162
+                       : _GEN_202
                            ? io_in_robs[2'h1].type_
-                           : _GEN_146 ? io_in_robs[2'h0].type_ : robs[4'h5].type_),
+                           : _GEN_186 ? io_in_robs[2'h0].type_ : robs[4'h5].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_233
-                  : _GEN ? (_GEN_0 ? _GEN_233 : ~_GEN_232 & _GEN_201) : _GEN_201))};
+             & (_GEN ? ~(index_7 == 4'h5 | _GEN_299) & _GEN_283 : ~_GEN_299 & _GEN_283))};
       robs[4'h6] <=
         '{id:
             (io_clear_valid
                ? robs[4'h6].id
-               : _GEN_202
+               : _GEN_242
                    ? io_in_robs[2'h3].id
-                   : _GEN_180
+                   : _GEN_220
                        ? io_in_robs[2'h2].id
-                       : _GEN_163
+                       : _GEN_203
                            ? io_in_robs[2'h1].id
-                           : _GEN_147 ? io_in_robs[2'h0].id : robs[4'h6].id),
+                           : _GEN_187 ? io_in_robs[2'h0].id : robs[4'h6].id),
           value:
             (io_clear_valid
                ? robs[4'h6].value
-               : _GEN_202
+               : _GEN_242
                    ? io_in_robs[2'h3].value
-                   : _GEN_180
+                   : _GEN_220
                        ? io_in_robs[2'h2].value
-                       : _GEN_163
+                       : _GEN_203
                            ? io_in_robs[2'h1].value
-                           : _GEN_147
+                           : _GEN_187
                                ? io_in_robs[2'h0].value
-                               : _GEN_131
-                                   ? (_GEN_125
-                                        ? _GEN_28 + io_cdbs[3'h5].value
+                               : _GEN_171
+                                   ? (_GEN_165
+                                        ? _GEN_68 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_114
-                                       ? (_GEN_108
-                                            ? _GEN_28 + io_cdbs[3'h4].value
+                                   : _GEN_154
+                                       ? (_GEN_148
+                                            ? _GEN_68 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_97
-                                           ? (_GEN_91
-                                                ? _GEN_28 + io_cdbs[3'h3].value
+                                       : _GEN_137
+                                           ? (_GEN_131
+                                                ? _GEN_68 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_80
-                                               ? (_GEN_74
-                                                    ? _GEN_28 + io_cdbs[3'h2].value
+                                           : _GEN_120
+                                               ? (_GEN_114
+                                                    ? _GEN_68 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_63
-                                                   ? (_GEN_57
-                                                        ? _GEN_28 + io_cdbs[3'h1].value
+                                               : _GEN_103
+                                                   ? (_GEN_97
+                                                        ? _GEN_68 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_27
-                                                       ? (_GEN_9
-                                                            ? _GEN_28
+                                                   : _GEN_67
+                                                       ? (_GEN_49
+                                                            ? _GEN_68
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'h6].value),
           dest:
             (io_clear_valid
                ? robs[4'h6].dest
-               : _GEN_202
+               : _GEN_242
                    ? io_in_robs[2'h3].dest
-                   : _GEN_180
+                   : _GEN_220
                        ? io_in_robs[2'h2].dest
-                       : _GEN_163
+                       : _GEN_203
                            ? io_in_robs[2'h1].dest
-                           : _GEN_147
+                           : _GEN_187
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_131 | _GEN_125
-                                   ? (~_GEN_114 | _GEN_108
-                                        ? (~_GEN_97 | _GEN_91
-                                             ? (~_GEN_80 | _GEN_74
-                                                  ? (~_GEN_63 | _GEN_57
-                                                       ? (~_GEN_27 | _GEN_9
+                               : ~_GEN_171 | _GEN_165
+                                   ? (~_GEN_154 | _GEN_148
+                                        ? (~_GEN_137 | _GEN_131
+                                             ? (~_GEN_120 | _GEN_114
+                                                  ? (~_GEN_103 | _GEN_97
+                                                       ? (~_GEN_67 | _GEN_49
                                                             ? robs[4'h6].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -2041,83 +2111,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'h6].type_
-               : _GEN_202
+               : _GEN_242
                    ? io_in_robs[2'h3].type_
-                   : _GEN_180
+                   : _GEN_220
                        ? io_in_robs[2'h2].type_
-                       : _GEN_163
+                       : _GEN_203
                            ? io_in_robs[2'h1].type_
-                           : _GEN_147 ? io_in_robs[2'h0].type_ : robs[4'h6].type_),
+                           : _GEN_187 ? io_in_robs[2'h0].type_ : robs[4'h6].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_235
-                  : _GEN ? (_GEN_0 ? _GEN_235 : ~_GEN_234 & _GEN_203) : _GEN_203))};
+             & (_GEN ? ~(index_7 == 4'h6 | _GEN_300) & _GEN_284 : ~_GEN_300 & _GEN_284))};
       robs[4'h7] <=
         '{id:
             (io_clear_valid
                ? robs[4'h7].id
-               : _GEN_204
+               : _GEN_244
                    ? io_in_robs[2'h3].id
-                   : _GEN_181
+                   : _GEN_221
                        ? io_in_robs[2'h2].id
-                       : _GEN_164
+                       : _GEN_204
                            ? io_in_robs[2'h1].id
-                           : _GEN_148 ? io_in_robs[2'h0].id : robs[4'h7].id),
+                           : _GEN_188 ? io_in_robs[2'h0].id : robs[4'h7].id),
           value:
             (io_clear_valid
                ? robs[4'h7].value
-               : _GEN_204
+               : _GEN_244
                    ? io_in_robs[2'h3].value
-                   : _GEN_181
+                   : _GEN_221
                        ? io_in_robs[2'h2].value
-                       : _GEN_164
+                       : _GEN_204
                            ? io_in_robs[2'h1].value
-                           : _GEN_148
+                           : _GEN_188
                                ? io_in_robs[2'h0].value
-                               : _GEN_132
-                                   ? (_GEN_125
-                                        ? _GEN_31 + io_cdbs[3'h5].value
+                               : _GEN_172
+                                   ? (_GEN_165
+                                        ? _GEN_71 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_115
-                                       ? (_GEN_108
-                                            ? _GEN_31 + io_cdbs[3'h4].value
+                                   : _GEN_155
+                                       ? (_GEN_148
+                                            ? _GEN_71 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_98
-                                           ? (_GEN_91
-                                                ? _GEN_31 + io_cdbs[3'h3].value
+                                       : _GEN_138
+                                           ? (_GEN_131
+                                                ? _GEN_71 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_81
-                                               ? (_GEN_74
-                                                    ? _GEN_31 + io_cdbs[3'h2].value
+                                           : _GEN_121
+                                               ? (_GEN_114
+                                                    ? _GEN_71 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_64
-                                                   ? (_GEN_57
-                                                        ? _GEN_31 + io_cdbs[3'h1].value
+                                               : _GEN_104
+                                                   ? (_GEN_97
+                                                        ? _GEN_71 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_30
-                                                       ? (_GEN_9
-                                                            ? _GEN_31
+                                                   : _GEN_70
+                                                       ? (_GEN_49
+                                                            ? _GEN_71
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'h7].value),
           dest:
             (io_clear_valid
                ? robs[4'h7].dest
-               : _GEN_204
+               : _GEN_244
                    ? io_in_robs[2'h3].dest
-                   : _GEN_181
+                   : _GEN_221
                        ? io_in_robs[2'h2].dest
-                       : _GEN_164
+                       : _GEN_204
                            ? io_in_robs[2'h1].dest
-                           : _GEN_148
+                           : _GEN_188
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_132 | _GEN_125
-                                   ? (~_GEN_115 | _GEN_108
-                                        ? (~_GEN_98 | _GEN_91
-                                             ? (~_GEN_81 | _GEN_74
-                                                  ? (~_GEN_64 | _GEN_57
-                                                       ? (~_GEN_30 | _GEN_9
+                               : ~_GEN_172 | _GEN_165
+                                   ? (~_GEN_155 | _GEN_148
+                                        ? (~_GEN_138 | _GEN_131
+                                             ? (~_GEN_121 | _GEN_114
+                                                  ? (~_GEN_104 | _GEN_97
+                                                       ? (~_GEN_70 | _GEN_49
                                                             ? robs[4'h7].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -2128,83 +2196,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'h7].type_
-               : _GEN_204
+               : _GEN_244
                    ? io_in_robs[2'h3].type_
-                   : _GEN_181
+                   : _GEN_221
                        ? io_in_robs[2'h2].type_
-                       : _GEN_164
+                       : _GEN_204
                            ? io_in_robs[2'h1].type_
-                           : _GEN_148 ? io_in_robs[2'h0].type_ : robs[4'h7].type_),
+                           : _GEN_188 ? io_in_robs[2'h0].type_ : robs[4'h7].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_237
-                  : _GEN ? (_GEN_0 ? _GEN_237 : ~_GEN_236 & _GEN_205) : _GEN_205))};
+             & (_GEN ? ~(index_7 == 4'h7 | _GEN_301) & _GEN_285 : ~_GEN_301 & _GEN_285))};
       robs[4'h8] <=
         '{id:
             (io_clear_valid
                ? robs[4'h8].id
-               : _GEN_206
+               : _GEN_246
                    ? io_in_robs[2'h3].id
-                   : _GEN_182
+                   : _GEN_222
                        ? io_in_robs[2'h2].id
-                       : _GEN_165
+                       : _GEN_205
                            ? io_in_robs[2'h1].id
-                           : _GEN_149 ? io_in_robs[2'h0].id : robs[4'h8].id),
+                           : _GEN_189 ? io_in_robs[2'h0].id : robs[4'h8].id),
           value:
             (io_clear_valid
                ? robs[4'h8].value
-               : _GEN_206
+               : _GEN_246
                    ? io_in_robs[2'h3].value
-                   : _GEN_182
+                   : _GEN_222
                        ? io_in_robs[2'h2].value
-                       : _GEN_165
+                       : _GEN_205
                            ? io_in_robs[2'h1].value
-                           : _GEN_149
+                           : _GEN_189
                                ? io_in_robs[2'h0].value
-                               : _GEN_133
-                                   ? (_GEN_125
-                                        ? _GEN_34 + io_cdbs[3'h5].value
+                               : _GEN_173
+                                   ? (_GEN_165
+                                        ? _GEN_74 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_116
-                                       ? (_GEN_108
-                                            ? _GEN_34 + io_cdbs[3'h4].value
+                                   : _GEN_156
+                                       ? (_GEN_148
+                                            ? _GEN_74 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_99
-                                           ? (_GEN_91
-                                                ? _GEN_34 + io_cdbs[3'h3].value
+                                       : _GEN_139
+                                           ? (_GEN_131
+                                                ? _GEN_74 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_82
-                                               ? (_GEN_74
-                                                    ? _GEN_34 + io_cdbs[3'h2].value
+                                           : _GEN_122
+                                               ? (_GEN_114
+                                                    ? _GEN_74 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_65
-                                                   ? (_GEN_57
-                                                        ? _GEN_34 + io_cdbs[3'h1].value
+                                               : _GEN_105
+                                                   ? (_GEN_97
+                                                        ? _GEN_74 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_33
-                                                       ? (_GEN_9
-                                                            ? _GEN_34
+                                                   : _GEN_73
+                                                       ? (_GEN_49
+                                                            ? _GEN_74
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'h8].value),
           dest:
             (io_clear_valid
                ? robs[4'h8].dest
-               : _GEN_206
+               : _GEN_246
                    ? io_in_robs[2'h3].dest
-                   : _GEN_182
+                   : _GEN_222
                        ? io_in_robs[2'h2].dest
-                       : _GEN_165
+                       : _GEN_205
                            ? io_in_robs[2'h1].dest
-                           : _GEN_149
+                           : _GEN_189
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_133 | _GEN_125
-                                   ? (~_GEN_116 | _GEN_108
-                                        ? (~_GEN_99 | _GEN_91
-                                             ? (~_GEN_82 | _GEN_74
-                                                  ? (~_GEN_65 | _GEN_57
-                                                       ? (~_GEN_33 | _GEN_9
+                               : ~_GEN_173 | _GEN_165
+                                   ? (~_GEN_156 | _GEN_148
+                                        ? (~_GEN_139 | _GEN_131
+                                             ? (~_GEN_122 | _GEN_114
+                                                  ? (~_GEN_105 | _GEN_97
+                                                       ? (~_GEN_73 | _GEN_49
                                                             ? robs[4'h8].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -2215,83 +2281,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'h8].type_
-               : _GEN_206
+               : _GEN_246
                    ? io_in_robs[2'h3].type_
-                   : _GEN_182
+                   : _GEN_222
                        ? io_in_robs[2'h2].type_
-                       : _GEN_165
+                       : _GEN_205
                            ? io_in_robs[2'h1].type_
-                           : _GEN_149 ? io_in_robs[2'h0].type_ : robs[4'h8].type_),
+                           : _GEN_189 ? io_in_robs[2'h0].type_ : robs[4'h8].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_239
-                  : _GEN ? (_GEN_0 ? _GEN_239 : ~_GEN_238 & _GEN_207) : _GEN_207))};
+             & (_GEN ? ~(index_7 == 4'h8 | _GEN_302) & _GEN_286 : ~_GEN_302 & _GEN_286))};
       robs[4'h9] <=
         '{id:
             (io_clear_valid
                ? robs[4'h9].id
-               : _GEN_208
+               : _GEN_248
                    ? io_in_robs[2'h3].id
-                   : _GEN_183
+                   : _GEN_223
                        ? io_in_robs[2'h2].id
-                       : _GEN_166
+                       : _GEN_206
                            ? io_in_robs[2'h1].id
-                           : _GEN_150 ? io_in_robs[2'h0].id : robs[4'h9].id),
+                           : _GEN_190 ? io_in_robs[2'h0].id : robs[4'h9].id),
           value:
             (io_clear_valid
                ? robs[4'h9].value
-               : _GEN_208
+               : _GEN_248
                    ? io_in_robs[2'h3].value
-                   : _GEN_183
+                   : _GEN_223
                        ? io_in_robs[2'h2].value
-                       : _GEN_166
+                       : _GEN_206
                            ? io_in_robs[2'h1].value
-                           : _GEN_150
+                           : _GEN_190
                                ? io_in_robs[2'h0].value
-                               : _GEN_134
-                                   ? (_GEN_125
-                                        ? _GEN_37 + io_cdbs[3'h5].value
+                               : _GEN_174
+                                   ? (_GEN_165
+                                        ? _GEN_77 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_117
-                                       ? (_GEN_108
-                                            ? _GEN_37 + io_cdbs[3'h4].value
+                                   : _GEN_157
+                                       ? (_GEN_148
+                                            ? _GEN_77 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_100
-                                           ? (_GEN_91
-                                                ? _GEN_37 + io_cdbs[3'h3].value
+                                       : _GEN_140
+                                           ? (_GEN_131
+                                                ? _GEN_77 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_83
-                                               ? (_GEN_74
-                                                    ? _GEN_37 + io_cdbs[3'h2].value
+                                           : _GEN_123
+                                               ? (_GEN_114
+                                                    ? _GEN_77 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_66
-                                                   ? (_GEN_57
-                                                        ? _GEN_37 + io_cdbs[3'h1].value
+                                               : _GEN_106
+                                                   ? (_GEN_97
+                                                        ? _GEN_77 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_36
-                                                       ? (_GEN_9
-                                                            ? _GEN_37
+                                                   : _GEN_76
+                                                       ? (_GEN_49
+                                                            ? _GEN_77
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'h9].value),
           dest:
             (io_clear_valid
                ? robs[4'h9].dest
-               : _GEN_208
+               : _GEN_248
                    ? io_in_robs[2'h3].dest
-                   : _GEN_183
+                   : _GEN_223
                        ? io_in_robs[2'h2].dest
-                       : _GEN_166
+                       : _GEN_206
                            ? io_in_robs[2'h1].dest
-                           : _GEN_150
+                           : _GEN_190
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_134 | _GEN_125
-                                   ? (~_GEN_117 | _GEN_108
-                                        ? (~_GEN_100 | _GEN_91
-                                             ? (~_GEN_83 | _GEN_74
-                                                  ? (~_GEN_66 | _GEN_57
-                                                       ? (~_GEN_36 | _GEN_9
+                               : ~_GEN_174 | _GEN_165
+                                   ? (~_GEN_157 | _GEN_148
+                                        ? (~_GEN_140 | _GEN_131
+                                             ? (~_GEN_123 | _GEN_114
+                                                  ? (~_GEN_106 | _GEN_97
+                                                       ? (~_GEN_76 | _GEN_49
                                                             ? robs[4'h9].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -2302,83 +2366,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'h9].type_
-               : _GEN_208
+               : _GEN_248
                    ? io_in_robs[2'h3].type_
-                   : _GEN_183
+                   : _GEN_223
                        ? io_in_robs[2'h2].type_
-                       : _GEN_166
+                       : _GEN_206
                            ? io_in_robs[2'h1].type_
-                           : _GEN_150 ? io_in_robs[2'h0].type_ : robs[4'h9].type_),
+                           : _GEN_190 ? io_in_robs[2'h0].type_ : robs[4'h9].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_241
-                  : _GEN ? (_GEN_0 ? _GEN_241 : ~_GEN_240 & _GEN_209) : _GEN_209))};
+             & (_GEN ? ~(index_7 == 4'h9 | _GEN_303) & _GEN_287 : ~_GEN_303 & _GEN_287))};
       robs[4'hA] <=
         '{id:
             (io_clear_valid
                ? robs[4'hA].id
-               : _GEN_210
+               : _GEN_250
                    ? io_in_robs[2'h3].id
-                   : _GEN_184
+                   : _GEN_224
                        ? io_in_robs[2'h2].id
-                       : _GEN_167
+                       : _GEN_207
                            ? io_in_robs[2'h1].id
-                           : _GEN_151 ? io_in_robs[2'h0].id : robs[4'hA].id),
+                           : _GEN_191 ? io_in_robs[2'h0].id : robs[4'hA].id),
           value:
             (io_clear_valid
                ? robs[4'hA].value
-               : _GEN_210
+               : _GEN_250
                    ? io_in_robs[2'h3].value
-                   : _GEN_184
+                   : _GEN_224
                        ? io_in_robs[2'h2].value
-                       : _GEN_167
+                       : _GEN_207
                            ? io_in_robs[2'h1].value
-                           : _GEN_151
+                           : _GEN_191
                                ? io_in_robs[2'h0].value
-                               : _GEN_135
-                                   ? (_GEN_125
-                                        ? _GEN_40 + io_cdbs[3'h5].value
+                               : _GEN_175
+                                   ? (_GEN_165
+                                        ? _GEN_80 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_118
-                                       ? (_GEN_108
-                                            ? _GEN_40 + io_cdbs[3'h4].value
+                                   : _GEN_158
+                                       ? (_GEN_148
+                                            ? _GEN_80 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_101
-                                           ? (_GEN_91
-                                                ? _GEN_40 + io_cdbs[3'h3].value
+                                       : _GEN_141
+                                           ? (_GEN_131
+                                                ? _GEN_80 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_84
-                                               ? (_GEN_74
-                                                    ? _GEN_40 + io_cdbs[3'h2].value
+                                           : _GEN_124
+                                               ? (_GEN_114
+                                                    ? _GEN_80 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_67
-                                                   ? (_GEN_57
-                                                        ? _GEN_40 + io_cdbs[3'h1].value
+                                               : _GEN_107
+                                                   ? (_GEN_97
+                                                        ? _GEN_80 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_39
-                                                       ? (_GEN_9
-                                                            ? _GEN_40
+                                                   : _GEN_79
+                                                       ? (_GEN_49
+                                                            ? _GEN_80
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'hA].value),
           dest:
             (io_clear_valid
                ? robs[4'hA].dest
-               : _GEN_210
+               : _GEN_250
                    ? io_in_robs[2'h3].dest
-                   : _GEN_184
+                   : _GEN_224
                        ? io_in_robs[2'h2].dest
-                       : _GEN_167
+                       : _GEN_207
                            ? io_in_robs[2'h1].dest
-                           : _GEN_151
+                           : _GEN_191
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_135 | _GEN_125
-                                   ? (~_GEN_118 | _GEN_108
-                                        ? (~_GEN_101 | _GEN_91
-                                             ? (~_GEN_84 | _GEN_74
-                                                  ? (~_GEN_67 | _GEN_57
-                                                       ? (~_GEN_39 | _GEN_9
+                               : ~_GEN_175 | _GEN_165
+                                   ? (~_GEN_158 | _GEN_148
+                                        ? (~_GEN_141 | _GEN_131
+                                             ? (~_GEN_124 | _GEN_114
+                                                  ? (~_GEN_107 | _GEN_97
+                                                       ? (~_GEN_79 | _GEN_49
                                                             ? robs[4'hA].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -2389,83 +2451,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'hA].type_
-               : _GEN_210
+               : _GEN_250
                    ? io_in_robs[2'h3].type_
-                   : _GEN_184
+                   : _GEN_224
                        ? io_in_robs[2'h2].type_
-                       : _GEN_167
+                       : _GEN_207
                            ? io_in_robs[2'h1].type_
-                           : _GEN_151 ? io_in_robs[2'h0].type_ : robs[4'hA].type_),
+                           : _GEN_191 ? io_in_robs[2'h0].type_ : robs[4'hA].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_243
-                  : _GEN ? (_GEN_0 ? _GEN_243 : ~_GEN_242 & _GEN_211) : _GEN_211))};
+             & (_GEN ? ~(index_7 == 4'hA | _GEN_304) & _GEN_288 : ~_GEN_304 & _GEN_288))};
       robs[4'hB] <=
         '{id:
             (io_clear_valid
                ? robs[4'hB].id
-               : _GEN_212
+               : _GEN_252
                    ? io_in_robs[2'h3].id
-                   : _GEN_185
+                   : _GEN_225
                        ? io_in_robs[2'h2].id
-                       : _GEN_168
+                       : _GEN_208
                            ? io_in_robs[2'h1].id
-                           : _GEN_152 ? io_in_robs[2'h0].id : robs[4'hB].id),
+                           : _GEN_192 ? io_in_robs[2'h0].id : robs[4'hB].id),
           value:
             (io_clear_valid
                ? robs[4'hB].value
-               : _GEN_212
+               : _GEN_252
                    ? io_in_robs[2'h3].value
-                   : _GEN_185
+                   : _GEN_225
                        ? io_in_robs[2'h2].value
-                       : _GEN_168
+                       : _GEN_208
                            ? io_in_robs[2'h1].value
-                           : _GEN_152
+                           : _GEN_192
                                ? io_in_robs[2'h0].value
-                               : _GEN_136
-                                   ? (_GEN_125
-                                        ? _GEN_43 + io_cdbs[3'h5].value
+                               : _GEN_176
+                                   ? (_GEN_165
+                                        ? _GEN_83 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_119
-                                       ? (_GEN_108
-                                            ? _GEN_43 + io_cdbs[3'h4].value
+                                   : _GEN_159
+                                       ? (_GEN_148
+                                            ? _GEN_83 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_102
-                                           ? (_GEN_91
-                                                ? _GEN_43 + io_cdbs[3'h3].value
+                                       : _GEN_142
+                                           ? (_GEN_131
+                                                ? _GEN_83 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_85
-                                               ? (_GEN_74
-                                                    ? _GEN_43 + io_cdbs[3'h2].value
+                                           : _GEN_125
+                                               ? (_GEN_114
+                                                    ? _GEN_83 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_68
-                                                   ? (_GEN_57
-                                                        ? _GEN_43 + io_cdbs[3'h1].value
+                                               : _GEN_108
+                                                   ? (_GEN_97
+                                                        ? _GEN_83 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_42
-                                                       ? (_GEN_9
-                                                            ? _GEN_43
+                                                   : _GEN_82
+                                                       ? (_GEN_49
+                                                            ? _GEN_83
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'hB].value),
           dest:
             (io_clear_valid
                ? robs[4'hB].dest
-               : _GEN_212
+               : _GEN_252
                    ? io_in_robs[2'h3].dest
-                   : _GEN_185
+                   : _GEN_225
                        ? io_in_robs[2'h2].dest
-                       : _GEN_168
+                       : _GEN_208
                            ? io_in_robs[2'h1].dest
-                           : _GEN_152
+                           : _GEN_192
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_136 | _GEN_125
-                                   ? (~_GEN_119 | _GEN_108
-                                        ? (~_GEN_102 | _GEN_91
-                                             ? (~_GEN_85 | _GEN_74
-                                                  ? (~_GEN_68 | _GEN_57
-                                                       ? (~_GEN_42 | _GEN_9
+                               : ~_GEN_176 | _GEN_165
+                                   ? (~_GEN_159 | _GEN_148
+                                        ? (~_GEN_142 | _GEN_131
+                                             ? (~_GEN_125 | _GEN_114
+                                                  ? (~_GEN_108 | _GEN_97
+                                                       ? (~_GEN_82 | _GEN_49
                                                             ? robs[4'hB].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -2476,83 +2536,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'hB].type_
-               : _GEN_212
+               : _GEN_252
                    ? io_in_robs[2'h3].type_
-                   : _GEN_185
+                   : _GEN_225
                        ? io_in_robs[2'h2].type_
-                       : _GEN_168
+                       : _GEN_208
                            ? io_in_robs[2'h1].type_
-                           : _GEN_152 ? io_in_robs[2'h0].type_ : robs[4'hB].type_),
+                           : _GEN_192 ? io_in_robs[2'h0].type_ : robs[4'hB].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_245
-                  : _GEN ? (_GEN_0 ? _GEN_245 : ~_GEN_244 & _GEN_213) : _GEN_213))};
+             & (_GEN ? ~(index_7 == 4'hB | _GEN_305) & _GEN_289 : ~_GEN_305 & _GEN_289))};
       robs[4'hC] <=
         '{id:
             (io_clear_valid
                ? robs[4'hC].id
-               : _GEN_214
+               : _GEN_254
                    ? io_in_robs[2'h3].id
-                   : _GEN_186
+                   : _GEN_226
                        ? io_in_robs[2'h2].id
-                       : _GEN_169
+                       : _GEN_209
                            ? io_in_robs[2'h1].id
-                           : _GEN_153 ? io_in_robs[2'h0].id : robs[4'hC].id),
+                           : _GEN_193 ? io_in_robs[2'h0].id : robs[4'hC].id),
           value:
             (io_clear_valid
                ? robs[4'hC].value
-               : _GEN_214
+               : _GEN_254
                    ? io_in_robs[2'h3].value
-                   : _GEN_186
+                   : _GEN_226
                        ? io_in_robs[2'h2].value
-                       : _GEN_169
+                       : _GEN_209
                            ? io_in_robs[2'h1].value
-                           : _GEN_153
+                           : _GEN_193
                                ? io_in_robs[2'h0].value
-                               : _GEN_137
-                                   ? (_GEN_125
-                                        ? _GEN_46 + io_cdbs[3'h5].value
+                               : _GEN_177
+                                   ? (_GEN_165
+                                        ? _GEN_86 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_120
-                                       ? (_GEN_108
-                                            ? _GEN_46 + io_cdbs[3'h4].value
+                                   : _GEN_160
+                                       ? (_GEN_148
+                                            ? _GEN_86 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_103
-                                           ? (_GEN_91
-                                                ? _GEN_46 + io_cdbs[3'h3].value
+                                       : _GEN_143
+                                           ? (_GEN_131
+                                                ? _GEN_86 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_86
-                                               ? (_GEN_74
-                                                    ? _GEN_46 + io_cdbs[3'h2].value
+                                           : _GEN_126
+                                               ? (_GEN_114
+                                                    ? _GEN_86 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_69
-                                                   ? (_GEN_57
-                                                        ? _GEN_46 + io_cdbs[3'h1].value
+                                               : _GEN_109
+                                                   ? (_GEN_97
+                                                        ? _GEN_86 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_45
-                                                       ? (_GEN_9
-                                                            ? _GEN_46
+                                                   : _GEN_85
+                                                       ? (_GEN_49
+                                                            ? _GEN_86
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'hC].value),
           dest:
             (io_clear_valid
                ? robs[4'hC].dest
-               : _GEN_214
+               : _GEN_254
                    ? io_in_robs[2'h3].dest
-                   : _GEN_186
+                   : _GEN_226
                        ? io_in_robs[2'h2].dest
-                       : _GEN_169
+                       : _GEN_209
                            ? io_in_robs[2'h1].dest
-                           : _GEN_153
+                           : _GEN_193
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_137 | _GEN_125
-                                   ? (~_GEN_120 | _GEN_108
-                                        ? (~_GEN_103 | _GEN_91
-                                             ? (~_GEN_86 | _GEN_74
-                                                  ? (~_GEN_69 | _GEN_57
-                                                       ? (~_GEN_45 | _GEN_9
+                               : ~_GEN_177 | _GEN_165
+                                   ? (~_GEN_160 | _GEN_148
+                                        ? (~_GEN_143 | _GEN_131
+                                             ? (~_GEN_126 | _GEN_114
+                                                  ? (~_GEN_109 | _GEN_97
+                                                       ? (~_GEN_85 | _GEN_49
                                                             ? robs[4'hC].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -2563,83 +2621,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'hC].type_
-               : _GEN_214
+               : _GEN_254
                    ? io_in_robs[2'h3].type_
-                   : _GEN_186
+                   : _GEN_226
                        ? io_in_robs[2'h2].type_
-                       : _GEN_169
+                       : _GEN_209
                            ? io_in_robs[2'h1].type_
-                           : _GEN_153 ? io_in_robs[2'h0].type_ : robs[4'hC].type_),
+                           : _GEN_193 ? io_in_robs[2'h0].type_ : robs[4'hC].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_247
-                  : _GEN ? (_GEN_0 ? _GEN_247 : ~_GEN_246 & _GEN_215) : _GEN_215))};
+             & (_GEN ? ~(index_7 == 4'hC | _GEN_306) & _GEN_290 : ~_GEN_306 & _GEN_290))};
       robs[4'hD] <=
         '{id:
             (io_clear_valid
                ? robs[4'hD].id
-               : _GEN_216
+               : _GEN_256
                    ? io_in_robs[2'h3].id
-                   : _GEN_187
+                   : _GEN_227
                        ? io_in_robs[2'h2].id
-                       : _GEN_170
+                       : _GEN_210
                            ? io_in_robs[2'h1].id
-                           : _GEN_154 ? io_in_robs[2'h0].id : robs[4'hD].id),
+                           : _GEN_194 ? io_in_robs[2'h0].id : robs[4'hD].id),
           value:
             (io_clear_valid
                ? robs[4'hD].value
-               : _GEN_216
+               : _GEN_256
                    ? io_in_robs[2'h3].value
-                   : _GEN_187
+                   : _GEN_227
                        ? io_in_robs[2'h2].value
-                       : _GEN_170
+                       : _GEN_210
                            ? io_in_robs[2'h1].value
-                           : _GEN_154
+                           : _GEN_194
                                ? io_in_robs[2'h0].value
-                               : _GEN_138
-                                   ? (_GEN_125
-                                        ? _GEN_49 + io_cdbs[3'h5].value
+                               : _GEN_178
+                                   ? (_GEN_165
+                                        ? _GEN_89 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_121
-                                       ? (_GEN_108
-                                            ? _GEN_49 + io_cdbs[3'h4].value
+                                   : _GEN_161
+                                       ? (_GEN_148
+                                            ? _GEN_89 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_104
-                                           ? (_GEN_91
-                                                ? _GEN_49 + io_cdbs[3'h3].value
+                                       : _GEN_144
+                                           ? (_GEN_131
+                                                ? _GEN_89 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_87
-                                               ? (_GEN_74
-                                                    ? _GEN_49 + io_cdbs[3'h2].value
+                                           : _GEN_127
+                                               ? (_GEN_114
+                                                    ? _GEN_89 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_70
-                                                   ? (_GEN_57
-                                                        ? _GEN_49 + io_cdbs[3'h1].value
+                                               : _GEN_110
+                                                   ? (_GEN_97
+                                                        ? _GEN_89 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_48
-                                                       ? (_GEN_9
-                                                            ? _GEN_49
+                                                   : _GEN_88
+                                                       ? (_GEN_49
+                                                            ? _GEN_89
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'hD].value),
           dest:
             (io_clear_valid
                ? robs[4'hD].dest
-               : _GEN_216
+               : _GEN_256
                    ? io_in_robs[2'h3].dest
-                   : _GEN_187
+                   : _GEN_227
                        ? io_in_robs[2'h2].dest
-                       : _GEN_170
+                       : _GEN_210
                            ? io_in_robs[2'h1].dest
-                           : _GEN_154
+                           : _GEN_194
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_138 | _GEN_125
-                                   ? (~_GEN_121 | _GEN_108
-                                        ? (~_GEN_104 | _GEN_91
-                                             ? (~_GEN_87 | _GEN_74
-                                                  ? (~_GEN_70 | _GEN_57
-                                                       ? (~_GEN_48 | _GEN_9
+                               : ~_GEN_178 | _GEN_165
+                                   ? (~_GEN_161 | _GEN_148
+                                        ? (~_GEN_144 | _GEN_131
+                                             ? (~_GEN_127 | _GEN_114
+                                                  ? (~_GEN_110 | _GEN_97
+                                                       ? (~_GEN_88 | _GEN_49
                                                             ? robs[4'hD].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -2650,83 +2706,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'hD].type_
-               : _GEN_216
+               : _GEN_256
                    ? io_in_robs[2'h3].type_
-                   : _GEN_187
+                   : _GEN_227
                        ? io_in_robs[2'h2].type_
-                       : _GEN_170
+                       : _GEN_210
                            ? io_in_robs[2'h1].type_
-                           : _GEN_154 ? io_in_robs[2'h0].type_ : robs[4'hD].type_),
+                           : _GEN_194 ? io_in_robs[2'h0].type_ : robs[4'hD].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_249
-                  : _GEN ? (_GEN_0 ? _GEN_249 : ~_GEN_248 & _GEN_217) : _GEN_217))};
+             & (_GEN ? ~(index_7 == 4'hD | _GEN_307) & _GEN_291 : ~_GEN_307 & _GEN_291))};
       robs[4'hE] <=
         '{id:
             (io_clear_valid
                ? robs[4'hE].id
-               : _GEN_218
+               : _GEN_258
                    ? io_in_robs[2'h3].id
-                   : _GEN_188
+                   : _GEN_228
                        ? io_in_robs[2'h2].id
-                       : _GEN_171
+                       : _GEN_211
                            ? io_in_robs[2'h1].id
-                           : _GEN_155 ? io_in_robs[2'h0].id : robs[4'hE].id),
+                           : _GEN_195 ? io_in_robs[2'h0].id : robs[4'hE].id),
           value:
             (io_clear_valid
                ? robs[4'hE].value
-               : _GEN_218
+               : _GEN_258
                    ? io_in_robs[2'h3].value
-                   : _GEN_188
+                   : _GEN_228
                        ? io_in_robs[2'h2].value
-                       : _GEN_171
+                       : _GEN_211
                            ? io_in_robs[2'h1].value
-                           : _GEN_155
+                           : _GEN_195
                                ? io_in_robs[2'h0].value
-                               : _GEN_139
-                                   ? (_GEN_125
-                                        ? _GEN_52 + io_cdbs[3'h5].value
+                               : _GEN_179
+                                   ? (_GEN_165
+                                        ? _GEN_92 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_122
-                                       ? (_GEN_108
-                                            ? _GEN_52 + io_cdbs[3'h4].value
+                                   : _GEN_162
+                                       ? (_GEN_148
+                                            ? _GEN_92 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_105
-                                           ? (_GEN_91
-                                                ? _GEN_52 + io_cdbs[3'h3].value
+                                       : _GEN_145
+                                           ? (_GEN_131
+                                                ? _GEN_92 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_88
-                                               ? (_GEN_74
-                                                    ? _GEN_52 + io_cdbs[3'h2].value
+                                           : _GEN_128
+                                               ? (_GEN_114
+                                                    ? _GEN_92 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_71
-                                                   ? (_GEN_57
-                                                        ? _GEN_52 + io_cdbs[3'h1].value
+                                               : _GEN_111
+                                                   ? (_GEN_97
+                                                        ? _GEN_92 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_51
-                                                       ? (_GEN_9
-                                                            ? _GEN_52
+                                                   : _GEN_91
+                                                       ? (_GEN_49
+                                                            ? _GEN_92
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'hE].value),
           dest:
             (io_clear_valid
                ? robs[4'hE].dest
-               : _GEN_218
+               : _GEN_258
                    ? io_in_robs[2'h3].dest
-                   : _GEN_188
+                   : _GEN_228
                        ? io_in_robs[2'h2].dest
-                       : _GEN_171
+                       : _GEN_211
                            ? io_in_robs[2'h1].dest
-                           : _GEN_155
+                           : _GEN_195
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_139 | _GEN_125
-                                   ? (~_GEN_122 | _GEN_108
-                                        ? (~_GEN_105 | _GEN_91
-                                             ? (~_GEN_88 | _GEN_74
-                                                  ? (~_GEN_71 | _GEN_57
-                                                       ? (~_GEN_51 | _GEN_9
+                               : ~_GEN_179 | _GEN_165
+                                   ? (~_GEN_162 | _GEN_148
+                                        ? (~_GEN_145 | _GEN_131
+                                             ? (~_GEN_128 | _GEN_114
+                                                  ? (~_GEN_111 | _GEN_97
+                                                       ? (~_GEN_91 | _GEN_49
                                                             ? robs[4'hE].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -2737,83 +2791,81 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'hE].type_
-               : _GEN_218
+               : _GEN_258
                    ? io_in_robs[2'h3].type_
-                   : _GEN_188
+                   : _GEN_228
                        ? io_in_robs[2'h2].type_
-                       : _GEN_171
+                       : _GEN_211
                            ? io_in_robs[2'h1].type_
-                           : _GEN_155 ? io_in_robs[2'h0].type_ : robs[4'hE].type_),
+                           : _GEN_195 ? io_in_robs[2'h0].type_ : robs[4'hE].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_251
-                  : _GEN ? (_GEN_0 ? _GEN_251 : ~_GEN_250 & _GEN_219) : _GEN_219))};
+             & (_GEN ? ~(index_7 == 4'hE | _GEN_308) & _GEN_292 : ~_GEN_308 & _GEN_292))};
       robs[4'hF] <=
         '{id:
             (io_clear_valid
                ? robs[4'hF].id
-               : _GEN_220
+               : _GEN_260
                    ? io_in_robs[2'h3].id
-                   : _GEN_189
+                   : _GEN_229
                        ? io_in_robs[2'h2].id
-                       : _GEN_172
+                       : _GEN_212
                            ? io_in_robs[2'h1].id
-                           : _GEN_156 ? io_in_robs[2'h0].id : robs[4'hF].id),
+                           : _GEN_196 ? io_in_robs[2'h0].id : robs[4'hF].id),
           value:
             (io_clear_valid
                ? robs[4'hF].value
-               : _GEN_220
+               : _GEN_260
                    ? io_in_robs[2'h3].value
-                   : _GEN_189
+                   : _GEN_229
                        ? io_in_robs[2'h2].value
-                       : _GEN_172
+                       : _GEN_212
                            ? io_in_robs[2'h1].value
-                           : _GEN_156
+                           : _GEN_196
                                ? io_in_robs[2'h0].value
-                               : _GEN_140
-                                   ? (_GEN_125
-                                        ? _GEN_55 + io_cdbs[3'h5].value
+                               : _GEN_180
+                                   ? (_GEN_165
+                                        ? _GEN_95 + io_cdbs[3'h5].value
                                         : io_cdbs[3'h5].value)
-                                   : _GEN_123
-                                       ? (_GEN_108
-                                            ? _GEN_55 + io_cdbs[3'h4].value
+                                   : _GEN_163
+                                       ? (_GEN_148
+                                            ? _GEN_95 + io_cdbs[3'h4].value
                                             : io_cdbs[3'h4].value)
-                                       : _GEN_106
-                                           ? (_GEN_91
-                                                ? _GEN_55 + io_cdbs[3'h3].value
+                                       : _GEN_146
+                                           ? (_GEN_131
+                                                ? _GEN_95 + io_cdbs[3'h3].value
                                                 : io_cdbs[3'h3].value)
-                                           : _GEN_89
-                                               ? (_GEN_74
-                                                    ? _GEN_55 + io_cdbs[3'h2].value
+                                           : _GEN_129
+                                               ? (_GEN_114
+                                                    ? _GEN_95 + io_cdbs[3'h2].value
                                                     : io_cdbs[3'h2].value)
-                                               : _GEN_72
-                                                   ? (_GEN_57
-                                                        ? _GEN_55 + io_cdbs[3'h1].value
+                                               : _GEN_112
+                                                   ? (_GEN_97
+                                                        ? _GEN_95 + io_cdbs[3'h1].value
                                                         : io_cdbs[3'h1].value)
-                                                   : _GEN_54
-                                                       ? (_GEN_9
-                                                            ? _GEN_55
+                                                   : _GEN_94
+                                                       ? (_GEN_49
+                                                            ? _GEN_95
                                                               + io_cdbs[3'h0].value
                                                             : io_cdbs[3'h0].value)
                                                        : robs[4'hF].value),
           dest:
             (io_clear_valid
                ? robs[4'hF].dest
-               : _GEN_220
+               : _GEN_260
                    ? io_in_robs[2'h3].dest
-                   : _GEN_189
+                   : _GEN_229
                        ? io_in_robs[2'h2].dest
-                       : _GEN_172
+                       : _GEN_212
                            ? io_in_robs[2'h1].dest
-                           : _GEN_156
+                           : _GEN_196
                                ? io_in_robs[2'h0].dest
-                               : ~_GEN_140 | _GEN_125
-                                   ? (~_GEN_123 | _GEN_108
-                                        ? (~_GEN_106 | _GEN_91
-                                             ? (~_GEN_89 | _GEN_74
-                                                  ? (~_GEN_72 | _GEN_57
-                                                       ? (~_GEN_54 | _GEN_9
+                               : ~_GEN_180 | _GEN_165
+                                   ? (~_GEN_163 | _GEN_148
+                                        ? (~_GEN_146 | _GEN_131
+                                             ? (~_GEN_129 | _GEN_114
+                                                  ? (~_GEN_112 | _GEN_97
+                                                       ? (~_GEN_94 | _GEN_49
                                                             ? robs[4'hF].dest
                                                             : io_cdbs[3'h0].dest)
                                                        : io_cdbs[3'h1].dest)
@@ -2824,58 +2876,182 @@ module Committer(
           type_:
             (io_clear_valid
                ? robs[4'hF].type_
-               : _GEN_220
+               : _GEN_260
                    ? io_in_robs[2'h3].type_
-                   : _GEN_189
+                   : _GEN_229
                        ? io_in_robs[2'h2].type_
-                       : _GEN_172
+                       : _GEN_212
                            ? io_in_robs[2'h1].type_
-                           : _GEN_156 ? io_in_robs[2'h0].type_ : robs[4'hF].type_),
+                           : _GEN_196 ? io_in_robs[2'h0].type_ : robs[4'hF].type_),
           ready:
             (~io_clear_valid
-             & (waiting
-                  ? _GEN_252
-                  : _GEN ? (_GEN_0 ? _GEN_252 : ~(&l) & _GEN_221) : _GEN_221))};
+             & (_GEN ? ~((&index_7) | _GEN_309) & _GEN_293 : ~_GEN_309 & _GEN_293))};
       waiting <=
         ~io_clear_valid
-        & (waiting
-             ? ~io_store_received & waiting
-             : _GEN_1 & ~io_store_received | waiting);
+        & (_GEN_40 | _GEN_30 | _GEN_20 | _GEN_10 ? ~io_store_received : waiting);
     end
     cur_rb <=
-      '{id: (_GEN_253 ? cur_rb.id : rb.id),
-        value: (_GEN_253 ? cur_rb.value : rb.value),
-        dest: (_GEN_253 ? cur_rb.dest : rb.dest),
-        type_: (_GEN_253 ? cur_rb.type_ : rb.type_),
-        ready: (_GEN_253 ? cur_rb.ready : rb.ready)};
+      '{id:
+          (io_clear_valid
+             ? cur_rb.id
+             : _GEN_40
+                 ? robs[index_7].id
+                 : _GEN_30
+                     ? robs[index_6].id
+                     : _GEN_20
+                         ? robs[index_5].id
+                         : _GEN_310 ? cur_rb.id : robs[index_4].id),
+        value:
+          (io_clear_valid
+             ? cur_rb.value
+             : _GEN_40
+                 ? robs[index_7].value
+                 : _GEN_30
+                     ? robs[index_6].value
+                     : _GEN_20
+                         ? robs[index_5].value
+                         : _GEN_310 ? cur_rb.value : robs[index_4].value),
+        dest:
+          (io_clear_valid
+             ? cur_rb.dest
+             : _GEN_40
+                 ? robs[index_7].dest
+                 : _GEN_30
+                     ? robs[index_6].dest
+                     : _GEN_20
+                         ? robs[index_5].dest
+                         : _GEN_310 ? cur_rb.dest : robs[index_4].dest),
+        type_:
+          (io_clear_valid
+             ? cur_rb.type_
+             : _GEN_40
+                 ? robs[index_7].type_
+                 : _GEN_30
+                     ? robs[index_6].type_
+                     : _GEN_20
+                         ? robs[index_5].type_
+                         : _GEN_310 ? cur_rb.type_ : robs[index_4].type_),
+        ready:
+          (io_clear_valid
+             ? cur_rb.ready
+             : _GEN_40
+                 ? robs[index_7].ready
+                 : _GEN_30
+                     ? robs[index_6].ready
+                     : _GEN_20
+                         ? robs[index_5].ready
+                         : _GEN_310 ? cur_rb.ready : robs[index_4].ready)};
   end // always @(posedge)
-  assign io_out_store_valid = ~io_clear_valid & (waiting | _GEN & _GEN_0);
+  assign io_out_store_valid =
+    ~io_clear_valid
+    & (_GEN_40 | (_GEN_28 ? _GEN_29 | _GEN_20 | _GEN_9 : _GEN_20 | _GEN_9));
   assign io_out_store_addr =
-    io_clear_valid ? 32'h0 : waiting ? cur_rb.dest : _GEN_1 ? rb.dest : 32'h0;
+    io_clear_valid
+      ? 32'h0
+      : _GEN_40
+          ? robs[index_7].dest
+          : _GEN_30
+              ? robs[index_6].dest
+              : _GEN_20 ? robs[index_5].dest : _GEN_10 ? _GEN_6 : 32'h0;
   assign io_out_store_value =
-    io_clear_valid ? 32'h0 : waiting ? cur_rb.value : _GEN_1 ? rb.value : 32'h0;
+    io_clear_valid
+      ? 32'h0
+      : _GEN_40
+          ? robs[index_7].value
+          : _GEN_30
+              ? robs[index_6].value
+              : _GEN_20 ? robs[index_5].value : _GEN_10 ? _GEN_5 : 32'h0;
   assign io_out_store_mask =
     io_clear_valid
       ? 4'h0
-      : waiting
-          ? (cur_rb.type_ == 32'h1 ? 4'h1 : cur_rb.type_ == 32'h2 ? 4'h3 : 4'hF)
-          : _GEN_1 ? (rb.type_ == 32'h1 ? 4'h1 : rb.type_ == 32'h2 ? 4'h3 : 4'hF) : 4'h0;
+      : _GEN_40
+          ? (robs[index_7].type_ == 32'h1
+               ? 4'h1
+               : robs[index_7].type_ == 32'h2 ? 4'h3 : 4'hF)
+          : _GEN_30
+              ? (robs[index_6].type_ == 32'h1
+                   ? 4'h1
+                   : robs[index_6].type_ == 32'h2 ? 4'h3 : 4'hF)
+              : _GEN_20
+                  ? (robs[index_5].type_ == 32'h1
+                       ? 4'h1
+                       : robs[index_5].type_ == 32'h2 ? 4'h3 : 4'hF)
+                  : _GEN_10
+                      ? (_GEN_7 == 32'h1 ? 4'h1 : _GEN_7 == 32'h2 ? 4'h3 : 4'hF)
+                      : 4'h0;
   assign io_out_reg_valid =
-    ~io_clear_valid & _GEN_2 & ~_GEN_0 & ~(|rb.type_) & ~(&rb.dest);
-  assign io_out_reg_id = _GEN_3 ? 5'h0 : rb.dest[4:0];
-  assign io_out_reg_val = _GEN_3 ? 32'h0 : rb.value;
-  assign io_out_reg_prod = _GEN_3 ? 32'h0 : rb.id;
-  assign io_out_flush = ~io_clear_valid & _GEN_2 & ~_GEN_4 & rb.value[0];
-  assign io_out_flushval = _GEN_5 ? 32'h0 : rb.id;
-  assign io_out_newaddr = _GEN_5 ? 32'h0 : rb.dest;
+    {{~io_clear_valid & _GEN_38 & ~_GEN_39 & _GEN_41 & ~(&robs[index_7].dest)
+        & (|robs[index_7].dest)},
+     {~io_clear_valid & _GEN_28 & ~_GEN_29 & _GEN_31 & ~(&robs[index_6].dest)
+        & (|robs[index_6].dest)},
+     {~io_clear_valid & _GEN_18 & ~_GEN_19 & _GEN_21 & ~(&robs[index_5].dest)
+        & (|robs[index_5].dest)},
+     {~io_clear_valid & _GEN_3 & ~_GEN_8 & _GEN_11 & ~(&_GEN_6) & (|_GEN_6)}};
+  assign io_out_reg_id =
+    {{_GEN_42 ? 5'h0 : robs[index_7].dest[4:0]},
+     {_GEN_32 ? 5'h0 : robs[index_6].dest[4:0]},
+     {_GEN_22 ? 5'h0 : robs[index_5].dest[4:0]},
+     {_GEN_12 ? 5'h0 : _GEN_6[4:0]}};
+  assign io_out_reg_val =
+    {{_GEN_42 ? 32'h0 : robs[index_7].value},
+     {_GEN_32 ? 32'h0 : robs[index_6].value},
+     {_GEN_22 ? 32'h0 : robs[index_5].value},
+     {_GEN_12 ? 32'h0 : _GEN_5}};
+  assign io_out_reg_prod =
+    {{_GEN_42 ? 32'h0 : robs[index_7].id},
+     {_GEN_32 ? 32'h0 : robs[index_6].id},
+     {_GEN_22 ? 32'h0 : robs[index_5].id},
+     {_GEN_12 ? 32'h0 : _GEN_4}};
+  assign io_out_commit_num = _io_out_commit_num_T_5;
+  assign io_out_flush =
+    ~io_clear_valid
+    & (_GEN_38 & ~_GEN_43 & _GEN_44 | _GEN_28 & ~_GEN_33 & _GEN_35 | _GEN_18 & ~_GEN_23
+       & _GEN_25 | _GEN_3 & ~_GEN_13 & _GEN_5[0]);
+  assign io_out_flushval =
+    io_clear_valid
+      ? 32'h0
+      : _GEN_45
+          ? (_GEN_36
+               ? (_GEN_26 ? (_GEN_16 ? 32'h0 : _GEN_4) : robs[index_5].id)
+               : robs[index_6].id)
+          : robs[index_7].id;
+  assign io_out_newaddr =
+    io_clear_valid
+      ? 32'h0
+      : _GEN_45
+          ? (_GEN_36
+               ? (_GEN_26 ? (_GEN_16 ? 32'h0 : _GEN_6) : robs[index_5].dest)
+               : robs[index_6].dest)
+          : robs[index_7].dest;
   assign io_out_l = l;
   assign io_out_r = r;
   assign io_out_space = {28'h0, 4'hF - _io_out_space_T};
   assign io_out_robs = robs;
-  assign io_out_halt = ~io_clear_valid & _GEN_2 & ~_GEN_0 & ~(|rb.type_) & (&rb.dest);
-  assign io_out_predictor_valid = ~io_clear_valid & _GEN_2 & ~_GEN_0 & (|rb.type_);
-  assign io_out_predictor_addr = _GEN_6 ? 32'h0 : ~rb.type_;
-  assign io_out_predictor_res = _GEN_6 ? 32'h0 : rb.value;
+  assign io_out_halt =
+    ~io_clear_valid
+    & (_GEN_38 & ~_GEN_39 & _GEN_41 & (&robs[index_7].dest) | _GEN_28 & ~_GEN_29 & _GEN_31
+       & (&robs[index_6].dest) | _GEN_18 & ~_GEN_19 & _GEN_21 & (&robs[index_5].dest)
+       | _GEN_3 & ~_GEN_8 & _GEN_11 & (&_GEN_6));
+  assign io_out_predictor_valid =
+    ~io_clear_valid
+    & (_GEN_38 & ~_GEN_43 & ~_GEN_34 | _GEN_28 & ~_GEN_33 & ~_GEN_24 | _GEN_18 & ~_GEN_23
+       & ~_GEN_15 | _GEN_14);
+  assign io_out_predictor_addr =
+    io_clear_valid
+      ? 32'h0
+      : _GEN_46
+          ? (_GEN_37
+               ? (_GEN_27 ? (_GEN_17 ? 32'h0 : ~_GEN_7) : ~robs[index_5].type_)
+               : ~robs[index_6].type_)
+          : ~robs[index_7].type_;
+  assign io_out_predictor_res =
+    io_clear_valid
+      ? 32'h0
+      : _GEN_46
+          ? (_GEN_37
+               ? (_GEN_27 ? (_GEN_17 ? 32'h0 : _GEN_5) : robs[index_5].value)
+               : robs[index_6].value)
+          : robs[index_7].value;
 endmodule
 
 module ALU(
@@ -58677,10 +58853,10 @@ module CPU(
   wire [31:0]       _committer_io_out_store_addr;
   wire [31:0]       _committer_io_out_store_value;
   wire [3:0]        _committer_io_out_store_mask;
-  wire              _committer_io_out_reg_valid;
-  wire [4:0]        _committer_io_out_reg_id;
-  wire [31:0]       _committer_io_out_reg_val;
-  wire [31:0]       _committer_io_out_reg_prod;
+  wire [3:0]        _committer_io_out_reg_valid;
+  wire [3:0][4:0]   _committer_io_out_reg_id;
+  wire [3:0][31:0]  _committer_io_out_reg_val;
+  wire [3:0][31:0]  _committer_io_out_reg_prod;
   wire              _committer_io_out_flush;
   wire [31:0]       _committer_io_out_flushval;
   wire [31:0]       _committer_io_out_newaddr;
@@ -58756,1572 +58932,2379 @@ module CPU(
   struct packed {logic valid; logic [31:0] id; logic [31:0] dest; logic [31:0] value; }[5:0]
     cdbs;
   wire              _GEN_0 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h1;
-  wire [31:0]       _GEN_1 = _GEN_0 ? _committer_io_out_reg_val : regs[5'h1].value;
-  wire              _GEN_2 = regs[5'h1].prod == _committer_io_out_reg_prod;
-  wire              _GEN_3 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h2;
-  wire [31:0]       _GEN_4 = _GEN_3 ? _committer_io_out_reg_val : regs[5'h2].value;
-  wire              _GEN_5 = regs[5'h2].prod == _committer_io_out_reg_prod;
-  wire              _GEN_6 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h3;
-  wire [31:0]       _GEN_7 = _GEN_6 ? _committer_io_out_reg_val : regs[5'h3].value;
-  wire              _GEN_8 = regs[5'h3].prod == _committer_io_out_reg_prod;
-  wire              _GEN_9 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h4;
-  wire [31:0]       _GEN_10 = _GEN_9 ? _committer_io_out_reg_val : regs[5'h4].value;
-  wire              _GEN_11 = regs[5'h4].prod == _committer_io_out_reg_prod;
-  wire              _GEN_12 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h5;
-  wire [31:0]       _GEN_13 = _GEN_12 ? _committer_io_out_reg_val : regs[5'h5].value;
-  wire              _GEN_14 = regs[5'h5].prod == _committer_io_out_reg_prod;
-  wire              _GEN_15 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h6;
-  wire [31:0]       _GEN_16 = _GEN_15 ? _committer_io_out_reg_val : regs[5'h6].value;
-  wire              _GEN_17 = regs[5'h6].prod == _committer_io_out_reg_prod;
-  wire              _GEN_18 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h7;
-  wire [31:0]       _GEN_19 = _GEN_18 ? _committer_io_out_reg_val : regs[5'h7].value;
-  wire              _GEN_20 = regs[5'h7].prod == _committer_io_out_reg_prod;
-  wire              _GEN_21 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h8;
-  wire [31:0]       _GEN_22 = _GEN_21 ? _committer_io_out_reg_val : regs[5'h8].value;
-  wire              _GEN_23 = regs[5'h8].prod == _committer_io_out_reg_prod;
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h1;
+  wire              _GEN_1 = regs[5'h1].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_2 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h1;
+  wire              _GEN_3 = regs[5'h1].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_4 = _GEN_2 & _GEN_3 | _GEN_0 & _GEN_1;
+  wire              _GEN_5 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h1;
+  wire              _GEN_6 = regs[5'h1].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_7 = _GEN_5 & _GEN_6;
+  wire              _GEN_8 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h1;
+  wire [31:0]       _GEN_9 =
+    _GEN_8
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_5
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_2
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_0 ? _committer_io_out_reg_val[2'h0] : regs[5'h1].value;
+  wire              _GEN_10 = regs[5'h1].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_11 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h2;
+  wire              _GEN_12 = regs[5'h2].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_13 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h2;
+  wire              _GEN_14 = regs[5'h2].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_15 = _GEN_13 & _GEN_14 | _GEN_11 & _GEN_12;
+  wire              _GEN_16 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h2;
+  wire              _GEN_17 = regs[5'h2].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_18 = _GEN_16 & _GEN_17;
+  wire              _GEN_19 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h2;
+  wire [31:0]       _GEN_20 =
+    _GEN_19
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_16
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_13
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_11 ? _committer_io_out_reg_val[2'h0] : regs[5'h2].value;
+  wire              _GEN_21 = regs[5'h2].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_22 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h3;
+  wire              _GEN_23 = regs[5'h3].prod == _committer_io_out_reg_prod[2'h0];
   wire              _GEN_24 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h9;
-  wire [31:0]       _GEN_25 = _GEN_24 ? _committer_io_out_reg_val : regs[5'h9].value;
-  wire              _GEN_26 = regs[5'h9].prod == _committer_io_out_reg_prod;
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h3;
+  wire              _GEN_25 = regs[5'h3].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_26 = _GEN_24 & _GEN_25 | _GEN_22 & _GEN_23;
   wire              _GEN_27 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'hA;
-  wire [31:0]       _GEN_28 = _GEN_27 ? _committer_io_out_reg_val : regs[5'hA].value;
-  wire              _GEN_29 = regs[5'hA].prod == _committer_io_out_reg_prod;
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h3;
+  wire              _GEN_28 = regs[5'h3].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_29 = _GEN_27 & _GEN_28;
   wire              _GEN_30 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'hB;
-  wire [31:0]       _GEN_31 = _GEN_30 ? _committer_io_out_reg_val : regs[5'hB].value;
-  wire              _GEN_32 = regs[5'hB].prod == _committer_io_out_reg_prod;
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h3;
+  wire [31:0]       _GEN_31 =
+    _GEN_30
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_27
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_24
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_22 ? _committer_io_out_reg_val[2'h0] : regs[5'h3].value;
+  wire              _GEN_32 = regs[5'h3].prod == _committer_io_out_reg_prod[2'h3];
   wire              _GEN_33 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'hC;
-  wire [31:0]       _GEN_34 = _GEN_33 ? _committer_io_out_reg_val : regs[5'hC].value;
-  wire              _GEN_35 = regs[5'hC].prod == _committer_io_out_reg_prod;
-  wire              _GEN_36 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'hD;
-  wire [31:0]       _GEN_37 = _GEN_36 ? _committer_io_out_reg_val : regs[5'hD].value;
-  wire              _GEN_38 = regs[5'hD].prod == _committer_io_out_reg_prod;
-  wire              _GEN_39 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'hE;
-  wire [31:0]       _GEN_40 = _GEN_39 ? _committer_io_out_reg_val : regs[5'hE].value;
-  wire              _GEN_41 = regs[5'hE].prod == _committer_io_out_reg_prod;
-  wire              _GEN_42 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'hF;
-  wire [31:0]       _GEN_43 = _GEN_42 ? _committer_io_out_reg_val : regs[5'hF].value;
-  wire              _GEN_44 = regs[5'hF].prod == _committer_io_out_reg_prod;
-  wire              _GEN_45 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h10;
-  wire [31:0]       _GEN_46 = _GEN_45 ? _committer_io_out_reg_val : regs[5'h10].value;
-  wire              _GEN_47 = regs[5'h10].prod == _committer_io_out_reg_prod;
-  wire              _GEN_48 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h11;
-  wire [31:0]       _GEN_49 = _GEN_48 ? _committer_io_out_reg_val : regs[5'h11].value;
-  wire              _GEN_50 = regs[5'h11].prod == _committer_io_out_reg_prod;
-  wire              _GEN_51 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h12;
-  wire [31:0]       _GEN_52 = _GEN_51 ? _committer_io_out_reg_val : regs[5'h12].value;
-  wire              _GEN_53 = regs[5'h12].prod == _committer_io_out_reg_prod;
-  wire              _GEN_54 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h13;
-  wire [31:0]       _GEN_55 = _GEN_54 ? _committer_io_out_reg_val : regs[5'h13].value;
-  wire              _GEN_56 = regs[5'h13].prod == _committer_io_out_reg_prod;
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h4;
+  wire              _GEN_34 = regs[5'h4].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_35 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h4;
+  wire              _GEN_36 = regs[5'h4].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_37 = _GEN_35 & _GEN_36 | _GEN_33 & _GEN_34;
+  wire              _GEN_38 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h4;
+  wire              _GEN_39 = regs[5'h4].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_40 = _GEN_38 & _GEN_39;
+  wire              _GEN_41 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h4;
+  wire [31:0]       _GEN_42 =
+    _GEN_41
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_38
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_35
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_33 ? _committer_io_out_reg_val[2'h0] : regs[5'h4].value;
+  wire              _GEN_43 = regs[5'h4].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_44 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h5;
+  wire              _GEN_45 = regs[5'h5].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_46 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h5;
+  wire              _GEN_47 = regs[5'h5].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_48 = _GEN_46 & _GEN_47 | _GEN_44 & _GEN_45;
+  wire              _GEN_49 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h5;
+  wire              _GEN_50 = regs[5'h5].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_51 = _GEN_49 & _GEN_50;
+  wire              _GEN_52 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h5;
+  wire [31:0]       _GEN_53 =
+    _GEN_52
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_49
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_46
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_44 ? _committer_io_out_reg_val[2'h0] : regs[5'h5].value;
+  wire              _GEN_54 = regs[5'h5].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_55 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h6;
+  wire              _GEN_56 = regs[5'h6].prod == _committer_io_out_reg_prod[2'h0];
   wire              _GEN_57 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h14;
-  wire [31:0]       _GEN_58 = _GEN_57 ? _committer_io_out_reg_val : regs[5'h14].value;
-  wire              _GEN_59 = regs[5'h14].prod == _committer_io_out_reg_prod;
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h6;
+  wire              _GEN_58 = regs[5'h6].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_59 = _GEN_57 & _GEN_58 | _GEN_55 & _GEN_56;
   wire              _GEN_60 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h15;
-  wire [31:0]       _GEN_61 = _GEN_60 ? _committer_io_out_reg_val : regs[5'h15].value;
-  wire              _GEN_62 = regs[5'h15].prod == _committer_io_out_reg_prod;
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h6;
+  wire              _GEN_61 = regs[5'h6].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_62 = _GEN_60 & _GEN_61;
   wire              _GEN_63 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h16;
-  wire [31:0]       _GEN_64 = _GEN_63 ? _committer_io_out_reg_val : regs[5'h16].value;
-  wire              _GEN_65 = regs[5'h16].prod == _committer_io_out_reg_prod;
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h6;
+  wire [31:0]       _GEN_64 =
+    _GEN_63
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_60
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_57
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_55 ? _committer_io_out_reg_val[2'h0] : regs[5'h6].value;
+  wire              _GEN_65 = regs[5'h6].prod == _committer_io_out_reg_prod[2'h3];
   wire              _GEN_66 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h17;
-  wire [31:0]       _GEN_67 = _GEN_66 ? _committer_io_out_reg_val : regs[5'h17].value;
-  wire              _GEN_68 = regs[5'h17].prod == _committer_io_out_reg_prod;
-  wire              _GEN_69 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h18;
-  wire [31:0]       _GEN_70 = _GEN_69 ? _committer_io_out_reg_val : regs[5'h18].value;
-  wire              _GEN_71 = regs[5'h18].prod == _committer_io_out_reg_prod;
-  wire              _GEN_72 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h19;
-  wire [31:0]       _GEN_73 = _GEN_72 ? _committer_io_out_reg_val : regs[5'h19].value;
-  wire              _GEN_74 = regs[5'h19].prod == _committer_io_out_reg_prod;
-  wire              _GEN_75 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h1A;
-  wire [31:0]       _GEN_76 = _GEN_75 ? _committer_io_out_reg_val : regs[5'h1A].value;
-  wire              _GEN_77 = regs[5'h1A].prod == _committer_io_out_reg_prod;
-  wire              _GEN_78 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h1B;
-  wire [31:0]       _GEN_79 = _GEN_78 ? _committer_io_out_reg_val : regs[5'h1B].value;
-  wire              _GEN_80 = regs[5'h1B].prod == _committer_io_out_reg_prod;
-  wire              _GEN_81 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h1C;
-  wire [31:0]       _GEN_82 = _GEN_81 ? _committer_io_out_reg_val : regs[5'h1C].value;
-  wire              _GEN_83 = regs[5'h1C].prod == _committer_io_out_reg_prod;
-  wire              _GEN_84 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h1D;
-  wire [31:0]       _GEN_85 = _GEN_84 ? _committer_io_out_reg_val : regs[5'h1D].value;
-  wire              _GEN_86 = regs[5'h1D].prod == _committer_io_out_reg_prod;
-  wire              _GEN_87 =
-    _committer_io_out_reg_valid & _committer_io_out_reg_id == 5'h1E;
-  wire [31:0]       _GEN_88 = _GEN_87 ? _committer_io_out_reg_val : regs[5'h1E].value;
-  wire              _GEN_89 = regs[5'h1E].prod == _committer_io_out_reg_prod;
-  wire              _GEN_90 = _committer_io_out_reg_valid & (&_committer_io_out_reg_id);
-  wire [31:0]       _GEN_91 = _GEN_90 ? _committer_io_out_reg_val : regs[5'h1F].value;
-  wire              _GEN_92 = regs[5'h1F].prod == _committer_io_out_reg_prod;
-  wire              _GEN_93 = _issuer_io_out_executer_type[2'h0] < 32'h4;
-  wire              _GEN_94 = _issuer_io_out_executer_type[2'h0] == 32'h0;
-  wire              _GEN_95 = (|_issuer_io_out_valid) & _GEN_93 & _GEN_94;
-  wire              _GEN_96 = _issuer_io_out_executer_type[2'h0] == 32'h1;
-  wire              _GEN_97 = (|_issuer_io_out_valid) & _GEN_93 & _GEN_96;
-  wire              _GEN_98 = _issuer_io_out_executer_type[2'h0] == 32'h2;
-  wire              _GEN_99 = (|_issuer_io_out_valid) & _GEN_93 & _GEN_98;
-  wire              _GEN_100 = _issuer_io_out_executer_type[2'h0] == 32'h3;
-  wire              _GEN_101 = (|_issuer_io_out_valid) & _GEN_93 & _GEN_100;
-  wire              _GEN_102 = _issuer_io_out_executer_type[2'h0] == 32'h4;
-  wire              _GEN_103 = ~(|_issuer_io_out_valid) | _GEN_93 | ~_GEN_102;
-  wire              _GEN_104 = _GEN_93 | _GEN_102;
-  wire              _GEN_105 = ~(|_issuer_io_out_valid) | _GEN_104;
-  wire              _GEN_106 = (|_issuer_io_out_valid) & _GEN_94;
-  wire [31:0]       _GEN_107 = {31'h0, _GEN_106};
-  wire              _GEN_108 = (|_issuer_io_out_valid) & _GEN_96;
-  wire [31:0]       _GEN_109 = {31'h0, _GEN_108};
-  wire              _GEN_110 = (|_issuer_io_out_valid) & _GEN_98;
-  wire [31:0]       _GEN_111 = {31'h0, _GEN_110};
-  wire              _GEN_112 = (|_issuer_io_out_valid) & _GEN_100;
-  wire [31:0]       _GEN_113 = {31'h0, _GEN_112};
-  wire              _GEN_114 = (|_issuer_io_out_valid) & _GEN_102;
-  wire [31:0]       _GEN_115 = {31'h0, _GEN_114};
-  wire              _GEN_116 =
-    (|_issuer_io_out_valid) & _issuer_io_out_executer_type[2'h0] == 32'h5;
-  wire [31:0]       _GEN_117 = {31'h0, _GEN_116};
-  wire              _GEN_118 = _issuer_io_out_executer_type[2'h1] < 32'h4;
-  wire              _GEN_119 = _issuer_io_out_executer_type[2'h1] == 32'h0;
-  wire              _GEN_120 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_118 & _GEN_119 & ~_GEN_106;
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h7;
+  wire              _GEN_67 = regs[5'h7].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_68 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h7;
+  wire              _GEN_69 = regs[5'h7].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_70 = _GEN_68 & _GEN_69 | _GEN_66 & _GEN_67;
+  wire              _GEN_71 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h7;
+  wire              _GEN_72 = regs[5'h7].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_73 = _GEN_71 & _GEN_72;
+  wire              _GEN_74 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h7;
+  wire [31:0]       _GEN_75 =
+    _GEN_74
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_71
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_68
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_66 ? _committer_io_out_reg_val[2'h0] : regs[5'h7].value;
+  wire              _GEN_76 = regs[5'h7].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_77 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h8;
+  wire              _GEN_78 = regs[5'h8].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_79 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h8;
+  wire              _GEN_80 = regs[5'h8].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_81 = _GEN_79 & _GEN_80 | _GEN_77 & _GEN_78;
+  wire              _GEN_82 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h8;
+  wire              _GEN_83 = regs[5'h8].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_84 = _GEN_82 & _GEN_83;
+  wire              _GEN_85 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h8;
+  wire [31:0]       _GEN_86 =
+    _GEN_85
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_82
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_79
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_77 ? _committer_io_out_reg_val[2'h0] : regs[5'h8].value;
+  wire              _GEN_87 = regs[5'h8].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_88 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h9;
+  wire              _GEN_89 = regs[5'h9].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_90 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h9;
+  wire              _GEN_91 = regs[5'h9].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_92 = _GEN_90 & _GEN_91 | _GEN_88 & _GEN_89;
+  wire              _GEN_93 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h9;
+  wire              _GEN_94 = regs[5'h9].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_95 = _GEN_93 & _GEN_94;
+  wire              _GEN_96 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h9;
+  wire [31:0]       _GEN_97 =
+    _GEN_96
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_93
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_90
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_88 ? _committer_io_out_reg_val[2'h0] : regs[5'h9].value;
+  wire              _GEN_98 = regs[5'h9].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_99 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'hA;
+  wire              _GEN_100 = regs[5'hA].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_101 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'hA;
+  wire              _GEN_102 = regs[5'hA].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_103 = _GEN_101 & _GEN_102 | _GEN_99 & _GEN_100;
+  wire              _GEN_104 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'hA;
+  wire              _GEN_105 = regs[5'hA].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_106 = _GEN_104 & _GEN_105;
+  wire              _GEN_107 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'hA;
+  wire [31:0]       _GEN_108 =
+    _GEN_107
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_104
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_101
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_99 ? _committer_io_out_reg_val[2'h0] : regs[5'hA].value;
+  wire              _GEN_109 = regs[5'hA].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_110 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'hB;
+  wire              _GEN_111 = regs[5'hB].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_112 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'hB;
+  wire              _GEN_113 = regs[5'hB].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_114 = _GEN_112 & _GEN_113 | _GEN_110 & _GEN_111;
+  wire              _GEN_115 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'hB;
+  wire              _GEN_116 = regs[5'hB].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_117 = _GEN_115 & _GEN_116;
+  wire              _GEN_118 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'hB;
+  wire [31:0]       _GEN_119 =
+    _GEN_118
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_115
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_112
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_110 ? _committer_io_out_reg_val[2'h0] : regs[5'hB].value;
+  wire              _GEN_120 = regs[5'hB].prod == _committer_io_out_reg_prod[2'h3];
   wire              _GEN_121 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_118 & _GEN_119 & _GEN_106;
-  wire              _GEN_122 = _issuer_io_out_executer_type[2'h1] == 32'h1;
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'hC;
+  wire              _GEN_122 = regs[5'hC].prod == _committer_io_out_reg_prod[2'h0];
   wire              _GEN_123 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_118 & _GEN_122 & ~_GEN_108;
-  wire              _GEN_124 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_118 & _GEN_122 & _GEN_108;
-  wire              _GEN_125 = _issuer_io_out_executer_type[2'h1] == 32'h2;
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'hC;
+  wire              _GEN_124 = regs[5'hC].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_125 = _GEN_123 & _GEN_124 | _GEN_121 & _GEN_122;
   wire              _GEN_126 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_118 & _GEN_125 & ~_GEN_110;
-  wire              _GEN_127 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_118 & _GEN_125 & _GEN_110;
-  wire              _GEN_128 = _issuer_io_out_executer_type[2'h1] == 32'h3;
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'hC;
+  wire              _GEN_127 = regs[5'hC].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_128 = _GEN_126 & _GEN_127;
   wire              _GEN_129 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_118 & _GEN_128 & ~_GEN_112;
-  wire              _GEN_130 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_118 & _GEN_128 & _GEN_112;
-  wire              _GEN_131 = _issuer_io_out_executer_type[2'h1] == 32'h4;
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'hC;
+  wire [31:0]       _GEN_130 =
+    _GEN_129
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_126
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_123
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_121 ? _committer_io_out_reg_val[2'h0] : regs[5'hC].value;
+  wire              _GEN_131 = regs[5'hC].prod == _committer_io_out_reg_prod[2'h3];
   wire              _GEN_132 =
-    ~(|(_issuer_io_out_valid[31:1])) | _GEN_118 | ~(_GEN_131 & ~_GEN_114);
-  wire              _GEN_133 = _GEN_131 & _GEN_114;
-  wire              _GEN_134 = ~(|(_issuer_io_out_valid[31:1])) | _GEN_118 | ~_GEN_133;
-  wire              _GEN_135 = _GEN_118 | _GEN_131;
-  wire              _GEN_136 = ~(|(_issuer_io_out_valid[31:1])) | _GEN_135 | _GEN_116;
-  wire              _GEN_137 = ~(|(_issuer_io_out_valid[31:1])) | _GEN_135 | ~_GEN_116;
-  wire [31:0]       _GEN_138 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_119 ? _GEN_107 + 32'h1 : _GEN_107;
-  wire [31:0]       _GEN_139 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_122 ? _GEN_109 + 32'h1 : _GEN_109;
-  wire [31:0]       _GEN_140 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_125 ? _GEN_111 + 32'h1 : _GEN_111;
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'hD;
+  wire              _GEN_133 = regs[5'hD].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_134 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'hD;
+  wire              _GEN_135 = regs[5'hD].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_136 = _GEN_134 & _GEN_135 | _GEN_132 & _GEN_133;
+  wire              _GEN_137 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'hD;
+  wire              _GEN_138 = regs[5'hD].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_139 = _GEN_137 & _GEN_138;
+  wire              _GEN_140 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'hD;
   wire [31:0]       _GEN_141 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_128 ? _GEN_113 + 32'h1 : _GEN_113;
-  wire [31:0]       _GEN_142 =
-    (|(_issuer_io_out_valid[31:1])) & _GEN_131 ? _GEN_115 + 32'h1 : _GEN_115;
-  wire [31:0]       _GEN_143 =
-    (|(_issuer_io_out_valid[31:1])) & _issuer_io_out_executer_type[2'h1] == 32'h5
-      ? _GEN_117 + 32'h1
-      : _GEN_117;
-  wire              _GEN_144 = _issuer_io_out_valid > 32'h2;
-  wire              _GEN_145 = _issuer_io_out_executer_type[2'h2] < 32'h4;
-  wire              _GEN_146 = _issuer_io_out_executer_type[2'h2] == 32'h0;
-  wire              _GEN_147 = _GEN_144 & _GEN_145 & _GEN_146 & _GEN_138[1:0] == 2'h0;
-  wire              _GEN_148 = _GEN_144 & _GEN_145 & _GEN_146 & _GEN_138[1:0] == 2'h1;
-  wire              _GEN_149 = _GEN_144 & _GEN_145 & _GEN_146 & _GEN_138[1:0] == 2'h2;
-  wire              _GEN_150 = _GEN_144 & _GEN_145 & _GEN_146 & (&(_GEN_138[1:0]));
-  wire              _GEN_151 = _issuer_io_out_executer_type[2'h2] == 32'h1;
-  wire              _GEN_152 = _GEN_144 & _GEN_145 & _GEN_151 & _GEN_139[1:0] == 2'h0;
-  wire              _GEN_153 = _GEN_144 & _GEN_145 & _GEN_151 & _GEN_139[1:0] == 2'h1;
-  wire              _GEN_154 = _GEN_144 & _GEN_145 & _GEN_151 & _GEN_139[1:0] == 2'h2;
-  wire              _GEN_155 = _GEN_144 & _GEN_145 & _GEN_151 & (&(_GEN_139[1:0]));
-  wire              _GEN_156 = _issuer_io_out_executer_type[2'h2] == 32'h2;
-  wire              _GEN_157 = _GEN_144 & _GEN_145 & _GEN_156 & _GEN_140[1:0] == 2'h0;
-  wire              _GEN_158 = _GEN_144 & _GEN_145 & _GEN_156 & _GEN_140[1:0] == 2'h1;
-  wire              _GEN_159 = _GEN_144 & _GEN_145 & _GEN_156 & _GEN_140[1:0] == 2'h2;
-  wire              _GEN_160 = _GEN_144 & _GEN_145 & _GEN_156 & (&(_GEN_140[1:0]));
-  wire              _GEN_161 = _issuer_io_out_executer_type[2'h2] == 32'h3;
-  wire              _GEN_162 = _GEN_144 & _GEN_145 & _GEN_161 & _GEN_141[1:0] == 2'h0;
-  wire              _GEN_163 = _GEN_144 & _GEN_145 & _GEN_161 & _GEN_141[1:0] == 2'h1;
-  wire              _GEN_164 = _GEN_144 & _GEN_145 & _GEN_161 & _GEN_141[1:0] == 2'h2;
-  wire              _GEN_165 = _GEN_144 & _GEN_145 & _GEN_161 & (&(_GEN_141[1:0]));
-  wire              _GEN_166 = _issuer_io_out_executer_type[2'h2] == 32'h4;
-  wire              _GEN_167 = ~_GEN_144 | _GEN_145 | ~(_GEN_166 & _GEN_142[1:0] == 2'h0);
-  wire              _GEN_168 = ~_GEN_144 | _GEN_145 | ~(_GEN_166 & _GEN_142[1:0] == 2'h1);
-  wire              _GEN_169 = _GEN_166 & _GEN_142[1:0] == 2'h2;
-  wire              _GEN_170 = _GEN_166 & (&(_GEN_142[1:0]));
-  wire              _GEN_171 = ~_GEN_144 | _GEN_145 | ~_GEN_169;
-  wire              _GEN_172 = ~_GEN_144 | _GEN_145 | ~_GEN_170;
-  wire              _GEN_173 = _GEN_145 | _GEN_166;
-  wire              _GEN_174 = ~_GEN_144 | _GEN_173 | (|(_GEN_143[1:0]));
-  wire              _GEN_175 = ~_GEN_144 | _GEN_173 | _GEN_143[1:0] != 2'h1;
-  wire              _GEN_176 = _GEN_143[1:0] == 2'h2;
-  wire              _GEN_177 = ~_GEN_144 | _GEN_173 | ~_GEN_176;
-  wire              _GEN_178 = ~_GEN_144 | _GEN_173 | ~(&(_GEN_143[1:0]));
-  wire [31:0]       _GEN_179 = _GEN_144 & _GEN_146 ? _GEN_138 + 32'h1 : _GEN_138;
-  wire [31:0]       _GEN_180 = _GEN_144 & _GEN_151 ? _GEN_139 + 32'h1 : _GEN_139;
-  wire [31:0]       _GEN_181 = _GEN_144 & _GEN_156 ? _GEN_140 + 32'h1 : _GEN_140;
-  wire [31:0]       _GEN_182 = _GEN_144 & _GEN_161 ? _GEN_141 + 32'h1 : _GEN_141;
-  wire [31:0]       _GEN_183 = _GEN_144 & _GEN_166 ? _GEN_142 + 32'h1 : _GEN_142;
-  wire [31:0]       _GEN_184 =
-    _GEN_144 & _issuer_io_out_executer_type[2'h2] == 32'h5 ? _GEN_143 + 32'h1 : _GEN_143;
-  wire              _GEN_185 = _issuer_io_out_executer_type[2'h3] < 32'h4;
-  wire              _GEN_186 = _issuer_io_out_executer_type[2'h3] == 32'h0;
+    _GEN_140
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_137
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_134
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_132 ? _committer_io_out_reg_val[2'h0] : regs[5'hD].value;
+  wire              _GEN_142 = regs[5'hD].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_143 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'hE;
+  wire              _GEN_144 = regs[5'hE].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_145 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'hE;
+  wire              _GEN_146 = regs[5'hE].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_147 = _GEN_145 & _GEN_146 | _GEN_143 & _GEN_144;
+  wire              _GEN_148 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'hE;
+  wire              _GEN_149 = regs[5'hE].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_150 = _GEN_148 & _GEN_149;
+  wire              _GEN_151 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'hE;
+  wire [31:0]       _GEN_152 =
+    _GEN_151
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_148
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_145
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_143 ? _committer_io_out_reg_val[2'h0] : regs[5'hE].value;
+  wire              _GEN_153 = regs[5'hE].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_154 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'hF;
+  wire              _GEN_155 = regs[5'hF].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_156 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'hF;
+  wire              _GEN_157 = regs[5'hF].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_158 = _GEN_156 & _GEN_157 | _GEN_154 & _GEN_155;
+  wire              _GEN_159 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'hF;
+  wire              _GEN_160 = regs[5'hF].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_161 = _GEN_159 & _GEN_160;
+  wire              _GEN_162 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'hF;
+  wire [31:0]       _GEN_163 =
+    _GEN_162
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_159
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_156
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_154 ? _committer_io_out_reg_val[2'h0] : regs[5'hF].value;
+  wire              _GEN_164 = regs[5'hF].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_165 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h10;
+  wire              _GEN_166 = regs[5'h10].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_167 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h10;
+  wire              _GEN_168 = regs[5'h10].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_169 = _GEN_167 & _GEN_168 | _GEN_165 & _GEN_166;
+  wire              _GEN_170 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h10;
+  wire              _GEN_171 = regs[5'h10].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_172 = _GEN_170 & _GEN_171;
+  wire              _GEN_173 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h10;
+  wire [31:0]       _GEN_174 =
+    _GEN_173
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_170
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_167
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_165 ? _committer_io_out_reg_val[2'h0] : regs[5'h10].value;
+  wire              _GEN_175 = regs[5'h10].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_176 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h11;
+  wire              _GEN_177 = regs[5'h11].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_178 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h11;
+  wire              _GEN_179 = regs[5'h11].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_180 = _GEN_178 & _GEN_179 | _GEN_176 & _GEN_177;
+  wire              _GEN_181 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h11;
+  wire              _GEN_182 = regs[5'h11].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_183 = _GEN_181 & _GEN_182;
+  wire              _GEN_184 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h11;
+  wire [31:0]       _GEN_185 =
+    _GEN_184
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_181
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_178
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_176 ? _committer_io_out_reg_val[2'h0] : regs[5'h11].value;
+  wire              _GEN_186 = regs[5'h11].prod == _committer_io_out_reg_prod[2'h3];
   wire              _GEN_187 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_186 & _GEN_179[1:0] == 2'h0;
-  wire              _GEN_188 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_186 & _GEN_179[1:0] == 2'h1;
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h12;
+  wire              _GEN_188 = regs[5'h12].prod == _committer_io_out_reg_prod[2'h0];
   wire              _GEN_189 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_186 & _GEN_179[1:0] == 2'h2;
-  wire              _GEN_190 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_186 & (&(_GEN_179[1:0]));
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_191 =
-    '{type_:
-        (_GEN_187
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_147
-               ? _issuer_io_out_executer_RS[2'h2].type_
-               : _GEN_120
-                   ? _issuer_io_out_executer_RS[2'h1].type_
-                   : _GEN_95 ? _issuer_io_out_executer_RS[2'h0].type_ : 6'h0),
-      v1:
-        (_GEN_187
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_147
-               ? _issuer_io_out_executer_RS[2'h2].v1
-               : _GEN_120
-                   ? _issuer_io_out_executer_RS[2'h1].v1
-                   : _GEN_95 ? _issuer_io_out_executer_RS[2'h0].v1 : 32'h0),
-      v2:
-        (_GEN_187
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_147
-               ? _issuer_io_out_executer_RS[2'h2].v2
-               : _GEN_120
-                   ? _issuer_io_out_executer_RS[2'h1].v2
-                   : _GEN_95 ? _issuer_io_out_executer_RS[2'h0].v2 : 32'h0),
-      q1:
-        (_GEN_187
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_147
-               ? _issuer_io_out_executer_RS[2'h2].q1
-               : _GEN_120
-                   ? _issuer_io_out_executer_RS[2'h1].q1
-                   : _GEN_95 ? _issuer_io_out_executer_RS[2'h0].q1 : 32'h0),
-      q2:
-        (_GEN_187
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_147
-               ? _issuer_io_out_executer_RS[2'h2].q2
-               : _GEN_120
-                   ? _issuer_io_out_executer_RS[2'h1].q2
-                   : _GEN_95 ? _issuer_io_out_executer_RS[2'h0].q2 : 32'h0),
-      dest:
-        (_GEN_187
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_147
-               ? _issuer_io_out_executer_RS[2'h2].dest
-               : _GEN_120
-                   ? _issuer_io_out_executer_RS[2'h1].dest
-                   : _GEN_95 ? _issuer_io_out_executer_RS[2'h0].dest : 32'h0),
-      id:
-        (_GEN_187
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_147
-               ? _issuer_io_out_executer_RS[2'h2].id
-               : _GEN_120
-                   ? _issuer_io_out_executer_RS[2'h1].id
-                   : _GEN_95 ? _issuer_io_out_executer_RS[2'h0].id : 32'h0),
-      is_halt:
-        (_GEN_187
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_147
-               ? _issuer_io_out_executer_RS[2'h2].is_halt
-               : _GEN_120
-                   ? _issuer_io_out_executer_RS[2'h1].is_halt
-                   : _GEN_95 & _issuer_io_out_executer_RS[2'h0].is_halt)};
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_192 =
-    '{type_:
-        (_GEN_188
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_148
-               ? _issuer_io_out_executer_RS[2'h2].type_
-               : _GEN_121 ? _issuer_io_out_executer_RS[2'h1].type_ : 6'h0),
-      v1:
-        (_GEN_188
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_148
-               ? _issuer_io_out_executer_RS[2'h2].v1
-               : _GEN_121 ? _issuer_io_out_executer_RS[2'h1].v1 : 32'h0),
-      v2:
-        (_GEN_188
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_148
-               ? _issuer_io_out_executer_RS[2'h2].v2
-               : _GEN_121 ? _issuer_io_out_executer_RS[2'h1].v2 : 32'h0),
-      q1:
-        (_GEN_188
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_148
-               ? _issuer_io_out_executer_RS[2'h2].q1
-               : _GEN_121 ? _issuer_io_out_executer_RS[2'h1].q1 : 32'h0),
-      q2:
-        (_GEN_188
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_148
-               ? _issuer_io_out_executer_RS[2'h2].q2
-               : _GEN_121 ? _issuer_io_out_executer_RS[2'h1].q2 : 32'h0),
-      dest:
-        (_GEN_188
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_148
-               ? _issuer_io_out_executer_RS[2'h2].dest
-               : _GEN_121 ? _issuer_io_out_executer_RS[2'h1].dest : 32'h0),
-      id:
-        (_GEN_188
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_148
-               ? _issuer_io_out_executer_RS[2'h2].id
-               : _GEN_121 ? _issuer_io_out_executer_RS[2'h1].id : 32'h0),
-      is_halt:
-        (_GEN_188
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_148
-               ? _issuer_io_out_executer_RS[2'h2].is_halt
-               : _GEN_121 & _issuer_io_out_executer_RS[2'h1].is_halt)};
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_193 =
-    '{type_:
-        (_GEN_189
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_149 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
-      v1:
-        (_GEN_189
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_149 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
-      v2:
-        (_GEN_189
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_149 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
-      q1:
-        (_GEN_189
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_149 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
-      q2:
-        (_GEN_189
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_149 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
-      dest:
-        (_GEN_189
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_149 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
-      id:
-        (_GEN_189
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_149 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
-      is_halt:
-        (_GEN_189
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_149 & _issuer_io_out_executer_RS[2'h2].is_halt)};
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_194 =
-    '{type_:
-        (_GEN_190
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_150 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
-      v1:
-        (_GEN_190
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_150 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
-      v2:
-        (_GEN_190
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_150 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
-      q1:
-        (_GEN_190
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_150 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
-      q2:
-        (_GEN_190
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_150 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
-      dest:
-        (_GEN_190
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_150 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
-      id:
-        (_GEN_190
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_150 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
-      is_halt:
-        (_GEN_190
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_150 & _issuer_io_out_executer_RS[2'h2].is_halt)};
-  wire              _GEN_195 = _issuer_io_out_executer_type[2'h3] == 32'h1;
-  wire              _GEN_196 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_195 & _GEN_180[1:0] == 2'h0;
-  wire              _GEN_197 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_195 & _GEN_180[1:0] == 2'h1;
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h12;
+  wire              _GEN_190 = regs[5'h12].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_191 = _GEN_189 & _GEN_190 | _GEN_187 & _GEN_188;
+  wire              _GEN_192 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h12;
+  wire              _GEN_193 = regs[5'h12].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_194 = _GEN_192 & _GEN_193;
+  wire              _GEN_195 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h12;
+  wire [31:0]       _GEN_196 =
+    _GEN_195
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_192
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_189
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_187 ? _committer_io_out_reg_val[2'h0] : regs[5'h12].value;
+  wire              _GEN_197 = regs[5'h12].prod == _committer_io_out_reg_prod[2'h3];
   wire              _GEN_198 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_195 & _GEN_180[1:0] == 2'h2;
-  wire              _GEN_199 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_195 & (&(_GEN_180[1:0]));
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_200 =
-    '{type_:
-        (_GEN_196
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_152
-               ? _issuer_io_out_executer_RS[2'h2].type_
-               : _GEN_123
-                   ? _issuer_io_out_executer_RS[2'h1].type_
-                   : _GEN_97 ? _issuer_io_out_executer_RS[2'h0].type_ : 6'h0),
-      v1:
-        (_GEN_196
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_152
-               ? _issuer_io_out_executer_RS[2'h2].v1
-               : _GEN_123
-                   ? _issuer_io_out_executer_RS[2'h1].v1
-                   : _GEN_97 ? _issuer_io_out_executer_RS[2'h0].v1 : 32'h0),
-      v2:
-        (_GEN_196
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_152
-               ? _issuer_io_out_executer_RS[2'h2].v2
-               : _GEN_123
-                   ? _issuer_io_out_executer_RS[2'h1].v2
-                   : _GEN_97 ? _issuer_io_out_executer_RS[2'h0].v2 : 32'h0),
-      q1:
-        (_GEN_196
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_152
-               ? _issuer_io_out_executer_RS[2'h2].q1
-               : _GEN_123
-                   ? _issuer_io_out_executer_RS[2'h1].q1
-                   : _GEN_97 ? _issuer_io_out_executer_RS[2'h0].q1 : 32'h0),
-      q2:
-        (_GEN_196
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_152
-               ? _issuer_io_out_executer_RS[2'h2].q2
-               : _GEN_123
-                   ? _issuer_io_out_executer_RS[2'h1].q2
-                   : _GEN_97 ? _issuer_io_out_executer_RS[2'h0].q2 : 32'h0),
-      dest:
-        (_GEN_196
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_152
-               ? _issuer_io_out_executer_RS[2'h2].dest
-               : _GEN_123
-                   ? _issuer_io_out_executer_RS[2'h1].dest
-                   : _GEN_97 ? _issuer_io_out_executer_RS[2'h0].dest : 32'h0),
-      id:
-        (_GEN_196
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_152
-               ? _issuer_io_out_executer_RS[2'h2].id
-               : _GEN_123
-                   ? _issuer_io_out_executer_RS[2'h1].id
-                   : _GEN_97 ? _issuer_io_out_executer_RS[2'h0].id : 32'h0),
-      is_halt:
-        (_GEN_196
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_152
-               ? _issuer_io_out_executer_RS[2'h2].is_halt
-               : _GEN_123
-                   ? _issuer_io_out_executer_RS[2'h1].is_halt
-                   : _GEN_97 & _issuer_io_out_executer_RS[2'h0].is_halt)};
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_201 =
-    '{type_:
-        (_GEN_197
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_153
-               ? _issuer_io_out_executer_RS[2'h2].type_
-               : _GEN_124 ? _issuer_io_out_executer_RS[2'h1].type_ : 6'h0),
-      v1:
-        (_GEN_197
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_153
-               ? _issuer_io_out_executer_RS[2'h2].v1
-               : _GEN_124 ? _issuer_io_out_executer_RS[2'h1].v1 : 32'h0),
-      v2:
-        (_GEN_197
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_153
-               ? _issuer_io_out_executer_RS[2'h2].v2
-               : _GEN_124 ? _issuer_io_out_executer_RS[2'h1].v2 : 32'h0),
-      q1:
-        (_GEN_197
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_153
-               ? _issuer_io_out_executer_RS[2'h2].q1
-               : _GEN_124 ? _issuer_io_out_executer_RS[2'h1].q1 : 32'h0),
-      q2:
-        (_GEN_197
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_153
-               ? _issuer_io_out_executer_RS[2'h2].q2
-               : _GEN_124 ? _issuer_io_out_executer_RS[2'h1].q2 : 32'h0),
-      dest:
-        (_GEN_197
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_153
-               ? _issuer_io_out_executer_RS[2'h2].dest
-               : _GEN_124 ? _issuer_io_out_executer_RS[2'h1].dest : 32'h0),
-      id:
-        (_GEN_197
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_153
-               ? _issuer_io_out_executer_RS[2'h2].id
-               : _GEN_124 ? _issuer_io_out_executer_RS[2'h1].id : 32'h0),
-      is_halt:
-        (_GEN_197
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_153
-               ? _issuer_io_out_executer_RS[2'h2].is_halt
-               : _GEN_124 & _issuer_io_out_executer_RS[2'h1].is_halt)};
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_202 =
-    '{type_:
-        (_GEN_198
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_154 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
-      v1:
-        (_GEN_198
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_154 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
-      v2:
-        (_GEN_198
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_154 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
-      q1:
-        (_GEN_198
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_154 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
-      q2:
-        (_GEN_198
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_154 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
-      dest:
-        (_GEN_198
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_154 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
-      id:
-        (_GEN_198
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_154 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
-      is_halt:
-        (_GEN_198
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_154 & _issuer_io_out_executer_RS[2'h2].is_halt)};
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_203 =
-    '{type_:
-        (_GEN_199
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_155 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
-      v1:
-        (_GEN_199
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_155 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
-      v2:
-        (_GEN_199
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_155 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
-      q1:
-        (_GEN_199
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_155 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
-      q2:
-        (_GEN_199
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_155 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
-      dest:
-        (_GEN_199
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_155 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
-      id:
-        (_GEN_199
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_155 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
-      is_halt:
-        (_GEN_199
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_155 & _issuer_io_out_executer_RS[2'h2].is_halt)};
-  wire              _GEN_204 = _issuer_io_out_executer_type[2'h3] == 32'h2;
-  wire              _GEN_205 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_204 & _GEN_181[1:0] == 2'h0;
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h13;
+  wire              _GEN_199 = regs[5'h13].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_200 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h13;
+  wire              _GEN_201 = regs[5'h13].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_202 = _GEN_200 & _GEN_201 | _GEN_198 & _GEN_199;
+  wire              _GEN_203 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h13;
+  wire              _GEN_204 = regs[5'h13].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_205 = _GEN_203 & _GEN_204;
   wire              _GEN_206 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_204 & _GEN_181[1:0] == 2'h1;
-  wire              _GEN_207 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_204 & _GEN_181[1:0] == 2'h2;
-  wire              _GEN_208 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_204 & (&(_GEN_181[1:0]));
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_209 =
-    '{type_:
-        (_GEN_205
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_157
-               ? _issuer_io_out_executer_RS[2'h2].type_
-               : _GEN_126
-                   ? _issuer_io_out_executer_RS[2'h1].type_
-                   : _GEN_99 ? _issuer_io_out_executer_RS[2'h0].type_ : 6'h0),
-      v1:
-        (_GEN_205
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_157
-               ? _issuer_io_out_executer_RS[2'h2].v1
-               : _GEN_126
-                   ? _issuer_io_out_executer_RS[2'h1].v1
-                   : _GEN_99 ? _issuer_io_out_executer_RS[2'h0].v1 : 32'h0),
-      v2:
-        (_GEN_205
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_157
-               ? _issuer_io_out_executer_RS[2'h2].v2
-               : _GEN_126
-                   ? _issuer_io_out_executer_RS[2'h1].v2
-                   : _GEN_99 ? _issuer_io_out_executer_RS[2'h0].v2 : 32'h0),
-      q1:
-        (_GEN_205
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_157
-               ? _issuer_io_out_executer_RS[2'h2].q1
-               : _GEN_126
-                   ? _issuer_io_out_executer_RS[2'h1].q1
-                   : _GEN_99 ? _issuer_io_out_executer_RS[2'h0].q1 : 32'h0),
-      q2:
-        (_GEN_205
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_157
-               ? _issuer_io_out_executer_RS[2'h2].q2
-               : _GEN_126
-                   ? _issuer_io_out_executer_RS[2'h1].q2
-                   : _GEN_99 ? _issuer_io_out_executer_RS[2'h0].q2 : 32'h0),
-      dest:
-        (_GEN_205
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_157
-               ? _issuer_io_out_executer_RS[2'h2].dest
-               : _GEN_126
-                   ? _issuer_io_out_executer_RS[2'h1].dest
-                   : _GEN_99 ? _issuer_io_out_executer_RS[2'h0].dest : 32'h0),
-      id:
-        (_GEN_205
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_157
-               ? _issuer_io_out_executer_RS[2'h2].id
-               : _GEN_126
-                   ? _issuer_io_out_executer_RS[2'h1].id
-                   : _GEN_99 ? _issuer_io_out_executer_RS[2'h0].id : 32'h0),
-      is_halt:
-        (_GEN_205
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_157
-               ? _issuer_io_out_executer_RS[2'h2].is_halt
-               : _GEN_126
-                   ? _issuer_io_out_executer_RS[2'h1].is_halt
-                   : _GEN_99 & _issuer_io_out_executer_RS[2'h0].is_halt)};
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_210 =
-    '{type_:
-        (_GEN_206
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_158
-               ? _issuer_io_out_executer_RS[2'h2].type_
-               : _GEN_127 ? _issuer_io_out_executer_RS[2'h1].type_ : 6'h0),
-      v1:
-        (_GEN_206
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_158
-               ? _issuer_io_out_executer_RS[2'h2].v1
-               : _GEN_127 ? _issuer_io_out_executer_RS[2'h1].v1 : 32'h0),
-      v2:
-        (_GEN_206
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_158
-               ? _issuer_io_out_executer_RS[2'h2].v2
-               : _GEN_127 ? _issuer_io_out_executer_RS[2'h1].v2 : 32'h0),
-      q1:
-        (_GEN_206
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_158
-               ? _issuer_io_out_executer_RS[2'h2].q1
-               : _GEN_127 ? _issuer_io_out_executer_RS[2'h1].q1 : 32'h0),
-      q2:
-        (_GEN_206
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_158
-               ? _issuer_io_out_executer_RS[2'h2].q2
-               : _GEN_127 ? _issuer_io_out_executer_RS[2'h1].q2 : 32'h0),
-      dest:
-        (_GEN_206
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_158
-               ? _issuer_io_out_executer_RS[2'h2].dest
-               : _GEN_127 ? _issuer_io_out_executer_RS[2'h1].dest : 32'h0),
-      id:
-        (_GEN_206
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_158
-               ? _issuer_io_out_executer_RS[2'h2].id
-               : _GEN_127 ? _issuer_io_out_executer_RS[2'h1].id : 32'h0),
-      is_halt:
-        (_GEN_206
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_158
-               ? _issuer_io_out_executer_RS[2'h2].is_halt
-               : _GEN_127 & _issuer_io_out_executer_RS[2'h1].is_halt)};
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_211 =
-    '{type_:
-        (_GEN_207
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_159 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
-      v1:
-        (_GEN_207
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_159 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
-      v2:
-        (_GEN_207
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_159 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
-      q1:
-        (_GEN_207
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_159 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
-      q2:
-        (_GEN_207
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_159 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
-      dest:
-        (_GEN_207
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_159 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
-      id:
-        (_GEN_207
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_159 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
-      is_halt:
-        (_GEN_207
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_159 & _issuer_io_out_executer_RS[2'h2].is_halt)};
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_212 =
-    '{type_:
-        (_GEN_208
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_160 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
-      v1:
-        (_GEN_208
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_160 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
-      v2:
-        (_GEN_208
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_160 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
-      q1:
-        (_GEN_208
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_160 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
-      q2:
-        (_GEN_208
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_160 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
-      dest:
-        (_GEN_208
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_160 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
-      id:
-        (_GEN_208
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_160 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
-      is_halt:
-        (_GEN_208
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_160 & _issuer_io_out_executer_RS[2'h2].is_halt)};
-  wire              _GEN_213 = _issuer_io_out_executer_type[2'h3] == 32'h3;
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h13;
+  wire [31:0]       _GEN_207 =
+    _GEN_206
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_203
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_200
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_198 ? _committer_io_out_reg_val[2'h0] : regs[5'h13].value;
+  wire              _GEN_208 = regs[5'h13].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_209 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h14;
+  wire              _GEN_210 = regs[5'h14].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_211 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h14;
+  wire              _GEN_212 = regs[5'h14].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_213 = _GEN_211 & _GEN_212 | _GEN_209 & _GEN_210;
   wire              _GEN_214 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_213 & _GEN_182[1:0] == 2'h0;
-  wire              _GEN_215 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_213 & _GEN_182[1:0] == 2'h1;
-  wire              _GEN_216 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_213 & _GEN_182[1:0] == 2'h2;
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h14;
+  wire              _GEN_215 = regs[5'h14].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_216 = _GEN_214 & _GEN_215;
   wire              _GEN_217 =
-    (|(_issuer_io_out_valid[31:2])) & _GEN_185 & _GEN_213 & (&(_GEN_182[1:0]));
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_218 =
-    '{type_:
-        (_GEN_214
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_162
-               ? _issuer_io_out_executer_RS[2'h2].type_
-               : _GEN_129
-                   ? _issuer_io_out_executer_RS[2'h1].type_
-                   : _GEN_101 ? _issuer_io_out_executer_RS[2'h0].type_ : 6'h0),
-      v1:
-        (_GEN_214
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_162
-               ? _issuer_io_out_executer_RS[2'h2].v1
-               : _GEN_129
-                   ? _issuer_io_out_executer_RS[2'h1].v1
-                   : _GEN_101 ? _issuer_io_out_executer_RS[2'h0].v1 : 32'h0),
-      v2:
-        (_GEN_214
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_162
-               ? _issuer_io_out_executer_RS[2'h2].v2
-               : _GEN_129
-                   ? _issuer_io_out_executer_RS[2'h1].v2
-                   : _GEN_101 ? _issuer_io_out_executer_RS[2'h0].v2 : 32'h0),
-      q1:
-        (_GEN_214
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_162
-               ? _issuer_io_out_executer_RS[2'h2].q1
-               : _GEN_129
-                   ? _issuer_io_out_executer_RS[2'h1].q1
-                   : _GEN_101 ? _issuer_io_out_executer_RS[2'h0].q1 : 32'h0),
-      q2:
-        (_GEN_214
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_162
-               ? _issuer_io_out_executer_RS[2'h2].q2
-               : _GEN_129
-                   ? _issuer_io_out_executer_RS[2'h1].q2
-                   : _GEN_101 ? _issuer_io_out_executer_RS[2'h0].q2 : 32'h0),
-      dest:
-        (_GEN_214
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_162
-               ? _issuer_io_out_executer_RS[2'h2].dest
-               : _GEN_129
-                   ? _issuer_io_out_executer_RS[2'h1].dest
-                   : _GEN_101 ? _issuer_io_out_executer_RS[2'h0].dest : 32'h0),
-      id:
-        (_GEN_214
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_162
-               ? _issuer_io_out_executer_RS[2'h2].id
-               : _GEN_129
-                   ? _issuer_io_out_executer_RS[2'h1].id
-                   : _GEN_101 ? _issuer_io_out_executer_RS[2'h0].id : 32'h0),
-      is_halt:
-        (_GEN_214
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_162
-               ? _issuer_io_out_executer_RS[2'h2].is_halt
-               : _GEN_129
-                   ? _issuer_io_out_executer_RS[2'h1].is_halt
-                   : _GEN_101 & _issuer_io_out_executer_RS[2'h0].is_halt)};
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_219 =
-    '{type_:
-        (_GEN_215
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_163
-               ? _issuer_io_out_executer_RS[2'h2].type_
-               : _GEN_130 ? _issuer_io_out_executer_RS[2'h1].type_ : 6'h0),
-      v1:
-        (_GEN_215
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_163
-               ? _issuer_io_out_executer_RS[2'h2].v1
-               : _GEN_130 ? _issuer_io_out_executer_RS[2'h1].v1 : 32'h0),
-      v2:
-        (_GEN_215
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_163
-               ? _issuer_io_out_executer_RS[2'h2].v2
-               : _GEN_130 ? _issuer_io_out_executer_RS[2'h1].v2 : 32'h0),
-      q1:
-        (_GEN_215
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_163
-               ? _issuer_io_out_executer_RS[2'h2].q1
-               : _GEN_130 ? _issuer_io_out_executer_RS[2'h1].q1 : 32'h0),
-      q2:
-        (_GEN_215
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_163
-               ? _issuer_io_out_executer_RS[2'h2].q2
-               : _GEN_130 ? _issuer_io_out_executer_RS[2'h1].q2 : 32'h0),
-      dest:
-        (_GEN_215
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_163
-               ? _issuer_io_out_executer_RS[2'h2].dest
-               : _GEN_130 ? _issuer_io_out_executer_RS[2'h1].dest : 32'h0),
-      id:
-        (_GEN_215
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_163
-               ? _issuer_io_out_executer_RS[2'h2].id
-               : _GEN_130 ? _issuer_io_out_executer_RS[2'h1].id : 32'h0),
-      is_halt:
-        (_GEN_215
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_163
-               ? _issuer_io_out_executer_RS[2'h2].is_halt
-               : _GEN_130 & _issuer_io_out_executer_RS[2'h1].is_halt)};
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_220 =
-    '{type_:
-        (_GEN_216
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_164 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
-      v1:
-        (_GEN_216
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_164 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
-      v2:
-        (_GEN_216
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_164 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
-      q1:
-        (_GEN_216
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_164 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
-      q2:
-        (_GEN_216
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_164 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
-      dest:
-        (_GEN_216
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_164 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
-      id:
-        (_GEN_216
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_164 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
-      is_halt:
-        (_GEN_216
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_164 & _issuer_io_out_executer_RS[2'h2].is_halt)};
-  wire
-    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_221 =
-    '{type_:
-        (_GEN_217
-           ? _issuer_io_out_executer_RS[2'h3].type_
-           : _GEN_165 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
-      v1:
-        (_GEN_217
-           ? _issuer_io_out_executer_RS[2'h3].v1
-           : _GEN_165 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
-      v2:
-        (_GEN_217
-           ? _issuer_io_out_executer_RS[2'h3].v2
-           : _GEN_165 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
-      q1:
-        (_GEN_217
-           ? _issuer_io_out_executer_RS[2'h3].q1
-           : _GEN_165 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
-      q2:
-        (_GEN_217
-           ? _issuer_io_out_executer_RS[2'h3].q2
-           : _GEN_165 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
-      dest:
-        (_GEN_217
-           ? _issuer_io_out_executer_RS[2'h3].dest
-           : _GEN_165 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
-      id:
-        (_GEN_217
-           ? _issuer_io_out_executer_RS[2'h3].id
-           : _GEN_165 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
-      is_halt:
-        (_GEN_217
-           ? _issuer_io_out_executer_RS[2'h3].is_halt
-           : _GEN_165 & _issuer_io_out_executer_RS[2'h2].is_halt)};
-  wire              _GEN_222 = _issuer_io_out_executer_type[2'h3] == 32'h4;
-  wire              _GEN_223 =
-    ~(|(_issuer_io_out_valid[31:2])) | _GEN_185 | ~(_GEN_222 & _GEN_183[1:0] == 2'h0);
-  wire              _GEN_224 =
-    ~(|(_issuer_io_out_valid[31:2])) | _GEN_185 | ~(_GEN_222 & _GEN_183[1:0] == 2'h1);
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h14;
+  wire [31:0]       _GEN_218 =
+    _GEN_217
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_214
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_211
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_209 ? _committer_io_out_reg_val[2'h0] : regs[5'h14].value;
+  wire              _GEN_219 = regs[5'h14].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_220 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h15;
+  wire              _GEN_221 = regs[5'h15].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_222 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h15;
+  wire              _GEN_223 = regs[5'h15].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_224 = _GEN_222 & _GEN_223 | _GEN_220 & _GEN_221;
   wire              _GEN_225 =
-    ~(|(_issuer_io_out_valid[31:2])) | _GEN_185 | ~(_GEN_222 & _GEN_183[1:0] == 2'h2);
-  wire              _GEN_226 =
-    ~(|(_issuer_io_out_valid[31:2])) | _GEN_185 | ~(_GEN_222 & (&(_GEN_183[1:0])));
-  wire              _GEN_227 = _GEN_185 | _GEN_222;
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h15;
+  wire              _GEN_226 = regs[5'h15].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_227 = _GEN_225 & _GEN_226;
   wire              _GEN_228 =
-    ~(|(_issuer_io_out_valid[31:2])) | _GEN_227 | (|(_GEN_184[1:0]));
-  wire              _GEN_229 =
-    ~(|(_issuer_io_out_valid[31:2])) | _GEN_227 | _GEN_184[1:0] != 2'h1;
-  wire              _GEN_230 =
-    ~(|(_issuer_io_out_valid[31:2])) | _GEN_227 | _GEN_184[1:0] != 2'h2;
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h15;
+  wire [31:0]       _GEN_229 =
+    _GEN_228
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_225
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_222
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_220 ? _committer_io_out_reg_val[2'h0] : regs[5'h15].value;
+  wire              _GEN_230 = regs[5'h15].prod == _committer_io_out_reg_prod[2'h3];
   wire              _GEN_231 =
-    ~(|(_issuer_io_out_valid[31:2])) | _GEN_227 | _GEN_184[1:0] != 2'h3;
-  wire              _GEN_232 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h16;
+  wire              _GEN_232 = regs[5'h16].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_233 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h16;
+  wire              _GEN_234 = regs[5'h16].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_235 = _GEN_233 & _GEN_234 | _GEN_231 & _GEN_232;
+  wire              _GEN_236 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h16;
+  wire              _GEN_237 = regs[5'h16].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_238 = _GEN_236 & _GEN_237;
+  wire              _GEN_239 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h16;
+  wire [31:0]       _GEN_240 =
+    _GEN_239
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_236
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_233
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_231 ? _committer_io_out_reg_val[2'h0] : regs[5'h16].value;
+  wire              _GEN_241 = regs[5'h16].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_242 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h17;
+  wire              _GEN_243 = regs[5'h17].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_244 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h17;
+  wire              _GEN_245 = regs[5'h17].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_246 = _GEN_244 & _GEN_245 | _GEN_242 & _GEN_243;
+  wire              _GEN_247 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h17;
+  wire              _GEN_248 = regs[5'h17].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_249 = _GEN_247 & _GEN_248;
+  wire              _GEN_250 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h17;
+  wire [31:0]       _GEN_251 =
+    _GEN_250
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_247
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_244
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_242 ? _committer_io_out_reg_val[2'h0] : regs[5'h17].value;
+  wire              _GEN_252 = regs[5'h17].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_253 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h18;
+  wire              _GEN_254 = regs[5'h18].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_255 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h18;
+  wire              _GEN_256 = regs[5'h18].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_257 = _GEN_255 & _GEN_256 | _GEN_253 & _GEN_254;
+  wire              _GEN_258 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h18;
+  wire              _GEN_259 = regs[5'h18].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_260 = _GEN_258 & _GEN_259;
+  wire              _GEN_261 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h18;
+  wire [31:0]       _GEN_262 =
+    _GEN_261
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_258
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_255
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_253 ? _committer_io_out_reg_val[2'h0] : regs[5'h18].value;
+  wire              _GEN_263 = regs[5'h18].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_264 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h19;
+  wire              _GEN_265 = regs[5'h19].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_266 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h19;
+  wire              _GEN_267 = regs[5'h19].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_268 = _GEN_266 & _GEN_267 | _GEN_264 & _GEN_265;
+  wire              _GEN_269 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h19;
+  wire              _GEN_270 = regs[5'h19].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_271 = _GEN_269 & _GEN_270;
+  wire              _GEN_272 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h19;
+  wire [31:0]       _GEN_273 =
+    _GEN_272
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_269
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_266
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_264 ? _committer_io_out_reg_val[2'h0] : regs[5'h19].value;
+  wire              _GEN_274 = regs[5'h19].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_275 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h1A;
+  wire              _GEN_276 = regs[5'h1A].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_277 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h1A;
+  wire              _GEN_278 = regs[5'h1A].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_279 = _GEN_277 & _GEN_278 | _GEN_275 & _GEN_276;
+  wire              _GEN_280 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h1A;
+  wire              _GEN_281 = regs[5'h1A].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_282 = _GEN_280 & _GEN_281;
+  wire              _GEN_283 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h1A;
+  wire [31:0]       _GEN_284 =
+    _GEN_283
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_280
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_277
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_275 ? _committer_io_out_reg_val[2'h0] : regs[5'h1A].value;
+  wire              _GEN_285 = regs[5'h1A].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_286 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h1B;
+  wire              _GEN_287 = regs[5'h1B].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_288 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h1B;
+  wire              _GEN_289 = regs[5'h1B].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_290 = _GEN_288 & _GEN_289 | _GEN_286 & _GEN_287;
+  wire              _GEN_291 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h1B;
+  wire              _GEN_292 = regs[5'h1B].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_293 = _GEN_291 & _GEN_292;
+  wire              _GEN_294 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h1B;
+  wire [31:0]       _GEN_295 =
+    _GEN_294
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_291
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_288
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_286 ? _committer_io_out_reg_val[2'h0] : regs[5'h1B].value;
+  wire              _GEN_296 = regs[5'h1B].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_297 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h1C;
+  wire              _GEN_298 = regs[5'h1C].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_299 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h1C;
+  wire              _GEN_300 = regs[5'h1C].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_301 = _GEN_299 & _GEN_300 | _GEN_297 & _GEN_298;
+  wire              _GEN_302 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h1C;
+  wire              _GEN_303 = regs[5'h1C].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_304 = _GEN_302 & _GEN_303;
+  wire              _GEN_305 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h1C;
+  wire [31:0]       _GEN_306 =
+    _GEN_305
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_302
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_299
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_297 ? _committer_io_out_reg_val[2'h0] : regs[5'h1C].value;
+  wire              _GEN_307 = regs[5'h1C].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_308 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h1D;
+  wire              _GEN_309 = regs[5'h1D].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_310 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h1D;
+  wire              _GEN_311 = regs[5'h1D].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_312 = _GEN_310 & _GEN_311 | _GEN_308 & _GEN_309;
+  wire              _GEN_313 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h1D;
+  wire              _GEN_314 = regs[5'h1D].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_315 = _GEN_313 & _GEN_314;
+  wire              _GEN_316 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h1D;
+  wire [31:0]       _GEN_317 =
+    _GEN_316
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_313
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_310
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_308 ? _committer_io_out_reg_val[2'h0] : regs[5'h1D].value;
+  wire              _GEN_318 = regs[5'h1D].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_319 =
+    _committer_io_out_reg_valid[2'h0] & _committer_io_out_reg_id[2'h0] == 5'h1E;
+  wire              _GEN_320 = regs[5'h1E].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_321 =
+    _committer_io_out_reg_valid[2'h1] & _committer_io_out_reg_id[2'h1] == 5'h1E;
+  wire              _GEN_322 = regs[5'h1E].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_323 = _GEN_321 & _GEN_322 | _GEN_319 & _GEN_320;
+  wire              _GEN_324 =
+    _committer_io_out_reg_valid[2'h2] & _committer_io_out_reg_id[2'h2] == 5'h1E;
+  wire              _GEN_325 = regs[5'h1E].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_326 = _GEN_324 & _GEN_325;
+  wire              _GEN_327 =
+    _committer_io_out_reg_valid[2'h3] & _committer_io_out_reg_id[2'h3] == 5'h1E;
+  wire [31:0]       _GEN_328 =
+    _GEN_327
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_324
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_321
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_319 ? _committer_io_out_reg_val[2'h0] : regs[5'h1E].value;
+  wire              _GEN_329 = regs[5'h1E].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_330 =
+    _committer_io_out_reg_valid[2'h0] & (&_committer_io_out_reg_id[2'h0]);
+  wire              _GEN_331 = regs[5'h1F].prod == _committer_io_out_reg_prod[2'h0];
+  wire              _GEN_332 =
+    _committer_io_out_reg_valid[2'h1] & (&_committer_io_out_reg_id[2'h1]);
+  wire              _GEN_333 = regs[5'h1F].prod == _committer_io_out_reg_prod[2'h1];
+  wire              _GEN_334 = _GEN_332 & _GEN_333 | _GEN_330 & _GEN_331;
+  wire              _GEN_335 =
+    _committer_io_out_reg_valid[2'h2] & (&_committer_io_out_reg_id[2'h2]);
+  wire              _GEN_336 = regs[5'h1F].prod == _committer_io_out_reg_prod[2'h2];
+  wire              _GEN_337 = _GEN_335 & _GEN_336;
+  wire              _GEN_338 =
+    _committer_io_out_reg_valid[2'h3] & (&_committer_io_out_reg_id[2'h3]);
+  wire [31:0]       _GEN_339 =
+    _GEN_338
+      ? _committer_io_out_reg_val[2'h3]
+      : _GEN_335
+          ? _committer_io_out_reg_val[2'h2]
+          : _GEN_332
+              ? _committer_io_out_reg_val[2'h1]
+              : _GEN_330 ? _committer_io_out_reg_val[2'h0] : regs[5'h1F].value;
+  wire              _GEN_340 = regs[5'h1F].prod == _committer_io_out_reg_prod[2'h3];
+  wire              _GEN_341 = _issuer_io_out_executer_type[2'h0] < 32'h4;
+  wire              _GEN_342 = _issuer_io_out_executer_type[2'h0] == 32'h0;
+  wire              _GEN_343 = (|_issuer_io_out_valid) & _GEN_341 & _GEN_342;
+  wire              _GEN_344 = _issuer_io_out_executer_type[2'h0] == 32'h1;
+  wire              _GEN_345 = (|_issuer_io_out_valid) & _GEN_341 & _GEN_344;
+  wire              _GEN_346 = _issuer_io_out_executer_type[2'h0] == 32'h2;
+  wire              _GEN_347 = (|_issuer_io_out_valid) & _GEN_341 & _GEN_346;
+  wire              _GEN_348 = _issuer_io_out_executer_type[2'h0] == 32'h3;
+  wire              _GEN_349 = (|_issuer_io_out_valid) & _GEN_341 & _GEN_348;
+  wire              _GEN_350 = _issuer_io_out_executer_type[2'h0] == 32'h4;
+  wire              _GEN_351 = ~(|_issuer_io_out_valid) | _GEN_341 | ~_GEN_350;
+  wire              _GEN_352 = _GEN_341 | _GEN_350;
+  wire              _GEN_353 = ~(|_issuer_io_out_valid) | _GEN_352;
+  wire              _GEN_354 = (|_issuer_io_out_valid) & _GEN_342;
+  wire [31:0]       _GEN_355 = {31'h0, _GEN_354};
+  wire              _GEN_356 = (|_issuer_io_out_valid) & _GEN_344;
+  wire [31:0]       _GEN_357 = {31'h0, _GEN_356};
+  wire              _GEN_358 = (|_issuer_io_out_valid) & _GEN_346;
+  wire [31:0]       _GEN_359 = {31'h0, _GEN_358};
+  wire              _GEN_360 = (|_issuer_io_out_valid) & _GEN_348;
+  wire [31:0]       _GEN_361 = {31'h0, _GEN_360};
+  wire              _GEN_362 = (|_issuer_io_out_valid) & _GEN_350;
+  wire [31:0]       _GEN_363 = {31'h0, _GEN_362};
+  wire              _GEN_364 =
+    (|_issuer_io_out_valid) & _issuer_io_out_executer_type[2'h0] == 32'h5;
+  wire [31:0]       _GEN_365 = {31'h0, _GEN_364};
+  wire              _GEN_366 = _issuer_io_out_executer_type[2'h1] < 32'h4;
+  wire              _GEN_367 = _issuer_io_out_executer_type[2'h1] == 32'h0;
+  wire              _GEN_368 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_366 & _GEN_367 & ~_GEN_354;
+  wire              _GEN_369 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_366 & _GEN_367 & _GEN_354;
+  wire              _GEN_370 = _issuer_io_out_executer_type[2'h1] == 32'h1;
+  wire              _GEN_371 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_366 & _GEN_370 & ~_GEN_356;
+  wire              _GEN_372 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_366 & _GEN_370 & _GEN_356;
+  wire              _GEN_373 = _issuer_io_out_executer_type[2'h1] == 32'h2;
+  wire              _GEN_374 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_366 & _GEN_373 & ~_GEN_358;
+  wire              _GEN_375 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_366 & _GEN_373 & _GEN_358;
+  wire              _GEN_376 = _issuer_io_out_executer_type[2'h1] == 32'h3;
+  wire              _GEN_377 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_366 & _GEN_376 & ~_GEN_360;
+  wire              _GEN_378 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_366 & _GEN_376 & _GEN_360;
+  wire              _GEN_379 = _issuer_io_out_executer_type[2'h1] == 32'h4;
+  wire              _GEN_380 =
+    ~(|(_issuer_io_out_valid[31:1])) | _GEN_366 | ~(_GEN_379 & ~_GEN_362);
+  wire              _GEN_381 = _GEN_379 & _GEN_362;
+  wire              _GEN_382 = ~(|(_issuer_io_out_valid[31:1])) | _GEN_366 | ~_GEN_381;
+  wire              _GEN_383 = _GEN_366 | _GEN_379;
+  wire              _GEN_384 = ~(|(_issuer_io_out_valid[31:1])) | _GEN_383 | _GEN_364;
+  wire              _GEN_385 = ~(|(_issuer_io_out_valid[31:1])) | _GEN_383 | ~_GEN_364;
+  wire [31:0]       _GEN_386 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_367 ? _GEN_355 + 32'h1 : _GEN_355;
+  wire [31:0]       _GEN_387 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_370 ? _GEN_357 + 32'h1 : _GEN_357;
+  wire [31:0]       _GEN_388 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_373 ? _GEN_359 + 32'h1 : _GEN_359;
+  wire [31:0]       _GEN_389 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_376 ? _GEN_361 + 32'h1 : _GEN_361;
+  wire [31:0]       _GEN_390 =
+    (|(_issuer_io_out_valid[31:1])) & _GEN_379 ? _GEN_363 + 32'h1 : _GEN_363;
+  wire [31:0]       _GEN_391 =
+    (|(_issuer_io_out_valid[31:1])) & _issuer_io_out_executer_type[2'h1] == 32'h5
+      ? _GEN_365 + 32'h1
+      : _GEN_365;
+  wire              _GEN_392 = _issuer_io_out_valid > 32'h2;
+  wire              _GEN_393 = _issuer_io_out_executer_type[2'h2] < 32'h4;
+  wire              _GEN_394 = _issuer_io_out_executer_type[2'h2] == 32'h0;
+  wire              _GEN_395 = _GEN_392 & _GEN_393 & _GEN_394 & _GEN_386[1:0] == 2'h0;
+  wire              _GEN_396 = _GEN_392 & _GEN_393 & _GEN_394 & _GEN_386[1:0] == 2'h1;
+  wire              _GEN_397 = _GEN_392 & _GEN_393 & _GEN_394 & _GEN_386[1:0] == 2'h2;
+  wire              _GEN_398 = _GEN_392 & _GEN_393 & _GEN_394 & (&(_GEN_386[1:0]));
+  wire              _GEN_399 = _issuer_io_out_executer_type[2'h2] == 32'h1;
+  wire              _GEN_400 = _GEN_392 & _GEN_393 & _GEN_399 & _GEN_387[1:0] == 2'h0;
+  wire              _GEN_401 = _GEN_392 & _GEN_393 & _GEN_399 & _GEN_387[1:0] == 2'h1;
+  wire              _GEN_402 = _GEN_392 & _GEN_393 & _GEN_399 & _GEN_387[1:0] == 2'h2;
+  wire              _GEN_403 = _GEN_392 & _GEN_393 & _GEN_399 & (&(_GEN_387[1:0]));
+  wire              _GEN_404 = _issuer_io_out_executer_type[2'h2] == 32'h2;
+  wire              _GEN_405 = _GEN_392 & _GEN_393 & _GEN_404 & _GEN_388[1:0] == 2'h0;
+  wire              _GEN_406 = _GEN_392 & _GEN_393 & _GEN_404 & _GEN_388[1:0] == 2'h1;
+  wire              _GEN_407 = _GEN_392 & _GEN_393 & _GEN_404 & _GEN_388[1:0] == 2'h2;
+  wire              _GEN_408 = _GEN_392 & _GEN_393 & _GEN_404 & (&(_GEN_388[1:0]));
+  wire              _GEN_409 = _issuer_io_out_executer_type[2'h2] == 32'h3;
+  wire              _GEN_410 = _GEN_392 & _GEN_393 & _GEN_409 & _GEN_389[1:0] == 2'h0;
+  wire              _GEN_411 = _GEN_392 & _GEN_393 & _GEN_409 & _GEN_389[1:0] == 2'h1;
+  wire              _GEN_412 = _GEN_392 & _GEN_393 & _GEN_409 & _GEN_389[1:0] == 2'h2;
+  wire              _GEN_413 = _GEN_392 & _GEN_393 & _GEN_409 & (&(_GEN_389[1:0]));
+  wire              _GEN_414 = _issuer_io_out_executer_type[2'h2] == 32'h4;
+  wire              _GEN_415 = ~_GEN_392 | _GEN_393 | ~(_GEN_414 & _GEN_390[1:0] == 2'h0);
+  wire              _GEN_416 = ~_GEN_392 | _GEN_393 | ~(_GEN_414 & _GEN_390[1:0] == 2'h1);
+  wire              _GEN_417 = _GEN_414 & _GEN_390[1:0] == 2'h2;
+  wire              _GEN_418 = _GEN_414 & (&(_GEN_390[1:0]));
+  wire              _GEN_419 = ~_GEN_392 | _GEN_393 | ~_GEN_417;
+  wire              _GEN_420 = ~_GEN_392 | _GEN_393 | ~_GEN_418;
+  wire              _GEN_421 = _GEN_393 | _GEN_414;
+  wire              _GEN_422 = ~_GEN_392 | _GEN_421 | (|(_GEN_391[1:0]));
+  wire              _GEN_423 = ~_GEN_392 | _GEN_421 | _GEN_391[1:0] != 2'h1;
+  wire              _GEN_424 = _GEN_391[1:0] == 2'h2;
+  wire              _GEN_425 = ~_GEN_392 | _GEN_421 | ~_GEN_424;
+  wire              _GEN_426 = ~_GEN_392 | _GEN_421 | ~(&(_GEN_391[1:0]));
+  wire [31:0]       _GEN_427 = _GEN_392 & _GEN_394 ? _GEN_386 + 32'h1 : _GEN_386;
+  wire [31:0]       _GEN_428 = _GEN_392 & _GEN_399 ? _GEN_387 + 32'h1 : _GEN_387;
+  wire [31:0]       _GEN_429 = _GEN_392 & _GEN_404 ? _GEN_388 + 32'h1 : _GEN_388;
+  wire [31:0]       _GEN_430 = _GEN_392 & _GEN_409 ? _GEN_389 + 32'h1 : _GEN_389;
+  wire [31:0]       _GEN_431 = _GEN_392 & _GEN_414 ? _GEN_390 + 32'h1 : _GEN_390;
+  wire [31:0]       _GEN_432 =
+    _GEN_392 & _issuer_io_out_executer_type[2'h2] == 32'h5 ? _GEN_391 + 32'h1 : _GEN_391;
+  wire              _GEN_433 = _issuer_io_out_executer_type[2'h3] < 32'h4;
+  wire              _GEN_434 = _issuer_io_out_executer_type[2'h3] == 32'h0;
+  wire              _GEN_435 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_434 & _GEN_427[1:0] == 2'h0;
+  wire              _GEN_436 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_434 & _GEN_427[1:0] == 2'h1;
+  wire              _GEN_437 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_434 & _GEN_427[1:0] == 2'h2;
+  wire              _GEN_438 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_434 & (&(_GEN_427[1:0]));
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_439 =
+    '{type_:
+        (_GEN_435
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_395
+               ? _issuer_io_out_executer_RS[2'h2].type_
+               : _GEN_368
+                   ? _issuer_io_out_executer_RS[2'h1].type_
+                   : _GEN_343 ? _issuer_io_out_executer_RS[2'h0].type_ : 6'h0),
+      v1:
+        (_GEN_435
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_395
+               ? _issuer_io_out_executer_RS[2'h2].v1
+               : _GEN_368
+                   ? _issuer_io_out_executer_RS[2'h1].v1
+                   : _GEN_343 ? _issuer_io_out_executer_RS[2'h0].v1 : 32'h0),
+      v2:
+        (_GEN_435
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_395
+               ? _issuer_io_out_executer_RS[2'h2].v2
+               : _GEN_368
+                   ? _issuer_io_out_executer_RS[2'h1].v2
+                   : _GEN_343 ? _issuer_io_out_executer_RS[2'h0].v2 : 32'h0),
+      q1:
+        (_GEN_435
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_395
+               ? _issuer_io_out_executer_RS[2'h2].q1
+               : _GEN_368
+                   ? _issuer_io_out_executer_RS[2'h1].q1
+                   : _GEN_343 ? _issuer_io_out_executer_RS[2'h0].q1 : 32'h0),
+      q2:
+        (_GEN_435
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_395
+               ? _issuer_io_out_executer_RS[2'h2].q2
+               : _GEN_368
+                   ? _issuer_io_out_executer_RS[2'h1].q2
+                   : _GEN_343 ? _issuer_io_out_executer_RS[2'h0].q2 : 32'h0),
+      dest:
+        (_GEN_435
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_395
+               ? _issuer_io_out_executer_RS[2'h2].dest
+               : _GEN_368
+                   ? _issuer_io_out_executer_RS[2'h1].dest
+                   : _GEN_343 ? _issuer_io_out_executer_RS[2'h0].dest : 32'h0),
+      id:
+        (_GEN_435
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_395
+               ? _issuer_io_out_executer_RS[2'h2].id
+               : _GEN_368
+                   ? _issuer_io_out_executer_RS[2'h1].id
+                   : _GEN_343 ? _issuer_io_out_executer_RS[2'h0].id : 32'h0),
+      is_halt:
+        (_GEN_435
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_395
+               ? _issuer_io_out_executer_RS[2'h2].is_halt
+               : _GEN_368
+                   ? _issuer_io_out_executer_RS[2'h1].is_halt
+                   : _GEN_343 & _issuer_io_out_executer_RS[2'h0].is_halt)};
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_440 =
+    '{type_:
+        (_GEN_436
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_396
+               ? _issuer_io_out_executer_RS[2'h2].type_
+               : _GEN_369 ? _issuer_io_out_executer_RS[2'h1].type_ : 6'h0),
+      v1:
+        (_GEN_436
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_396
+               ? _issuer_io_out_executer_RS[2'h2].v1
+               : _GEN_369 ? _issuer_io_out_executer_RS[2'h1].v1 : 32'h0),
+      v2:
+        (_GEN_436
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_396
+               ? _issuer_io_out_executer_RS[2'h2].v2
+               : _GEN_369 ? _issuer_io_out_executer_RS[2'h1].v2 : 32'h0),
+      q1:
+        (_GEN_436
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_396
+               ? _issuer_io_out_executer_RS[2'h2].q1
+               : _GEN_369 ? _issuer_io_out_executer_RS[2'h1].q1 : 32'h0),
+      q2:
+        (_GEN_436
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_396
+               ? _issuer_io_out_executer_RS[2'h2].q2
+               : _GEN_369 ? _issuer_io_out_executer_RS[2'h1].q2 : 32'h0),
+      dest:
+        (_GEN_436
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_396
+               ? _issuer_io_out_executer_RS[2'h2].dest
+               : _GEN_369 ? _issuer_io_out_executer_RS[2'h1].dest : 32'h0),
+      id:
+        (_GEN_436
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_396
+               ? _issuer_io_out_executer_RS[2'h2].id
+               : _GEN_369 ? _issuer_io_out_executer_RS[2'h1].id : 32'h0),
+      is_halt:
+        (_GEN_436
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_396
+               ? _issuer_io_out_executer_RS[2'h2].is_halt
+               : _GEN_369 & _issuer_io_out_executer_RS[2'h1].is_halt)};
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_441 =
+    '{type_:
+        (_GEN_437
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_397 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
+      v1:
+        (_GEN_437
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_397 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
+      v2:
+        (_GEN_437
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_397 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
+      q1:
+        (_GEN_437
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_397 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
+      q2:
+        (_GEN_437
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_397 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
+      dest:
+        (_GEN_437
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_397 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
+      id:
+        (_GEN_437
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_397 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
+      is_halt:
+        (_GEN_437
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_397 & _issuer_io_out_executer_RS[2'h2].is_halt)};
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_442 =
+    '{type_:
+        (_GEN_438
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_398 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
+      v1:
+        (_GEN_438
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_398 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
+      v2:
+        (_GEN_438
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_398 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
+      q1:
+        (_GEN_438
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_398 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
+      q2:
+        (_GEN_438
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_398 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
+      dest:
+        (_GEN_438
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_398 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
+      id:
+        (_GEN_438
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_398 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
+      is_halt:
+        (_GEN_438
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_398 & _issuer_io_out_executer_RS[2'h2].is_halt)};
+  wire              _GEN_443 = _issuer_io_out_executer_type[2'h3] == 32'h1;
+  wire              _GEN_444 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_443 & _GEN_428[1:0] == 2'h0;
+  wire              _GEN_445 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_443 & _GEN_428[1:0] == 2'h1;
+  wire              _GEN_446 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_443 & _GEN_428[1:0] == 2'h2;
+  wire              _GEN_447 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_443 & (&(_GEN_428[1:0]));
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_448 =
+    '{type_:
+        (_GEN_444
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_400
+               ? _issuer_io_out_executer_RS[2'h2].type_
+               : _GEN_371
+                   ? _issuer_io_out_executer_RS[2'h1].type_
+                   : _GEN_345 ? _issuer_io_out_executer_RS[2'h0].type_ : 6'h0),
+      v1:
+        (_GEN_444
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_400
+               ? _issuer_io_out_executer_RS[2'h2].v1
+               : _GEN_371
+                   ? _issuer_io_out_executer_RS[2'h1].v1
+                   : _GEN_345 ? _issuer_io_out_executer_RS[2'h0].v1 : 32'h0),
+      v2:
+        (_GEN_444
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_400
+               ? _issuer_io_out_executer_RS[2'h2].v2
+               : _GEN_371
+                   ? _issuer_io_out_executer_RS[2'h1].v2
+                   : _GEN_345 ? _issuer_io_out_executer_RS[2'h0].v2 : 32'h0),
+      q1:
+        (_GEN_444
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_400
+               ? _issuer_io_out_executer_RS[2'h2].q1
+               : _GEN_371
+                   ? _issuer_io_out_executer_RS[2'h1].q1
+                   : _GEN_345 ? _issuer_io_out_executer_RS[2'h0].q1 : 32'h0),
+      q2:
+        (_GEN_444
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_400
+               ? _issuer_io_out_executer_RS[2'h2].q2
+               : _GEN_371
+                   ? _issuer_io_out_executer_RS[2'h1].q2
+                   : _GEN_345 ? _issuer_io_out_executer_RS[2'h0].q2 : 32'h0),
+      dest:
+        (_GEN_444
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_400
+               ? _issuer_io_out_executer_RS[2'h2].dest
+               : _GEN_371
+                   ? _issuer_io_out_executer_RS[2'h1].dest
+                   : _GEN_345 ? _issuer_io_out_executer_RS[2'h0].dest : 32'h0),
+      id:
+        (_GEN_444
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_400
+               ? _issuer_io_out_executer_RS[2'h2].id
+               : _GEN_371
+                   ? _issuer_io_out_executer_RS[2'h1].id
+                   : _GEN_345 ? _issuer_io_out_executer_RS[2'h0].id : 32'h0),
+      is_halt:
+        (_GEN_444
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_400
+               ? _issuer_io_out_executer_RS[2'h2].is_halt
+               : _GEN_371
+                   ? _issuer_io_out_executer_RS[2'h1].is_halt
+                   : _GEN_345 & _issuer_io_out_executer_RS[2'h0].is_halt)};
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_449 =
+    '{type_:
+        (_GEN_445
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_401
+               ? _issuer_io_out_executer_RS[2'h2].type_
+               : _GEN_372 ? _issuer_io_out_executer_RS[2'h1].type_ : 6'h0),
+      v1:
+        (_GEN_445
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_401
+               ? _issuer_io_out_executer_RS[2'h2].v1
+               : _GEN_372 ? _issuer_io_out_executer_RS[2'h1].v1 : 32'h0),
+      v2:
+        (_GEN_445
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_401
+               ? _issuer_io_out_executer_RS[2'h2].v2
+               : _GEN_372 ? _issuer_io_out_executer_RS[2'h1].v2 : 32'h0),
+      q1:
+        (_GEN_445
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_401
+               ? _issuer_io_out_executer_RS[2'h2].q1
+               : _GEN_372 ? _issuer_io_out_executer_RS[2'h1].q1 : 32'h0),
+      q2:
+        (_GEN_445
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_401
+               ? _issuer_io_out_executer_RS[2'h2].q2
+               : _GEN_372 ? _issuer_io_out_executer_RS[2'h1].q2 : 32'h0),
+      dest:
+        (_GEN_445
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_401
+               ? _issuer_io_out_executer_RS[2'h2].dest
+               : _GEN_372 ? _issuer_io_out_executer_RS[2'h1].dest : 32'h0),
+      id:
+        (_GEN_445
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_401
+               ? _issuer_io_out_executer_RS[2'h2].id
+               : _GEN_372 ? _issuer_io_out_executer_RS[2'h1].id : 32'h0),
+      is_halt:
+        (_GEN_445
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_401
+               ? _issuer_io_out_executer_RS[2'h2].is_halt
+               : _GEN_372 & _issuer_io_out_executer_RS[2'h1].is_halt)};
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_450 =
+    '{type_:
+        (_GEN_446
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_402 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
+      v1:
+        (_GEN_446
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_402 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
+      v2:
+        (_GEN_446
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_402 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
+      q1:
+        (_GEN_446
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_402 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
+      q2:
+        (_GEN_446
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_402 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
+      dest:
+        (_GEN_446
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_402 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
+      id:
+        (_GEN_446
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_402 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
+      is_halt:
+        (_GEN_446
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_402 & _issuer_io_out_executer_RS[2'h2].is_halt)};
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_451 =
+    '{type_:
+        (_GEN_447
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_403 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
+      v1:
+        (_GEN_447
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_403 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
+      v2:
+        (_GEN_447
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_403 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
+      q1:
+        (_GEN_447
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_403 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
+      q2:
+        (_GEN_447
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_403 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
+      dest:
+        (_GEN_447
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_403 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
+      id:
+        (_GEN_447
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_403 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
+      is_halt:
+        (_GEN_447
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_403 & _issuer_io_out_executer_RS[2'h2].is_halt)};
+  wire              _GEN_452 = _issuer_io_out_executer_type[2'h3] == 32'h2;
+  wire              _GEN_453 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_452 & _GEN_429[1:0] == 2'h0;
+  wire              _GEN_454 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_452 & _GEN_429[1:0] == 2'h1;
+  wire              _GEN_455 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_452 & _GEN_429[1:0] == 2'h2;
+  wire              _GEN_456 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_452 & (&(_GEN_429[1:0]));
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_457 =
+    '{type_:
+        (_GEN_453
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_405
+               ? _issuer_io_out_executer_RS[2'h2].type_
+               : _GEN_374
+                   ? _issuer_io_out_executer_RS[2'h1].type_
+                   : _GEN_347 ? _issuer_io_out_executer_RS[2'h0].type_ : 6'h0),
+      v1:
+        (_GEN_453
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_405
+               ? _issuer_io_out_executer_RS[2'h2].v1
+               : _GEN_374
+                   ? _issuer_io_out_executer_RS[2'h1].v1
+                   : _GEN_347 ? _issuer_io_out_executer_RS[2'h0].v1 : 32'h0),
+      v2:
+        (_GEN_453
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_405
+               ? _issuer_io_out_executer_RS[2'h2].v2
+               : _GEN_374
+                   ? _issuer_io_out_executer_RS[2'h1].v2
+                   : _GEN_347 ? _issuer_io_out_executer_RS[2'h0].v2 : 32'h0),
+      q1:
+        (_GEN_453
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_405
+               ? _issuer_io_out_executer_RS[2'h2].q1
+               : _GEN_374
+                   ? _issuer_io_out_executer_RS[2'h1].q1
+                   : _GEN_347 ? _issuer_io_out_executer_RS[2'h0].q1 : 32'h0),
+      q2:
+        (_GEN_453
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_405
+               ? _issuer_io_out_executer_RS[2'h2].q2
+               : _GEN_374
+                   ? _issuer_io_out_executer_RS[2'h1].q2
+                   : _GEN_347 ? _issuer_io_out_executer_RS[2'h0].q2 : 32'h0),
+      dest:
+        (_GEN_453
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_405
+               ? _issuer_io_out_executer_RS[2'h2].dest
+               : _GEN_374
+                   ? _issuer_io_out_executer_RS[2'h1].dest
+                   : _GEN_347 ? _issuer_io_out_executer_RS[2'h0].dest : 32'h0),
+      id:
+        (_GEN_453
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_405
+               ? _issuer_io_out_executer_RS[2'h2].id
+               : _GEN_374
+                   ? _issuer_io_out_executer_RS[2'h1].id
+                   : _GEN_347 ? _issuer_io_out_executer_RS[2'h0].id : 32'h0),
+      is_halt:
+        (_GEN_453
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_405
+               ? _issuer_io_out_executer_RS[2'h2].is_halt
+               : _GEN_374
+                   ? _issuer_io_out_executer_RS[2'h1].is_halt
+                   : _GEN_347 & _issuer_io_out_executer_RS[2'h0].is_halt)};
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_458 =
+    '{type_:
+        (_GEN_454
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_406
+               ? _issuer_io_out_executer_RS[2'h2].type_
+               : _GEN_375 ? _issuer_io_out_executer_RS[2'h1].type_ : 6'h0),
+      v1:
+        (_GEN_454
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_406
+               ? _issuer_io_out_executer_RS[2'h2].v1
+               : _GEN_375 ? _issuer_io_out_executer_RS[2'h1].v1 : 32'h0),
+      v2:
+        (_GEN_454
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_406
+               ? _issuer_io_out_executer_RS[2'h2].v2
+               : _GEN_375 ? _issuer_io_out_executer_RS[2'h1].v2 : 32'h0),
+      q1:
+        (_GEN_454
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_406
+               ? _issuer_io_out_executer_RS[2'h2].q1
+               : _GEN_375 ? _issuer_io_out_executer_RS[2'h1].q1 : 32'h0),
+      q2:
+        (_GEN_454
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_406
+               ? _issuer_io_out_executer_RS[2'h2].q2
+               : _GEN_375 ? _issuer_io_out_executer_RS[2'h1].q2 : 32'h0),
+      dest:
+        (_GEN_454
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_406
+               ? _issuer_io_out_executer_RS[2'h2].dest
+               : _GEN_375 ? _issuer_io_out_executer_RS[2'h1].dest : 32'h0),
+      id:
+        (_GEN_454
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_406
+               ? _issuer_io_out_executer_RS[2'h2].id
+               : _GEN_375 ? _issuer_io_out_executer_RS[2'h1].id : 32'h0),
+      is_halt:
+        (_GEN_454
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_406
+               ? _issuer_io_out_executer_RS[2'h2].is_halt
+               : _GEN_375 & _issuer_io_out_executer_RS[2'h1].is_halt)};
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_459 =
+    '{type_:
+        (_GEN_455
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_407 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
+      v1:
+        (_GEN_455
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_407 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
+      v2:
+        (_GEN_455
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_407 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
+      q1:
+        (_GEN_455
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_407 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
+      q2:
+        (_GEN_455
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_407 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
+      dest:
+        (_GEN_455
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_407 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
+      id:
+        (_GEN_455
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_407 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
+      is_halt:
+        (_GEN_455
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_407 & _issuer_io_out_executer_RS[2'h2].is_halt)};
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_460 =
+    '{type_:
+        (_GEN_456
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_408 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
+      v1:
+        (_GEN_456
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_408 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
+      v2:
+        (_GEN_456
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_408 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
+      q1:
+        (_GEN_456
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_408 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
+      q2:
+        (_GEN_456
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_408 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
+      dest:
+        (_GEN_456
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_408 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
+      id:
+        (_GEN_456
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_408 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
+      is_halt:
+        (_GEN_456
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_408 & _issuer_io_out_executer_RS[2'h2].is_halt)};
+  wire              _GEN_461 = _issuer_io_out_executer_type[2'h3] == 32'h3;
+  wire              _GEN_462 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_461 & _GEN_430[1:0] == 2'h0;
+  wire              _GEN_463 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_461 & _GEN_430[1:0] == 2'h1;
+  wire              _GEN_464 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_461 & _GEN_430[1:0] == 2'h2;
+  wire              _GEN_465 =
+    (|(_issuer_io_out_valid[31:2])) & _GEN_433 & _GEN_461 & (&(_GEN_430[1:0]));
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_466 =
+    '{type_:
+        (_GEN_462
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_410
+               ? _issuer_io_out_executer_RS[2'h2].type_
+               : _GEN_377
+                   ? _issuer_io_out_executer_RS[2'h1].type_
+                   : _GEN_349 ? _issuer_io_out_executer_RS[2'h0].type_ : 6'h0),
+      v1:
+        (_GEN_462
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_410
+               ? _issuer_io_out_executer_RS[2'h2].v1
+               : _GEN_377
+                   ? _issuer_io_out_executer_RS[2'h1].v1
+                   : _GEN_349 ? _issuer_io_out_executer_RS[2'h0].v1 : 32'h0),
+      v2:
+        (_GEN_462
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_410
+               ? _issuer_io_out_executer_RS[2'h2].v2
+               : _GEN_377
+                   ? _issuer_io_out_executer_RS[2'h1].v2
+                   : _GEN_349 ? _issuer_io_out_executer_RS[2'h0].v2 : 32'h0),
+      q1:
+        (_GEN_462
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_410
+               ? _issuer_io_out_executer_RS[2'h2].q1
+               : _GEN_377
+                   ? _issuer_io_out_executer_RS[2'h1].q1
+                   : _GEN_349 ? _issuer_io_out_executer_RS[2'h0].q1 : 32'h0),
+      q2:
+        (_GEN_462
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_410
+               ? _issuer_io_out_executer_RS[2'h2].q2
+               : _GEN_377
+                   ? _issuer_io_out_executer_RS[2'h1].q2
+                   : _GEN_349 ? _issuer_io_out_executer_RS[2'h0].q2 : 32'h0),
+      dest:
+        (_GEN_462
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_410
+               ? _issuer_io_out_executer_RS[2'h2].dest
+               : _GEN_377
+                   ? _issuer_io_out_executer_RS[2'h1].dest
+                   : _GEN_349 ? _issuer_io_out_executer_RS[2'h0].dest : 32'h0),
+      id:
+        (_GEN_462
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_410
+               ? _issuer_io_out_executer_RS[2'h2].id
+               : _GEN_377
+                   ? _issuer_io_out_executer_RS[2'h1].id
+                   : _GEN_349 ? _issuer_io_out_executer_RS[2'h0].id : 32'h0),
+      is_halt:
+        (_GEN_462
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_410
+               ? _issuer_io_out_executer_RS[2'h2].is_halt
+               : _GEN_377
+                   ? _issuer_io_out_executer_RS[2'h1].is_halt
+                   : _GEN_349 & _issuer_io_out_executer_RS[2'h0].is_halt)};
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_467 =
+    '{type_:
+        (_GEN_463
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_411
+               ? _issuer_io_out_executer_RS[2'h2].type_
+               : _GEN_378 ? _issuer_io_out_executer_RS[2'h1].type_ : 6'h0),
+      v1:
+        (_GEN_463
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_411
+               ? _issuer_io_out_executer_RS[2'h2].v1
+               : _GEN_378 ? _issuer_io_out_executer_RS[2'h1].v1 : 32'h0),
+      v2:
+        (_GEN_463
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_411
+               ? _issuer_io_out_executer_RS[2'h2].v2
+               : _GEN_378 ? _issuer_io_out_executer_RS[2'h1].v2 : 32'h0),
+      q1:
+        (_GEN_463
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_411
+               ? _issuer_io_out_executer_RS[2'h2].q1
+               : _GEN_378 ? _issuer_io_out_executer_RS[2'h1].q1 : 32'h0),
+      q2:
+        (_GEN_463
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_411
+               ? _issuer_io_out_executer_RS[2'h2].q2
+               : _GEN_378 ? _issuer_io_out_executer_RS[2'h1].q2 : 32'h0),
+      dest:
+        (_GEN_463
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_411
+               ? _issuer_io_out_executer_RS[2'h2].dest
+               : _GEN_378 ? _issuer_io_out_executer_RS[2'h1].dest : 32'h0),
+      id:
+        (_GEN_463
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_411
+               ? _issuer_io_out_executer_RS[2'h2].id
+               : _GEN_378 ? _issuer_io_out_executer_RS[2'h1].id : 32'h0),
+      is_halt:
+        (_GEN_463
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_411
+               ? _issuer_io_out_executer_RS[2'h2].is_halt
+               : _GEN_378 & _issuer_io_out_executer_RS[2'h1].is_halt)};
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_468 =
+    '{type_:
+        (_GEN_464
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_412 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
+      v1:
+        (_GEN_464
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_412 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
+      v2:
+        (_GEN_464
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_412 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
+      q1:
+        (_GEN_464
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_412 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
+      q2:
+        (_GEN_464
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_412 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
+      dest:
+        (_GEN_464
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_412 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
+      id:
+        (_GEN_464
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_412 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
+      is_halt:
+        (_GEN_464
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_412 & _issuer_io_out_executer_RS[2'h2].is_halt)};
+  wire
+    struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
+    _GEN_469 =
+    '{type_:
+        (_GEN_465
+           ? _issuer_io_out_executer_RS[2'h3].type_
+           : _GEN_413 ? _issuer_io_out_executer_RS[2'h2].type_ : 6'h0),
+      v1:
+        (_GEN_465
+           ? _issuer_io_out_executer_RS[2'h3].v1
+           : _GEN_413 ? _issuer_io_out_executer_RS[2'h2].v1 : 32'h0),
+      v2:
+        (_GEN_465
+           ? _issuer_io_out_executer_RS[2'h3].v2
+           : _GEN_413 ? _issuer_io_out_executer_RS[2'h2].v2 : 32'h0),
+      q1:
+        (_GEN_465
+           ? _issuer_io_out_executer_RS[2'h3].q1
+           : _GEN_413 ? _issuer_io_out_executer_RS[2'h2].q1 : 32'h0),
+      q2:
+        (_GEN_465
+           ? _issuer_io_out_executer_RS[2'h3].q2
+           : _GEN_413 ? _issuer_io_out_executer_RS[2'h2].q2 : 32'h0),
+      dest:
+        (_GEN_465
+           ? _issuer_io_out_executer_RS[2'h3].dest
+           : _GEN_413 ? _issuer_io_out_executer_RS[2'h2].dest : 32'h0),
+      id:
+        (_GEN_465
+           ? _issuer_io_out_executer_RS[2'h3].id
+           : _GEN_413 ? _issuer_io_out_executer_RS[2'h2].id : 32'h0),
+      is_halt:
+        (_GEN_465
+           ? _issuer_io_out_executer_RS[2'h3].is_halt
+           : _GEN_413 & _issuer_io_out_executer_RS[2'h2].is_halt)};
+  wire              _GEN_470 = _issuer_io_out_executer_type[2'h3] == 32'h4;
+  wire              _GEN_471 =
+    ~(|(_issuer_io_out_valid[31:2])) | _GEN_433 | ~(_GEN_470 & _GEN_431[1:0] == 2'h0);
+  wire              _GEN_472 =
+    ~(|(_issuer_io_out_valid[31:2])) | _GEN_433 | ~(_GEN_470 & _GEN_431[1:0] == 2'h1);
+  wire              _GEN_473 =
+    ~(|(_issuer_io_out_valid[31:2])) | _GEN_433 | ~(_GEN_470 & _GEN_431[1:0] == 2'h2);
+  wire              _GEN_474 =
+    ~(|(_issuer_io_out_valid[31:2])) | _GEN_433 | ~(_GEN_470 & (&(_GEN_431[1:0])));
+  wire              _GEN_475 = _GEN_433 | _GEN_470;
+  wire              _GEN_476 =
+    ~(|(_issuer_io_out_valid[31:2])) | _GEN_475 | (|(_GEN_432[1:0]));
+  wire              _GEN_477 =
+    ~(|(_issuer_io_out_valid[31:2])) | _GEN_475 | _GEN_432[1:0] != 2'h1;
+  wire              _GEN_478 =
+    ~(|(_issuer_io_out_valid[31:2])) | _GEN_475 | _GEN_432[1:0] != 2'h2;
+  wire              _GEN_479 =
+    ~(|(_issuer_io_out_valid[31:2])) | _GEN_475 | _GEN_432[1:0] != 2'h3;
+  wire              _GEN_480 =
     _alus_1_aluIO_out_mult_valid & ~_alus_0_aluIO_out_mult_valid;
-  wire              _GEN_233 = _GEN_232 | _alus_0_aluIO_out_mult_valid;
-  wire              _GEN_234 = _alus_1_aluIO_out_div_valid & ~_alus_0_aluIO_out_div_valid;
-  wire              _GEN_235 = _GEN_234 | _alus_0_aluIO_out_div_valid;
-  wire              _GEN_236 = _alus_2_aluIO_out_mult_valid & ~_GEN_233;
-  wire              _GEN_237 = _alus_2_aluIO_out_div_valid & ~_GEN_235;
-  wire              _GEN_238 = _alus_3_aluIO_out_mult_valid & ~(_GEN_236 | _GEN_233);
-  wire              _GEN_239 = _alus_3_aluIO_out_div_valid & ~(_GEN_237 | _GEN_235);
-  wire              _GEN_240 = _issuer_io_out_space >= _decoder_io_out_num + 32'h4;
-  wire              _GEN_241 =
-    ~fetch_active & ~halt & ~redirect & ~(|fetcher_waiting) & _GEN_240
+  wire              _GEN_481 = _GEN_480 | _alus_0_aluIO_out_mult_valid;
+  wire              _GEN_482 = _alus_1_aluIO_out_div_valid & ~_alus_0_aluIO_out_div_valid;
+  wire              _GEN_483 = _GEN_482 | _alus_0_aluIO_out_div_valid;
+  wire              _GEN_484 = _alus_2_aluIO_out_mult_valid & ~_GEN_481;
+  wire              _GEN_485 = _alus_2_aluIO_out_div_valid & ~_GEN_483;
+  wire              _GEN_486 = _alus_3_aluIO_out_mult_valid & ~(_GEN_484 | _GEN_481);
+  wire              _GEN_487 = _alus_3_aluIO_out_div_valid & ~(_GEN_485 | _GEN_483);
+  wire              _GEN_488 = _issuer_io_out_space >= _decoder_io_out_num + 32'h4;
+  wire              _GEN_489 =
+    ~fetch_active & ~halt & ~redirect & ~(|fetcher_waiting) & _GEN_488
     & _Icache_0_io_out_ready & _Icache_1_io_out_ready & _Icache_2_io_out_ready
     & _Icache_3_io_out_ready;
-  wire              _GEN_242 =
+  wire              _GEN_490 =
     fetch_active
     & (&(fetch_done
          | {{_Icache_3_io_out_hit},
             {_Icache_2_io_out_hit},
             {_Icache_1_io_out_hit},
-            {_Icache_0_io_out_hit}})) & ~redirect & _GEN_240;
-  wire [3:0][31:0]  _GEN_243 =
+            {_Icache_0_io_out_hit}})) & ~redirect & _GEN_488;
+  wire [3:0][31:0]  _GEN_491 =
     {{fetch_done[2'h3] ? fetch_data[2'h3] : _Icache_3_io_out_rdata},
      {fetch_done[2'h2] ? fetch_data[2'h2] : _Icache_2_io_out_rdata},
      {fetch_done[2'h1] ? fetch_data[2'h1] : _Icache_1_io_out_rdata},
      {fetch_done[2'h0] ? fetch_data[2'h0] : _Icache_0_io_out_rdata}};
-  wire [3:0][31:0]  _GEN_244 =
+  wire [3:0][31:0]  _GEN_492 =
     {{pc.value + 32'h4}, {pc.value + 32'h4}, {pc.value + 32'h4}, {pc.value + 32'h4}};
-  wire [3:0][31:0]  _GEN_245 =
+  wire [3:0][31:0]  _GEN_493 =
     {{fetch_done[2'h0] ? fetch_data[2'h0] : _Icache_0_io_out_rdata},
      {fetch_done[2'h3] ? fetch_data[2'h3] : _Icache_3_io_out_rdata},
      {fetch_done[2'h2] ? fetch_data[2'h2] : _Icache_2_io_out_rdata},
      {fetch_done[2'h1] ? fetch_data[2'h1] : _Icache_1_io_out_rdata}};
-  wire [3:0][31:0]  _GEN_246 =
+  wire [3:0][31:0]  _GEN_494 =
     {{pc.value + 32'h8}, {pc.value + 32'h8}, {pc.value + 32'h8}, {pc.value + 32'h8}};
-  wire [3:0][31:0]  _GEN_247 =
+  wire [3:0][31:0]  _GEN_495 =
     {{fetch_done[2'h1] ? fetch_data[2'h1] : _Icache_1_io_out_rdata},
      {fetch_done[2'h0] ? fetch_data[2'h0] : _Icache_0_io_out_rdata},
      {fetch_done[2'h3] ? fetch_data[2'h3] : _Icache_3_io_out_rdata},
      {fetch_done[2'h2] ? fetch_data[2'h2] : _Icache_2_io_out_rdata}};
-  wire [3:0][31:0]  _GEN_248 =
+  wire [3:0][31:0]  _GEN_496 =
     {{pc.value + 32'hC}, {pc.value + 32'hC}, {pc.value + 32'hC}, {pc.value + 32'hC}};
-  wire [3:0][31:0]  _GEN_249 =
+  wire [3:0][31:0]  _GEN_497 =
     {{fetch_done[2'h2] ? fetch_data[2'h2] : _Icache_2_io_out_rdata},
      {fetch_done[2'h1] ? fetch_data[2'h1] : _Icache_1_io_out_rdata},
      {fetch_done[2'h0] ? fetch_data[2'h0] : _Icache_0_io_out_rdata},
      {fetch_done[2'h3] ? fetch_data[2'h3] : _Icache_3_io_out_rdata}};
-  wire              _GEN_250 =
+  wire              _GEN_498 =
     ~lsu_waiting & ~committer_waiting & _Dcache_io_out_ready & ~flush & ~io_flush_valid;
-  wire              _GEN_251 = _GEN_250 & _committer_io_out_store_valid;
-  wire              _GEN_252 = _committer_io_out_store_addr == 32'h80000000;
+  wire              _GEN_499 = _GEN_498 & _committer_io_out_store_valid;
+  wire              _GEN_500 = _committer_io_out_store_addr == 32'h80000000;
   wire [62:0]       _Dcache_io_wdata_T_2 =
     {31'h0, _committer_io_out_store_value}
     << {58'h0, _committer_io_out_store_addr[1:0], 3'h0};
-  wire              _GEN_253 = ~_GEN_251 | _GEN_252;
+  wire              _GEN_501 = ~_GEN_499 | _GEN_500;
   wire [6:0]        _Dcache_io_wmask_T_1 =
     {3'h0, _committer_io_out_store_mask} << _committer_io_out_store_addr[1:0];
-  wire              _GEN_254 =
-    _GEN_250 & ~_committer_io_out_store_valid & _lsu_lsuIO_out_valid;
-  wire              _GEN_255 = _Dcache_io_out_done & lsu_waiting;
-  wire              _GEN_256 = ~lsu_discard & ~flush & ~io_flush_valid;
-  wire              _GEN_257 = read_owner == 3'h4;
-  wire              _GEN_258 = ~(|fetcher_waiting) | _io_arvalid_T;
-  wire              _GEN_259 = ~read_discard & ~redirect;
-  wire              _GEN_260 = Dcache_waiting == 2'h0;
-  wire              _GEN_261 = _GEN_260 | _io_wvalid_T;
-  wire              _GEN_262 = ~_GEN_261 & io_bvalid & write_mmio;
+  wire              _GEN_502 =
+    _GEN_498 & ~_committer_io_out_store_valid & _lsu_lsuIO_out_valid;
+  wire              _GEN_503 = _Dcache_io_out_done & lsu_waiting;
+  wire              _GEN_504 = ~lsu_discard & ~flush & ~io_flush_valid;
+  wire              _GEN_505 = read_owner == 3'h4;
+  wire              _GEN_506 = ~(|fetcher_waiting) | _io_arvalid_T;
+  wire              _GEN_507 = ~read_discard & ~redirect;
+  wire              _GEN_508 = Dcache_waiting == 2'h0;
+  wire              _GEN_509 = _GEN_508 | _io_wvalid_T;
+  wire              _GEN_510 = ~_GEN_509 & io_bvalid & write_mmio;
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_263 =
+    _GEN_511 =
     '{type_:
-        (_GEN_226
-           ? (_GEN_172 ? 6'h0 : _issuer_io_out_executer_RS[2'h2].type_)
+        (_GEN_474
+           ? (_GEN_420 ? 6'h0 : _issuer_io_out_executer_RS[2'h2].type_)
            : _issuer_io_out_executer_RS[2'h3].type_),
       v1:
-        (_GEN_226
-           ? (_GEN_172 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v1)
+        (_GEN_474
+           ? (_GEN_420 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v1)
            : _issuer_io_out_executer_RS[2'h3].v1),
       v2:
-        (_GEN_226
-           ? (_GEN_172 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v2)
+        (_GEN_474
+           ? (_GEN_420 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v2)
            : _issuer_io_out_executer_RS[2'h3].v2),
       q1:
-        (_GEN_226
-           ? (_GEN_172 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q1)
+        (_GEN_474
+           ? (_GEN_420 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q1)
            : _issuer_io_out_executer_RS[2'h3].q1),
       q2:
-        (_GEN_226
-           ? (_GEN_172 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q2)
+        (_GEN_474
+           ? (_GEN_420 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q2)
            : _issuer_io_out_executer_RS[2'h3].q2),
       dest:
-        (_GEN_226
-           ? (_GEN_172 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].dest)
+        (_GEN_474
+           ? (_GEN_420 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].dest)
            : _issuer_io_out_executer_RS[2'h3].dest),
       id:
-        (_GEN_226
-           ? (_GEN_172 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].id)
+        (_GEN_474
+           ? (_GEN_420 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].id)
            : _issuer_io_out_executer_RS[2'h3].id),
       is_halt:
-        (_GEN_226
-           ? _GEN_144 & ~_GEN_145 & _GEN_170 & _issuer_io_out_executer_RS[2'h2].is_halt
+        (_GEN_474
+           ? _GEN_392 & ~_GEN_393 & _GEN_418 & _issuer_io_out_executer_RS[2'h2].is_halt
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_264 =
+    _GEN_512 =
     '{type_:
-        (_GEN_225
-           ? (_GEN_171 ? 6'h0 : _issuer_io_out_executer_RS[2'h2].type_)
+        (_GEN_473
+           ? (_GEN_419 ? 6'h0 : _issuer_io_out_executer_RS[2'h2].type_)
            : _issuer_io_out_executer_RS[2'h3].type_),
       v1:
-        (_GEN_225
-           ? (_GEN_171 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v1)
+        (_GEN_473
+           ? (_GEN_419 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v1)
            : _issuer_io_out_executer_RS[2'h3].v1),
       v2:
-        (_GEN_225
-           ? (_GEN_171 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v2)
+        (_GEN_473
+           ? (_GEN_419 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v2)
            : _issuer_io_out_executer_RS[2'h3].v2),
       q1:
-        (_GEN_225
-           ? (_GEN_171 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q1)
+        (_GEN_473
+           ? (_GEN_419 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q1)
            : _issuer_io_out_executer_RS[2'h3].q1),
       q2:
-        (_GEN_225
-           ? (_GEN_171 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q2)
+        (_GEN_473
+           ? (_GEN_419 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q2)
            : _issuer_io_out_executer_RS[2'h3].q2),
       dest:
-        (_GEN_225
-           ? (_GEN_171 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].dest)
+        (_GEN_473
+           ? (_GEN_419 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].dest)
            : _issuer_io_out_executer_RS[2'h3].dest),
       id:
-        (_GEN_225
-           ? (_GEN_171 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].id)
+        (_GEN_473
+           ? (_GEN_419 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].id)
            : _issuer_io_out_executer_RS[2'h3].id),
       is_halt:
-        (_GEN_225
-           ? _GEN_144 & ~_GEN_145 & _GEN_169 & _issuer_io_out_executer_RS[2'h2].is_halt
+        (_GEN_473
+           ? _GEN_392 & ~_GEN_393 & _GEN_417 & _issuer_io_out_executer_RS[2'h2].is_halt
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_265 =
+    _GEN_513 =
     '{type_:
-        (_GEN_224
-           ? (_GEN_168
-                ? (_GEN_134 ? 6'h0 : _issuer_io_out_executer_RS[2'h1].type_)
+        (_GEN_472
+           ? (_GEN_416
+                ? (_GEN_382 ? 6'h0 : _issuer_io_out_executer_RS[2'h1].type_)
                 : _issuer_io_out_executer_RS[2'h2].type_)
            : _issuer_io_out_executer_RS[2'h3].type_),
       v1:
-        (_GEN_224
-           ? (_GEN_168
-                ? (_GEN_134 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].v1)
+        (_GEN_472
+           ? (_GEN_416
+                ? (_GEN_382 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].v1)
                 : _issuer_io_out_executer_RS[2'h2].v1)
            : _issuer_io_out_executer_RS[2'h3].v1),
       v2:
-        (_GEN_224
-           ? (_GEN_168
-                ? (_GEN_134 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].v2)
+        (_GEN_472
+           ? (_GEN_416
+                ? (_GEN_382 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].v2)
                 : _issuer_io_out_executer_RS[2'h2].v2)
            : _issuer_io_out_executer_RS[2'h3].v2),
       q1:
-        (_GEN_224
-           ? (_GEN_168
-                ? (_GEN_134 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].q1)
+        (_GEN_472
+           ? (_GEN_416
+                ? (_GEN_382 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].q1)
                 : _issuer_io_out_executer_RS[2'h2].q1)
            : _issuer_io_out_executer_RS[2'h3].q1),
       q2:
-        (_GEN_224
-           ? (_GEN_168
-                ? (_GEN_134 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].q2)
+        (_GEN_472
+           ? (_GEN_416
+                ? (_GEN_382 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].q2)
                 : _issuer_io_out_executer_RS[2'h2].q2)
            : _issuer_io_out_executer_RS[2'h3].q2),
       dest:
-        (_GEN_224
-           ? (_GEN_168
-                ? (_GEN_134 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].dest)
+        (_GEN_472
+           ? (_GEN_416
+                ? (_GEN_382 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].dest)
                 : _issuer_io_out_executer_RS[2'h2].dest)
            : _issuer_io_out_executer_RS[2'h3].dest),
       id:
-        (_GEN_224
-           ? (_GEN_168
-                ? (_GEN_134 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].id)
+        (_GEN_472
+           ? (_GEN_416
+                ? (_GEN_382 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].id)
                 : _issuer_io_out_executer_RS[2'h2].id)
            : _issuer_io_out_executer_RS[2'h3].id),
       is_halt:
-        (_GEN_224
-           ? (_GEN_168
-                ? (|(_issuer_io_out_valid[31:1])) & ~_GEN_118 & _GEN_133
+        (_GEN_472
+           ? (_GEN_416
+                ? (|(_issuer_io_out_valid[31:1])) & ~_GEN_366 & _GEN_381
                   & _issuer_io_out_executer_RS[2'h1].is_halt
                 : _issuer_io_out_executer_RS[2'h2].is_halt)
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_266 =
+    _GEN_514 =
     '{type_:
-        (_GEN_223
-           ? (_GEN_167
-                ? (_GEN_132
-                     ? (_GEN_103 ? 6'h0 : _issuer_io_out_executer_RS[2'h0].type_)
+        (_GEN_471
+           ? (_GEN_415
+                ? (_GEN_380
+                     ? (_GEN_351 ? 6'h0 : _issuer_io_out_executer_RS[2'h0].type_)
                      : _issuer_io_out_executer_RS[2'h1].type_)
                 : _issuer_io_out_executer_RS[2'h2].type_)
            : _issuer_io_out_executer_RS[2'h3].type_),
       v1:
-        (_GEN_223
-           ? (_GEN_167
-                ? (_GEN_132
-                     ? (_GEN_103 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].v1)
+        (_GEN_471
+           ? (_GEN_415
+                ? (_GEN_380
+                     ? (_GEN_351 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].v1)
                      : _issuer_io_out_executer_RS[2'h1].v1)
                 : _issuer_io_out_executer_RS[2'h2].v1)
            : _issuer_io_out_executer_RS[2'h3].v1),
       v2:
-        (_GEN_223
-           ? (_GEN_167
-                ? (_GEN_132
-                     ? (_GEN_103 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].v2)
+        (_GEN_471
+           ? (_GEN_415
+                ? (_GEN_380
+                     ? (_GEN_351 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].v2)
                      : _issuer_io_out_executer_RS[2'h1].v2)
                 : _issuer_io_out_executer_RS[2'h2].v2)
            : _issuer_io_out_executer_RS[2'h3].v2),
       q1:
-        (_GEN_223
-           ? (_GEN_167
-                ? (_GEN_132
-                     ? (_GEN_103 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].q1)
+        (_GEN_471
+           ? (_GEN_415
+                ? (_GEN_380
+                     ? (_GEN_351 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].q1)
                      : _issuer_io_out_executer_RS[2'h1].q1)
                 : _issuer_io_out_executer_RS[2'h2].q1)
            : _issuer_io_out_executer_RS[2'h3].q1),
       q2:
-        (_GEN_223
-           ? (_GEN_167
-                ? (_GEN_132
-                     ? (_GEN_103 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].q2)
+        (_GEN_471
+           ? (_GEN_415
+                ? (_GEN_380
+                     ? (_GEN_351 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].q2)
                      : _issuer_io_out_executer_RS[2'h1].q2)
                 : _issuer_io_out_executer_RS[2'h2].q2)
            : _issuer_io_out_executer_RS[2'h3].q2),
       dest:
-        (_GEN_223
-           ? (_GEN_167
-                ? (_GEN_132
-                     ? (_GEN_103 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].dest)
+        (_GEN_471
+           ? (_GEN_415
+                ? (_GEN_380
+                     ? (_GEN_351 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].dest)
                      : _issuer_io_out_executer_RS[2'h1].dest)
                 : _issuer_io_out_executer_RS[2'h2].dest)
            : _issuer_io_out_executer_RS[2'h3].dest),
       id:
-        (_GEN_223
-           ? (_GEN_167
-                ? (_GEN_132
-                     ? (_GEN_103 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].id)
+        (_GEN_471
+           ? (_GEN_415
+                ? (_GEN_380
+                     ? (_GEN_351 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].id)
                      : _issuer_io_out_executer_RS[2'h1].id)
                 : _issuer_io_out_executer_RS[2'h2].id)
            : _issuer_io_out_executer_RS[2'h3].id),
       is_halt:
-        (_GEN_223
-           ? (_GEN_167
-                ? (_GEN_132
-                     ? (|_issuer_io_out_valid) & ~_GEN_93 & _GEN_102
+        (_GEN_471
+           ? (_GEN_415
+                ? (_GEN_380
+                     ? (|_issuer_io_out_valid) & ~_GEN_341 & _GEN_350
                        & _issuer_io_out_executer_RS[2'h0].is_halt
                      : _issuer_io_out_executer_RS[2'h1].is_halt)
                 : _issuer_io_out_executer_RS[2'h2].is_halt)
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_267 =
+    _GEN_515 =
     '{type_:
-        (_GEN_231
-           ? (_GEN_178 ? 6'h0 : _issuer_io_out_executer_RS[2'h2].type_)
+        (_GEN_479
+           ? (_GEN_426 ? 6'h0 : _issuer_io_out_executer_RS[2'h2].type_)
            : _issuer_io_out_executer_RS[2'h3].type_),
       v1:
-        (_GEN_231
-           ? (_GEN_178 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v1)
+        (_GEN_479
+           ? (_GEN_426 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v1)
            : _issuer_io_out_executer_RS[2'h3].v1),
       v2:
-        (_GEN_231
-           ? (_GEN_178 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v2)
+        (_GEN_479
+           ? (_GEN_426 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v2)
            : _issuer_io_out_executer_RS[2'h3].v2),
       q1:
-        (_GEN_231
-           ? (_GEN_178 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q1)
+        (_GEN_479
+           ? (_GEN_426 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q1)
            : _issuer_io_out_executer_RS[2'h3].q1),
       q2:
-        (_GEN_231
-           ? (_GEN_178 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q2)
+        (_GEN_479
+           ? (_GEN_426 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q2)
            : _issuer_io_out_executer_RS[2'h3].q2),
       dest:
-        (_GEN_231
-           ? (_GEN_178 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].dest)
+        (_GEN_479
+           ? (_GEN_426 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].dest)
            : _issuer_io_out_executer_RS[2'h3].dest),
       id:
-        (_GEN_231
-           ? (_GEN_178 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].id)
+        (_GEN_479
+           ? (_GEN_426 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].id)
            : _issuer_io_out_executer_RS[2'h3].id),
       is_halt:
-        (_GEN_231
-           ? _GEN_144 & ~_GEN_173 & (&(_GEN_143[1:0]))
+        (_GEN_479
+           ? _GEN_392 & ~_GEN_421 & (&(_GEN_391[1:0]))
              & _issuer_io_out_executer_RS[2'h2].is_halt
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_268 =
+    _GEN_516 =
     '{type_:
-        (_GEN_230
-           ? (_GEN_177 ? 6'h0 : _issuer_io_out_executer_RS[2'h2].type_)
+        (_GEN_478
+           ? (_GEN_425 ? 6'h0 : _issuer_io_out_executer_RS[2'h2].type_)
            : _issuer_io_out_executer_RS[2'h3].type_),
       v1:
-        (_GEN_230
-           ? (_GEN_177 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v1)
+        (_GEN_478
+           ? (_GEN_425 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v1)
            : _issuer_io_out_executer_RS[2'h3].v1),
       v2:
-        (_GEN_230
-           ? (_GEN_177 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v2)
+        (_GEN_478
+           ? (_GEN_425 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].v2)
            : _issuer_io_out_executer_RS[2'h3].v2),
       q1:
-        (_GEN_230
-           ? (_GEN_177 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q1)
+        (_GEN_478
+           ? (_GEN_425 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q1)
            : _issuer_io_out_executer_RS[2'h3].q1),
       q2:
-        (_GEN_230
-           ? (_GEN_177 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q2)
+        (_GEN_478
+           ? (_GEN_425 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].q2)
            : _issuer_io_out_executer_RS[2'h3].q2),
       dest:
-        (_GEN_230
-           ? (_GEN_177 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].dest)
+        (_GEN_478
+           ? (_GEN_425 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].dest)
            : _issuer_io_out_executer_RS[2'h3].dest),
       id:
-        (_GEN_230
-           ? (_GEN_177 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].id)
+        (_GEN_478
+           ? (_GEN_425 ? 32'h0 : _issuer_io_out_executer_RS[2'h2].id)
            : _issuer_io_out_executer_RS[2'h3].id),
       is_halt:
-        (_GEN_230
-           ? _GEN_144 & ~_GEN_173 & _GEN_176 & _issuer_io_out_executer_RS[2'h2].is_halt
+        (_GEN_478
+           ? _GEN_392 & ~_GEN_421 & _GEN_424 & _issuer_io_out_executer_RS[2'h2].is_halt
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_269 =
+    _GEN_517 =
     '{type_:
-        (_GEN_229
-           ? (_GEN_175
-                ? (_GEN_137 ? 6'h0 : _issuer_io_out_executer_RS[2'h1].type_)
+        (_GEN_477
+           ? (_GEN_423
+                ? (_GEN_385 ? 6'h0 : _issuer_io_out_executer_RS[2'h1].type_)
                 : _issuer_io_out_executer_RS[2'h2].type_)
            : _issuer_io_out_executer_RS[2'h3].type_),
       v1:
-        (_GEN_229
-           ? (_GEN_175
-                ? (_GEN_137 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].v1)
+        (_GEN_477
+           ? (_GEN_423
+                ? (_GEN_385 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].v1)
                 : _issuer_io_out_executer_RS[2'h2].v1)
            : _issuer_io_out_executer_RS[2'h3].v1),
       v2:
-        (_GEN_229
-           ? (_GEN_175
-                ? (_GEN_137 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].v2)
+        (_GEN_477
+           ? (_GEN_423
+                ? (_GEN_385 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].v2)
                 : _issuer_io_out_executer_RS[2'h2].v2)
            : _issuer_io_out_executer_RS[2'h3].v2),
       q1:
-        (_GEN_229
-           ? (_GEN_175
-                ? (_GEN_137 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].q1)
+        (_GEN_477
+           ? (_GEN_423
+                ? (_GEN_385 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].q1)
                 : _issuer_io_out_executer_RS[2'h2].q1)
            : _issuer_io_out_executer_RS[2'h3].q1),
       q2:
-        (_GEN_229
-           ? (_GEN_175
-                ? (_GEN_137 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].q2)
+        (_GEN_477
+           ? (_GEN_423
+                ? (_GEN_385 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].q2)
                 : _issuer_io_out_executer_RS[2'h2].q2)
            : _issuer_io_out_executer_RS[2'h3].q2),
       dest:
-        (_GEN_229
-           ? (_GEN_175
-                ? (_GEN_137 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].dest)
+        (_GEN_477
+           ? (_GEN_423
+                ? (_GEN_385 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].dest)
                 : _issuer_io_out_executer_RS[2'h2].dest)
            : _issuer_io_out_executer_RS[2'h3].dest),
       id:
-        (_GEN_229
-           ? (_GEN_175
-                ? (_GEN_137 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].id)
+        (_GEN_477
+           ? (_GEN_423
+                ? (_GEN_385 ? 32'h0 : _issuer_io_out_executer_RS[2'h1].id)
                 : _issuer_io_out_executer_RS[2'h2].id)
            : _issuer_io_out_executer_RS[2'h3].id),
       is_halt:
-        (_GEN_229
-           ? (_GEN_175
-                ? (|(_issuer_io_out_valid[31:1])) & ~_GEN_135 & _GEN_116
+        (_GEN_477
+           ? (_GEN_423
+                ? (|(_issuer_io_out_valid[31:1])) & ~_GEN_383 & _GEN_364
                   & _issuer_io_out_executer_RS[2'h1].is_halt
                 : _issuer_io_out_executer_RS[2'h2].is_halt)
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_270 =
+    _GEN_518 =
     '{type_:
-        (_GEN_228
-           ? (_GEN_174
-                ? (_GEN_136
-                     ? (_GEN_105 ? 6'h0 : _issuer_io_out_executer_RS[2'h0].type_)
+        (_GEN_476
+           ? (_GEN_422
+                ? (_GEN_384
+                     ? (_GEN_353 ? 6'h0 : _issuer_io_out_executer_RS[2'h0].type_)
                      : _issuer_io_out_executer_RS[2'h1].type_)
                 : _issuer_io_out_executer_RS[2'h2].type_)
            : _issuer_io_out_executer_RS[2'h3].type_),
       v1:
-        (_GEN_228
-           ? (_GEN_174
-                ? (_GEN_136
-                     ? (_GEN_105 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].v1)
+        (_GEN_476
+           ? (_GEN_422
+                ? (_GEN_384
+                     ? (_GEN_353 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].v1)
                      : _issuer_io_out_executer_RS[2'h1].v1)
                 : _issuer_io_out_executer_RS[2'h2].v1)
            : _issuer_io_out_executer_RS[2'h3].v1),
       v2:
-        (_GEN_228
-           ? (_GEN_174
-                ? (_GEN_136
-                     ? (_GEN_105 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].v2)
+        (_GEN_476
+           ? (_GEN_422
+                ? (_GEN_384
+                     ? (_GEN_353 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].v2)
                      : _issuer_io_out_executer_RS[2'h1].v2)
                 : _issuer_io_out_executer_RS[2'h2].v2)
            : _issuer_io_out_executer_RS[2'h3].v2),
       q1:
-        (_GEN_228
-           ? (_GEN_174
-                ? (_GEN_136
-                     ? (_GEN_105 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].q1)
+        (_GEN_476
+           ? (_GEN_422
+                ? (_GEN_384
+                     ? (_GEN_353 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].q1)
                      : _issuer_io_out_executer_RS[2'h1].q1)
                 : _issuer_io_out_executer_RS[2'h2].q1)
            : _issuer_io_out_executer_RS[2'h3].q1),
       q2:
-        (_GEN_228
-           ? (_GEN_174
-                ? (_GEN_136
-                     ? (_GEN_105 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].q2)
+        (_GEN_476
+           ? (_GEN_422
+                ? (_GEN_384
+                     ? (_GEN_353 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].q2)
                      : _issuer_io_out_executer_RS[2'h1].q2)
                 : _issuer_io_out_executer_RS[2'h2].q2)
            : _issuer_io_out_executer_RS[2'h3].q2),
       dest:
-        (_GEN_228
-           ? (_GEN_174
-                ? (_GEN_136
-                     ? (_GEN_105 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].dest)
+        (_GEN_476
+           ? (_GEN_422
+                ? (_GEN_384
+                     ? (_GEN_353 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].dest)
                      : _issuer_io_out_executer_RS[2'h1].dest)
                 : _issuer_io_out_executer_RS[2'h2].dest)
            : _issuer_io_out_executer_RS[2'h3].dest),
       id:
-        (_GEN_228
-           ? (_GEN_174
-                ? (_GEN_136
-                     ? (_GEN_105 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].id)
+        (_GEN_476
+           ? (_GEN_422
+                ? (_GEN_384
+                     ? (_GEN_353 ? 32'h0 : _issuer_io_out_executer_RS[2'h0].id)
                      : _issuer_io_out_executer_RS[2'h1].id)
                 : _issuer_io_out_executer_RS[2'h2].id)
            : _issuer_io_out_executer_RS[2'h3].id),
       is_halt:
-        (_GEN_228
-           ? (_GEN_174
-                ? (_GEN_136
-                     ? (|_issuer_io_out_valid) & ~_GEN_104
+        (_GEN_476
+           ? (_GEN_422
+                ? (_GEN_384
+                     ? (|_issuer_io_out_valid) & ~_GEN_352
                        & _issuer_io_out_executer_RS[2'h0].is_halt
                      : _issuer_io_out_executer_RS[2'h1].is_halt)
                 : _issuer_io_out_executer_RS[2'h2].is_halt)
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_271 =
-    '{value: _GEN_91, prod: (_GEN_90 & _GEN_92 ? 32'hFFFFFFFF : regs[5'h1F].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_272 =
-    '{value: _GEN_88, prod: (_GEN_87 & _GEN_89 ? 32'hFFFFFFFF : regs[5'h1E].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_273 =
-    '{value: _GEN_85, prod: (_GEN_84 & _GEN_86 ? 32'hFFFFFFFF : regs[5'h1D].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_274 =
-    '{value: _GEN_82, prod: (_GEN_81 & _GEN_83 ? 32'hFFFFFFFF : regs[5'h1C].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_275 =
-    '{value: _GEN_79, prod: (_GEN_78 & _GEN_80 ? 32'hFFFFFFFF : regs[5'h1B].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_276 =
-    '{value: _GEN_76, prod: (_GEN_75 & _GEN_77 ? 32'hFFFFFFFF : regs[5'h1A].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_277 =
-    '{value: _GEN_73, prod: (_GEN_72 & _GEN_74 ? 32'hFFFFFFFF : regs[5'h19].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_278 =
-    '{value: _GEN_70, prod: (_GEN_69 & _GEN_71 ? 32'hFFFFFFFF : regs[5'h18].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_279 =
-    '{value: _GEN_67, prod: (_GEN_66 & _GEN_68 ? 32'hFFFFFFFF : regs[5'h17].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_280 =
-    '{value: _GEN_64, prod: (_GEN_63 & _GEN_65 ? 32'hFFFFFFFF : regs[5'h16].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_281 =
-    '{value: _GEN_61, prod: (_GEN_60 & _GEN_62 ? 32'hFFFFFFFF : regs[5'h15].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_282 =
-    '{value: _GEN_58, prod: (_GEN_57 & _GEN_59 ? 32'hFFFFFFFF : regs[5'h14].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_283 =
-    '{value: _GEN_55, prod: (_GEN_54 & _GEN_56 ? 32'hFFFFFFFF : regs[5'h13].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_284 =
-    '{value: _GEN_52, prod: (_GEN_51 & _GEN_53 ? 32'hFFFFFFFF : regs[5'h12].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_285 =
-    '{value: _GEN_49, prod: (_GEN_48 & _GEN_50 ? 32'hFFFFFFFF : regs[5'h11].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_286 =
-    '{value: _GEN_46, prod: (_GEN_45 & _GEN_47 ? 32'hFFFFFFFF : regs[5'h10].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_287 =
-    '{value: _GEN_43, prod: (_GEN_42 & _GEN_44 ? 32'hFFFFFFFF : regs[5'hF].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_288 =
-    '{value: _GEN_40, prod: (_GEN_39 & _GEN_41 ? 32'hFFFFFFFF : regs[5'hE].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_289 =
-    '{value: _GEN_37, prod: (_GEN_36 & _GEN_38 ? 32'hFFFFFFFF : regs[5'hD].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_290 =
-    '{value: _GEN_34, prod: (_GEN_33 & _GEN_35 ? 32'hFFFFFFFF : regs[5'hC].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_291 =
-    '{value: _GEN_31, prod: (_GEN_30 & _GEN_32 ? 32'hFFFFFFFF : regs[5'hB].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_292 =
-    '{value: _GEN_28, prod: (_GEN_27 & _GEN_29 ? 32'hFFFFFFFF : regs[5'hA].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_293 =
-    '{value: _GEN_25, prod: (_GEN_24 & _GEN_26 ? 32'hFFFFFFFF : regs[5'h9].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_294 =
-    '{value: _GEN_22, prod: (_GEN_21 & _GEN_23 ? 32'hFFFFFFFF : regs[5'h8].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_295 =
-    '{value: _GEN_19, prod: (_GEN_18 & _GEN_20 ? 32'hFFFFFFFF : regs[5'h7].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_296 =
-    '{value: _GEN_16, prod: (_GEN_15 & _GEN_17 ? 32'hFFFFFFFF : regs[5'h6].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_297 =
-    '{value: _GEN_13, prod: (_GEN_12 & _GEN_14 ? 32'hFFFFFFFF : regs[5'h5].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_298 =
-    '{value: _GEN_10, prod: (_GEN_9 & _GEN_11 ? 32'hFFFFFFFF : regs[5'h4].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_299 =
-    '{value: _GEN_7, prod: (_GEN_6 & _GEN_8 ? 32'hFFFFFFFF : regs[5'h3].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_300 =
-    '{value: _GEN_4, prod: (_GEN_3 & _GEN_5 ? 32'hFFFFFFFF : regs[5'h2].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_301 =
-    '{value: _GEN_1, prod: (_GEN_0 & _GEN_2 ? 32'hFFFFFFFF : regs[5'h1].prod)};
-  wire              _GEN_302 = fetch_active & _Icache_0_io_out_hit;
-  wire              _GEN_303 = fetch_active & _Icache_1_io_out_hit;
-  wire              _GEN_304 = fetch_active & _Icache_2_io_out_hit;
-  wire              _GEN_305 = fetch_active & _Icache_3_io_out_hit;
-  wire              _GEN_306 =
-    ~_GEN_250 | _committer_io_out_store_valid | ~_lsu_lsuIO_out_valid;
-  wire              _GEN_307 = fetch_active & _Icache_3_io_out_neednew & ~redirect;
-  wire              _GEN_308 = fetch_active & _Icache_2_io_out_neednew & ~redirect;
-  wire              _GEN_309 = fetch_active & _Icache_1_io_out_neednew & ~redirect;
-  wire              _GEN_310 = fetch_active & _Icache_0_io_out_neednew & ~redirect;
-  wire              _GEN_311 =
-    _committer_io_out_store_valid & _GEN_252 & ~committer_waiting & ~lsu_waiting & ~flush
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_519 =
+    '{value: _GEN_339,
+      prod:
+        ((_GEN_338 ? _GEN_340 | _GEN_337 | _GEN_334 : _GEN_337 | _GEN_334)
+           ? 32'hFFFFFFFF
+           : regs[5'h1F].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_520 =
+    '{value: _GEN_328,
+      prod:
+        ((_GEN_327 ? _GEN_329 | _GEN_326 | _GEN_323 : _GEN_326 | _GEN_323)
+           ? 32'hFFFFFFFF
+           : regs[5'h1E].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_521 =
+    '{value: _GEN_317,
+      prod:
+        ((_GEN_316 ? _GEN_318 | _GEN_315 | _GEN_312 : _GEN_315 | _GEN_312)
+           ? 32'hFFFFFFFF
+           : regs[5'h1D].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_522 =
+    '{value: _GEN_306,
+      prod:
+        ((_GEN_305 ? _GEN_307 | _GEN_304 | _GEN_301 : _GEN_304 | _GEN_301)
+           ? 32'hFFFFFFFF
+           : regs[5'h1C].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_523 =
+    '{value: _GEN_295,
+      prod:
+        ((_GEN_294 ? _GEN_296 | _GEN_293 | _GEN_290 : _GEN_293 | _GEN_290)
+           ? 32'hFFFFFFFF
+           : regs[5'h1B].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_524 =
+    '{value: _GEN_284,
+      prod:
+        ((_GEN_283 ? _GEN_285 | _GEN_282 | _GEN_279 : _GEN_282 | _GEN_279)
+           ? 32'hFFFFFFFF
+           : regs[5'h1A].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_525 =
+    '{value: _GEN_273,
+      prod:
+        ((_GEN_272 ? _GEN_274 | _GEN_271 | _GEN_268 : _GEN_271 | _GEN_268)
+           ? 32'hFFFFFFFF
+           : regs[5'h19].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_526 =
+    '{value: _GEN_262,
+      prod:
+        ((_GEN_261 ? _GEN_263 | _GEN_260 | _GEN_257 : _GEN_260 | _GEN_257)
+           ? 32'hFFFFFFFF
+           : regs[5'h18].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_527 =
+    '{value: _GEN_251,
+      prod:
+        ((_GEN_250 ? _GEN_252 | _GEN_249 | _GEN_246 : _GEN_249 | _GEN_246)
+           ? 32'hFFFFFFFF
+           : regs[5'h17].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_528 =
+    '{value: _GEN_240,
+      prod:
+        ((_GEN_239 ? _GEN_241 | _GEN_238 | _GEN_235 : _GEN_238 | _GEN_235)
+           ? 32'hFFFFFFFF
+           : regs[5'h16].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_529 =
+    '{value: _GEN_229,
+      prod:
+        ((_GEN_228 ? _GEN_230 | _GEN_227 | _GEN_224 : _GEN_227 | _GEN_224)
+           ? 32'hFFFFFFFF
+           : regs[5'h15].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_530 =
+    '{value: _GEN_218,
+      prod:
+        ((_GEN_217 ? _GEN_219 | _GEN_216 | _GEN_213 : _GEN_216 | _GEN_213)
+           ? 32'hFFFFFFFF
+           : regs[5'h14].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_531 =
+    '{value: _GEN_207,
+      prod:
+        ((_GEN_206 ? _GEN_208 | _GEN_205 | _GEN_202 : _GEN_205 | _GEN_202)
+           ? 32'hFFFFFFFF
+           : regs[5'h13].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_532 =
+    '{value: _GEN_196,
+      prod:
+        ((_GEN_195 ? _GEN_197 | _GEN_194 | _GEN_191 : _GEN_194 | _GEN_191)
+           ? 32'hFFFFFFFF
+           : regs[5'h12].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_533 =
+    '{value: _GEN_185,
+      prod:
+        ((_GEN_184 ? _GEN_186 | _GEN_183 | _GEN_180 : _GEN_183 | _GEN_180)
+           ? 32'hFFFFFFFF
+           : regs[5'h11].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_534 =
+    '{value: _GEN_174,
+      prod:
+        ((_GEN_173 ? _GEN_175 | _GEN_172 | _GEN_169 : _GEN_172 | _GEN_169)
+           ? 32'hFFFFFFFF
+           : regs[5'h10].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_535 =
+    '{value: _GEN_163,
+      prod:
+        ((_GEN_162 ? _GEN_164 | _GEN_161 | _GEN_158 : _GEN_161 | _GEN_158)
+           ? 32'hFFFFFFFF
+           : regs[5'hF].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_536 =
+    '{value: _GEN_152,
+      prod:
+        ((_GEN_151 ? _GEN_153 | _GEN_150 | _GEN_147 : _GEN_150 | _GEN_147)
+           ? 32'hFFFFFFFF
+           : regs[5'hE].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_537 =
+    '{value: _GEN_141,
+      prod:
+        ((_GEN_140 ? _GEN_142 | _GEN_139 | _GEN_136 : _GEN_139 | _GEN_136)
+           ? 32'hFFFFFFFF
+           : regs[5'hD].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_538 =
+    '{value: _GEN_130,
+      prod:
+        ((_GEN_129 ? _GEN_131 | _GEN_128 | _GEN_125 : _GEN_128 | _GEN_125)
+           ? 32'hFFFFFFFF
+           : regs[5'hC].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_539 =
+    '{value: _GEN_119,
+      prod:
+        ((_GEN_118 ? _GEN_120 | _GEN_117 | _GEN_114 : _GEN_117 | _GEN_114)
+           ? 32'hFFFFFFFF
+           : regs[5'hB].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_540 =
+    '{value: _GEN_108,
+      prod:
+        ((_GEN_107 ? _GEN_109 | _GEN_106 | _GEN_103 : _GEN_106 | _GEN_103)
+           ? 32'hFFFFFFFF
+           : regs[5'hA].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_541 =
+    '{value: _GEN_97,
+      prod:
+        ((_GEN_96 ? _GEN_98 | _GEN_95 | _GEN_92 : _GEN_95 | _GEN_92)
+           ? 32'hFFFFFFFF
+           : regs[5'h9].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_542 =
+    '{value: _GEN_86,
+      prod:
+        ((_GEN_85 ? _GEN_87 | _GEN_84 | _GEN_81 : _GEN_84 | _GEN_81)
+           ? 32'hFFFFFFFF
+           : regs[5'h8].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_543 =
+    '{value: _GEN_75,
+      prod:
+        ((_GEN_74 ? _GEN_76 | _GEN_73 | _GEN_70 : _GEN_73 | _GEN_70)
+           ? 32'hFFFFFFFF
+           : regs[5'h7].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_544 =
+    '{value: _GEN_64,
+      prod:
+        ((_GEN_63 ? _GEN_65 | _GEN_62 | _GEN_59 : _GEN_62 | _GEN_59)
+           ? 32'hFFFFFFFF
+           : regs[5'h6].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_545 =
+    '{value: _GEN_53,
+      prod:
+        ((_GEN_52 ? _GEN_54 | _GEN_51 | _GEN_48 : _GEN_51 | _GEN_48)
+           ? 32'hFFFFFFFF
+           : regs[5'h5].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_546 =
+    '{value: _GEN_42,
+      prod:
+        ((_GEN_41 ? _GEN_43 | _GEN_40 | _GEN_37 : _GEN_40 | _GEN_37)
+           ? 32'hFFFFFFFF
+           : regs[5'h4].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_547 =
+    '{value: _GEN_31,
+      prod:
+        ((_GEN_30 ? _GEN_32 | _GEN_29 | _GEN_26 : _GEN_29 | _GEN_26)
+           ? 32'hFFFFFFFF
+           : regs[5'h3].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_548 =
+    '{value: _GEN_20,
+      prod:
+        ((_GEN_19 ? _GEN_21 | _GEN_18 | _GEN_15 : _GEN_18 | _GEN_15)
+           ? 32'hFFFFFFFF
+           : regs[5'h2].prod)};
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_549 =
+    '{value: _GEN_9,
+      prod:
+        ((_GEN_8 ? _GEN_10 | _GEN_7 | _GEN_4 : _GEN_7 | _GEN_4)
+           ? 32'hFFFFFFFF
+           : regs[5'h1].prod)};
+  wire              _GEN_550 =
+    _GEN_2 & _GEN_3 & ~_issuer_io_out_prod_valid[5'h1] | _GEN_0 & _GEN_1
+    & ~_issuer_io_out_prod_valid[5'h1];
+  wire              _GEN_551 = _GEN_5 & _GEN_6 & ~_issuer_io_out_prod_valid[5'h1];
+  wire              _GEN_552 =
+    _GEN_13 & _GEN_14 & ~_issuer_io_out_prod_valid[5'h2] | _GEN_11 & _GEN_12
+    & ~_issuer_io_out_prod_valid[5'h2];
+  wire              _GEN_553 = _GEN_16 & _GEN_17 & ~_issuer_io_out_prod_valid[5'h2];
+  wire              _GEN_554 =
+    _GEN_24 & _GEN_25 & ~_issuer_io_out_prod_valid[5'h3] | _GEN_22 & _GEN_23
+    & ~_issuer_io_out_prod_valid[5'h3];
+  wire              _GEN_555 = _GEN_27 & _GEN_28 & ~_issuer_io_out_prod_valid[5'h3];
+  wire              _GEN_556 =
+    _GEN_35 & _GEN_36 & ~_issuer_io_out_prod_valid[5'h4] | _GEN_33 & _GEN_34
+    & ~_issuer_io_out_prod_valid[5'h4];
+  wire              _GEN_557 = _GEN_38 & _GEN_39 & ~_issuer_io_out_prod_valid[5'h4];
+  wire              _GEN_558 =
+    _GEN_46 & _GEN_47 & ~_issuer_io_out_prod_valid[5'h5] | _GEN_44 & _GEN_45
+    & ~_issuer_io_out_prod_valid[5'h5];
+  wire              _GEN_559 = _GEN_49 & _GEN_50 & ~_issuer_io_out_prod_valid[5'h5];
+  wire              _GEN_560 =
+    _GEN_57 & _GEN_58 & ~_issuer_io_out_prod_valid[5'h6] | _GEN_55 & _GEN_56
+    & ~_issuer_io_out_prod_valid[5'h6];
+  wire              _GEN_561 = _GEN_60 & _GEN_61 & ~_issuer_io_out_prod_valid[5'h6];
+  wire              _GEN_562 =
+    _GEN_68 & _GEN_69 & ~_issuer_io_out_prod_valid[5'h7] | _GEN_66 & _GEN_67
+    & ~_issuer_io_out_prod_valid[5'h7];
+  wire              _GEN_563 = _GEN_71 & _GEN_72 & ~_issuer_io_out_prod_valid[5'h7];
+  wire              _GEN_564 =
+    _GEN_79 & _GEN_80 & ~_issuer_io_out_prod_valid[5'h8] | _GEN_77 & _GEN_78
+    & ~_issuer_io_out_prod_valid[5'h8];
+  wire              _GEN_565 = _GEN_82 & _GEN_83 & ~_issuer_io_out_prod_valid[5'h8];
+  wire              _GEN_566 =
+    _GEN_90 & _GEN_91 & ~_issuer_io_out_prod_valid[5'h9] | _GEN_88 & _GEN_89
+    & ~_issuer_io_out_prod_valid[5'h9];
+  wire              _GEN_567 = _GEN_93 & _GEN_94 & ~_issuer_io_out_prod_valid[5'h9];
+  wire              _GEN_568 =
+    _GEN_101 & _GEN_102 & ~_issuer_io_out_prod_valid[5'hA] | _GEN_99 & _GEN_100
+    & ~_issuer_io_out_prod_valid[5'hA];
+  wire              _GEN_569 = _GEN_104 & _GEN_105 & ~_issuer_io_out_prod_valid[5'hA];
+  wire              _GEN_570 =
+    _GEN_112 & _GEN_113 & ~_issuer_io_out_prod_valid[5'hB] | _GEN_110 & _GEN_111
+    & ~_issuer_io_out_prod_valid[5'hB];
+  wire              _GEN_571 = _GEN_115 & _GEN_116 & ~_issuer_io_out_prod_valid[5'hB];
+  wire              _GEN_572 =
+    _GEN_123 & _GEN_124 & ~_issuer_io_out_prod_valid[5'hC] | _GEN_121 & _GEN_122
+    & ~_issuer_io_out_prod_valid[5'hC];
+  wire              _GEN_573 = _GEN_126 & _GEN_127 & ~_issuer_io_out_prod_valid[5'hC];
+  wire              _GEN_574 =
+    _GEN_134 & _GEN_135 & ~_issuer_io_out_prod_valid[5'hD] | _GEN_132 & _GEN_133
+    & ~_issuer_io_out_prod_valid[5'hD];
+  wire              _GEN_575 = _GEN_137 & _GEN_138 & ~_issuer_io_out_prod_valid[5'hD];
+  wire              _GEN_576 =
+    _GEN_145 & _GEN_146 & ~_issuer_io_out_prod_valid[5'hE] | _GEN_143 & _GEN_144
+    & ~_issuer_io_out_prod_valid[5'hE];
+  wire              _GEN_577 = _GEN_148 & _GEN_149 & ~_issuer_io_out_prod_valid[5'hE];
+  wire              _GEN_578 =
+    _GEN_156 & _GEN_157 & ~_issuer_io_out_prod_valid[5'hF] | _GEN_154 & _GEN_155
+    & ~_issuer_io_out_prod_valid[5'hF];
+  wire              _GEN_579 = _GEN_159 & _GEN_160 & ~_issuer_io_out_prod_valid[5'hF];
+  wire              _GEN_580 =
+    _GEN_167 & _GEN_168 & ~_issuer_io_out_prod_valid[5'h10] | _GEN_165 & _GEN_166
+    & ~_issuer_io_out_prod_valid[5'h10];
+  wire              _GEN_581 = _GEN_170 & _GEN_171 & ~_issuer_io_out_prod_valid[5'h10];
+  wire              _GEN_582 =
+    _GEN_178 & _GEN_179 & ~_issuer_io_out_prod_valid[5'h11] | _GEN_176 & _GEN_177
+    & ~_issuer_io_out_prod_valid[5'h11];
+  wire              _GEN_583 = _GEN_181 & _GEN_182 & ~_issuer_io_out_prod_valid[5'h11];
+  wire              _GEN_584 =
+    _GEN_189 & _GEN_190 & ~_issuer_io_out_prod_valid[5'h12] | _GEN_187 & _GEN_188
+    & ~_issuer_io_out_prod_valid[5'h12];
+  wire              _GEN_585 = _GEN_192 & _GEN_193 & ~_issuer_io_out_prod_valid[5'h12];
+  wire              _GEN_586 =
+    _GEN_200 & _GEN_201 & ~_issuer_io_out_prod_valid[5'h13] | _GEN_198 & _GEN_199
+    & ~_issuer_io_out_prod_valid[5'h13];
+  wire              _GEN_587 = _GEN_203 & _GEN_204 & ~_issuer_io_out_prod_valid[5'h13];
+  wire              _GEN_588 =
+    _GEN_211 & _GEN_212 & ~_issuer_io_out_prod_valid[5'h14] | _GEN_209 & _GEN_210
+    & ~_issuer_io_out_prod_valid[5'h14];
+  wire              _GEN_589 = _GEN_214 & _GEN_215 & ~_issuer_io_out_prod_valid[5'h14];
+  wire              _GEN_590 =
+    _GEN_222 & _GEN_223 & ~_issuer_io_out_prod_valid[5'h15] | _GEN_220 & _GEN_221
+    & ~_issuer_io_out_prod_valid[5'h15];
+  wire              _GEN_591 = _GEN_225 & _GEN_226 & ~_issuer_io_out_prod_valid[5'h15];
+  wire              _GEN_592 =
+    _GEN_233 & _GEN_234 & ~_issuer_io_out_prod_valid[5'h16] | _GEN_231 & _GEN_232
+    & ~_issuer_io_out_prod_valid[5'h16];
+  wire              _GEN_593 = _GEN_236 & _GEN_237 & ~_issuer_io_out_prod_valid[5'h16];
+  wire              _GEN_594 =
+    _GEN_244 & _GEN_245 & ~_issuer_io_out_prod_valid[5'h17] | _GEN_242 & _GEN_243
+    & ~_issuer_io_out_prod_valid[5'h17];
+  wire              _GEN_595 = _GEN_247 & _GEN_248 & ~_issuer_io_out_prod_valid[5'h17];
+  wire              _GEN_596 =
+    _GEN_255 & _GEN_256 & ~_issuer_io_out_prod_valid[5'h18] | _GEN_253 & _GEN_254
+    & ~_issuer_io_out_prod_valid[5'h18];
+  wire              _GEN_597 = _GEN_258 & _GEN_259 & ~_issuer_io_out_prod_valid[5'h18];
+  wire              _GEN_598 =
+    _GEN_266 & _GEN_267 & ~_issuer_io_out_prod_valid[5'h19] | _GEN_264 & _GEN_265
+    & ~_issuer_io_out_prod_valid[5'h19];
+  wire              _GEN_599 = _GEN_269 & _GEN_270 & ~_issuer_io_out_prod_valid[5'h19];
+  wire              _GEN_600 =
+    _GEN_277 & _GEN_278 & ~_issuer_io_out_prod_valid[5'h1A] | _GEN_275 & _GEN_276
+    & ~_issuer_io_out_prod_valid[5'h1A];
+  wire              _GEN_601 = _GEN_280 & _GEN_281 & ~_issuer_io_out_prod_valid[5'h1A];
+  wire              _GEN_602 =
+    _GEN_288 & _GEN_289 & ~_issuer_io_out_prod_valid[5'h1B] | _GEN_286 & _GEN_287
+    & ~_issuer_io_out_prod_valid[5'h1B];
+  wire              _GEN_603 = _GEN_291 & _GEN_292 & ~_issuer_io_out_prod_valid[5'h1B];
+  wire              _GEN_604 =
+    _GEN_299 & _GEN_300 & ~_issuer_io_out_prod_valid[5'h1C] | _GEN_297 & _GEN_298
+    & ~_issuer_io_out_prod_valid[5'h1C];
+  wire              _GEN_605 = _GEN_302 & _GEN_303 & ~_issuer_io_out_prod_valid[5'h1C];
+  wire              _GEN_606 =
+    _GEN_310 & _GEN_311 & ~_issuer_io_out_prod_valid[5'h1D] | _GEN_308 & _GEN_309
+    & ~_issuer_io_out_prod_valid[5'h1D];
+  wire              _GEN_607 = _GEN_313 & _GEN_314 & ~_issuer_io_out_prod_valid[5'h1D];
+  wire              _GEN_608 =
+    _GEN_321 & _GEN_322 & ~_issuer_io_out_prod_valid[5'h1E] | _GEN_319 & _GEN_320
+    & ~_issuer_io_out_prod_valid[5'h1E];
+  wire              _GEN_609 = _GEN_324 & _GEN_325 & ~_issuer_io_out_prod_valid[5'h1E];
+  wire              _GEN_610 =
+    _GEN_332 & _GEN_333 & ~_issuer_io_out_prod_valid[5'h1F] | _GEN_330 & _GEN_331
+    & ~_issuer_io_out_prod_valid[5'h1F];
+  wire              _GEN_611 = _GEN_335 & _GEN_336 & ~_issuer_io_out_prod_valid[5'h1F];
+  wire              _GEN_612 = fetch_active & _Icache_0_io_out_hit;
+  wire              _GEN_613 = fetch_active & _Icache_1_io_out_hit;
+  wire              _GEN_614 = fetch_active & _Icache_2_io_out_hit;
+  wire              _GEN_615 = fetch_active & _Icache_3_io_out_hit;
+  wire              _GEN_616 =
+    ~_GEN_498 | _committer_io_out_store_valid | ~_lsu_lsuIO_out_valid;
+  wire              _GEN_617 = fetch_active & _Icache_3_io_out_neednew & ~redirect;
+  wire              _GEN_618 = fetch_active & _Icache_2_io_out_neednew & ~redirect;
+  wire              _GEN_619 = fetch_active & _Icache_1_io_out_neednew & ~redirect;
+  wire              _GEN_620 = fetch_active & _Icache_0_io_out_neednew & ~redirect;
+  wire              _GEN_621 =
+    _committer_io_out_store_valid & _GEN_500 & ~committer_waiting & ~lsu_waiting & ~flush
     & ~io_flush_valid;
-  wire              _GEN_312 =
-    _Dcache_io_out_neednew | _GEN_310 | _GEN_309 | _GEN_308 | _GEN_307;
-  wire              _GEN_313 = _Dcache_io_out_wvalid | _GEN_311;
+  wire              _GEN_622 =
+    _Dcache_io_out_neednew | _GEN_620 | _GEN_619 | _GEN_618 | _GEN_617;
+  wire              _GEN_623 = _Dcache_io_out_wvalid | _GEN_621;
   always @(posedge clock) begin
     if (reset) begin
       regs <=
@@ -60382,249 +61365,342 @@ module CPU(
     else begin
       regs[5'h0] <= '{value: 32'h0, prod: 32'hFFFFFFFF};
       regs[5'h1] <=
-        '{value: _GEN_1,
+        '{value: _GEN_9,
           prod:
-            (_div_io_clear_valid_T | _GEN_0 & _GEN_2 & ~_issuer_io_out_prod_valid[5'h1]
+            (_div_io_clear_valid_T
+             | (_GEN_8
+                  ? _GEN_10 & ~_issuer_io_out_prod_valid[5'h1] | _GEN_551 | _GEN_550
+                  : _GEN_551 | _GEN_550)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1]
                    ? _issuer_io_out_prod[5'h1]
                    : regs[5'h1].prod)};
       regs[5'h2] <=
-        '{value: _GEN_4,
+        '{value: _GEN_20,
           prod:
-            (_div_io_clear_valid_T | _GEN_3 & _GEN_5 & ~_issuer_io_out_prod_valid[5'h2]
+            (_div_io_clear_valid_T
+             | (_GEN_19
+                  ? _GEN_21 & ~_issuer_io_out_prod_valid[5'h2] | _GEN_553 | _GEN_552
+                  : _GEN_553 | _GEN_552)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h2]
                    ? _issuer_io_out_prod[5'h2]
                    : regs[5'h2].prod)};
       regs[5'h3] <=
-        '{value: _GEN_7,
+        '{value: _GEN_31,
           prod:
-            (_div_io_clear_valid_T | _GEN_6 & _GEN_8 & ~_issuer_io_out_prod_valid[5'h3]
+            (_div_io_clear_valid_T
+             | (_GEN_30
+                  ? _GEN_32 & ~_issuer_io_out_prod_valid[5'h3] | _GEN_555 | _GEN_554
+                  : _GEN_555 | _GEN_554)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h3]
                    ? _issuer_io_out_prod[5'h3]
                    : regs[5'h3].prod)};
       regs[5'h4] <=
-        '{value: _GEN_10,
+        '{value: _GEN_42,
           prod:
-            (_div_io_clear_valid_T | _GEN_9 & _GEN_11 & ~_issuer_io_out_prod_valid[5'h4]
+            (_div_io_clear_valid_T
+             | (_GEN_41
+                  ? _GEN_43 & ~_issuer_io_out_prod_valid[5'h4] | _GEN_557 | _GEN_556
+                  : _GEN_557 | _GEN_556)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h4]
                    ? _issuer_io_out_prod[5'h4]
                    : regs[5'h4].prod)};
       regs[5'h5] <=
-        '{value: _GEN_13,
+        '{value: _GEN_53,
           prod:
-            (_div_io_clear_valid_T | _GEN_12 & _GEN_14 & ~_issuer_io_out_prod_valid[5'h5]
+            (_div_io_clear_valid_T
+             | (_GEN_52
+                  ? _GEN_54 & ~_issuer_io_out_prod_valid[5'h5] | _GEN_559 | _GEN_558
+                  : _GEN_559 | _GEN_558)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h5]
                    ? _issuer_io_out_prod[5'h5]
                    : regs[5'h5].prod)};
       regs[5'h6] <=
-        '{value: _GEN_16,
+        '{value: _GEN_64,
           prod:
-            (_div_io_clear_valid_T | _GEN_15 & _GEN_17 & ~_issuer_io_out_prod_valid[5'h6]
+            (_div_io_clear_valid_T
+             | (_GEN_63
+                  ? _GEN_65 & ~_issuer_io_out_prod_valid[5'h6] | _GEN_561 | _GEN_560
+                  : _GEN_561 | _GEN_560)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h6]
                    ? _issuer_io_out_prod[5'h6]
                    : regs[5'h6].prod)};
       regs[5'h7] <=
-        '{value: _GEN_19,
+        '{value: _GEN_75,
           prod:
-            (_div_io_clear_valid_T | _GEN_18 & _GEN_20 & ~_issuer_io_out_prod_valid[5'h7]
+            (_div_io_clear_valid_T
+             | (_GEN_74
+                  ? _GEN_76 & ~_issuer_io_out_prod_valid[5'h7] | _GEN_563 | _GEN_562
+                  : _GEN_563 | _GEN_562)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h7]
                    ? _issuer_io_out_prod[5'h7]
                    : regs[5'h7].prod)};
       regs[5'h8] <=
-        '{value: _GEN_22,
+        '{value: _GEN_86,
           prod:
-            (_div_io_clear_valid_T | _GEN_21 & _GEN_23 & ~_issuer_io_out_prod_valid[5'h8]
+            (_div_io_clear_valid_T
+             | (_GEN_85
+                  ? _GEN_87 & ~_issuer_io_out_prod_valid[5'h8] | _GEN_565 | _GEN_564
+                  : _GEN_565 | _GEN_564)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h8]
                    ? _issuer_io_out_prod[5'h8]
                    : regs[5'h8].prod)};
       regs[5'h9] <=
-        '{value: _GEN_25,
+        '{value: _GEN_97,
           prod:
-            (_div_io_clear_valid_T | _GEN_24 & _GEN_26 & ~_issuer_io_out_prod_valid[5'h9]
+            (_div_io_clear_valid_T
+             | (_GEN_96
+                  ? _GEN_98 & ~_issuer_io_out_prod_valid[5'h9] | _GEN_567 | _GEN_566
+                  : _GEN_567 | _GEN_566)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h9]
                    ? _issuer_io_out_prod[5'h9]
                    : regs[5'h9].prod)};
       regs[5'hA] <=
-        '{value: _GEN_28,
+        '{value: _GEN_108,
           prod:
-            (_div_io_clear_valid_T | _GEN_27 & _GEN_29 & ~_issuer_io_out_prod_valid[5'hA]
+            (_div_io_clear_valid_T
+             | (_GEN_107
+                  ? _GEN_109 & ~_issuer_io_out_prod_valid[5'hA] | _GEN_569 | _GEN_568
+                  : _GEN_569 | _GEN_568)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'hA]
                    ? _issuer_io_out_prod[5'hA]
                    : regs[5'hA].prod)};
       regs[5'hB] <=
-        '{value: _GEN_31,
+        '{value: _GEN_119,
           prod:
-            (_div_io_clear_valid_T | _GEN_30 & _GEN_32 & ~_issuer_io_out_prod_valid[5'hB]
+            (_div_io_clear_valid_T
+             | (_GEN_118
+                  ? _GEN_120 & ~_issuer_io_out_prod_valid[5'hB] | _GEN_571 | _GEN_570
+                  : _GEN_571 | _GEN_570)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'hB]
                    ? _issuer_io_out_prod[5'hB]
                    : regs[5'hB].prod)};
       regs[5'hC] <=
-        '{value: _GEN_34,
+        '{value: _GEN_130,
           prod:
-            (_div_io_clear_valid_T | _GEN_33 & _GEN_35 & ~_issuer_io_out_prod_valid[5'hC]
+            (_div_io_clear_valid_T
+             | (_GEN_129
+                  ? _GEN_131 & ~_issuer_io_out_prod_valid[5'hC] | _GEN_573 | _GEN_572
+                  : _GEN_573 | _GEN_572)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'hC]
                    ? _issuer_io_out_prod[5'hC]
                    : regs[5'hC].prod)};
       regs[5'hD] <=
-        '{value: _GEN_37,
+        '{value: _GEN_141,
           prod:
-            (_div_io_clear_valid_T | _GEN_36 & _GEN_38 & ~_issuer_io_out_prod_valid[5'hD]
+            (_div_io_clear_valid_T
+             | (_GEN_140
+                  ? _GEN_142 & ~_issuer_io_out_prod_valid[5'hD] | _GEN_575 | _GEN_574
+                  : _GEN_575 | _GEN_574)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'hD]
                    ? _issuer_io_out_prod[5'hD]
                    : regs[5'hD].prod)};
       regs[5'hE] <=
-        '{value: _GEN_40,
+        '{value: _GEN_152,
           prod:
-            (_div_io_clear_valid_T | _GEN_39 & _GEN_41 & ~_issuer_io_out_prod_valid[5'hE]
+            (_div_io_clear_valid_T
+             | (_GEN_151
+                  ? _GEN_153 & ~_issuer_io_out_prod_valid[5'hE] | _GEN_577 | _GEN_576
+                  : _GEN_577 | _GEN_576)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'hE]
                    ? _issuer_io_out_prod[5'hE]
                    : regs[5'hE].prod)};
       regs[5'hF] <=
-        '{value: _GEN_43,
+        '{value: _GEN_163,
           prod:
-            (_div_io_clear_valid_T | _GEN_42 & _GEN_44 & ~_issuer_io_out_prod_valid[5'hF]
+            (_div_io_clear_valid_T
+             | (_GEN_162
+                  ? _GEN_164 & ~_issuer_io_out_prod_valid[5'hF] | _GEN_579 | _GEN_578
+                  : _GEN_579 | _GEN_578)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'hF]
                    ? _issuer_io_out_prod[5'hF]
                    : regs[5'hF].prod)};
       regs[5'h10] <=
-        '{value: _GEN_46,
+        '{value: _GEN_174,
           prod:
-            (_div_io_clear_valid_T | _GEN_45 & _GEN_47 & ~_issuer_io_out_prod_valid[5'h10]
+            (_div_io_clear_valid_T
+             | (_GEN_173
+                  ? _GEN_175 & ~_issuer_io_out_prod_valid[5'h10] | _GEN_581 | _GEN_580
+                  : _GEN_581 | _GEN_580)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h10]
                    ? _issuer_io_out_prod[5'h10]
                    : regs[5'h10].prod)};
       regs[5'h11] <=
-        '{value: _GEN_49,
+        '{value: _GEN_185,
           prod:
-            (_div_io_clear_valid_T | _GEN_48 & _GEN_50 & ~_issuer_io_out_prod_valid[5'h11]
+            (_div_io_clear_valid_T
+             | (_GEN_184
+                  ? _GEN_186 & ~_issuer_io_out_prod_valid[5'h11] | _GEN_583 | _GEN_582
+                  : _GEN_583 | _GEN_582)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h11]
                    ? _issuer_io_out_prod[5'h11]
                    : regs[5'h11].prod)};
       regs[5'h12] <=
-        '{value: _GEN_52,
+        '{value: _GEN_196,
           prod:
-            (_div_io_clear_valid_T | _GEN_51 & _GEN_53 & ~_issuer_io_out_prod_valid[5'h12]
+            (_div_io_clear_valid_T
+             | (_GEN_195
+                  ? _GEN_197 & ~_issuer_io_out_prod_valid[5'h12] | _GEN_585 | _GEN_584
+                  : _GEN_585 | _GEN_584)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h12]
                    ? _issuer_io_out_prod[5'h12]
                    : regs[5'h12].prod)};
       regs[5'h13] <=
-        '{value: _GEN_55,
+        '{value: _GEN_207,
           prod:
-            (_div_io_clear_valid_T | _GEN_54 & _GEN_56 & ~_issuer_io_out_prod_valid[5'h13]
+            (_div_io_clear_valid_T
+             | (_GEN_206
+                  ? _GEN_208 & ~_issuer_io_out_prod_valid[5'h13] | _GEN_587 | _GEN_586
+                  : _GEN_587 | _GEN_586)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h13]
                    ? _issuer_io_out_prod[5'h13]
                    : regs[5'h13].prod)};
       regs[5'h14] <=
-        '{value: _GEN_58,
+        '{value: _GEN_218,
           prod:
-            (_div_io_clear_valid_T | _GEN_57 & _GEN_59 & ~_issuer_io_out_prod_valid[5'h14]
+            (_div_io_clear_valid_T
+             | (_GEN_217
+                  ? _GEN_219 & ~_issuer_io_out_prod_valid[5'h14] | _GEN_589 | _GEN_588
+                  : _GEN_589 | _GEN_588)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h14]
                    ? _issuer_io_out_prod[5'h14]
                    : regs[5'h14].prod)};
       regs[5'h15] <=
-        '{value: _GEN_61,
+        '{value: _GEN_229,
           prod:
-            (_div_io_clear_valid_T | _GEN_60 & _GEN_62 & ~_issuer_io_out_prod_valid[5'h15]
+            (_div_io_clear_valid_T
+             | (_GEN_228
+                  ? _GEN_230 & ~_issuer_io_out_prod_valid[5'h15] | _GEN_591 | _GEN_590
+                  : _GEN_591 | _GEN_590)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h15]
                    ? _issuer_io_out_prod[5'h15]
                    : regs[5'h15].prod)};
       regs[5'h16] <=
-        '{value: _GEN_64,
+        '{value: _GEN_240,
           prod:
-            (_div_io_clear_valid_T | _GEN_63 & _GEN_65 & ~_issuer_io_out_prod_valid[5'h16]
+            (_div_io_clear_valid_T
+             | (_GEN_239
+                  ? _GEN_241 & ~_issuer_io_out_prod_valid[5'h16] | _GEN_593 | _GEN_592
+                  : _GEN_593 | _GEN_592)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h16]
                    ? _issuer_io_out_prod[5'h16]
                    : regs[5'h16].prod)};
       regs[5'h17] <=
-        '{value: _GEN_67,
+        '{value: _GEN_251,
           prod:
-            (_div_io_clear_valid_T | _GEN_66 & _GEN_68 & ~_issuer_io_out_prod_valid[5'h17]
+            (_div_io_clear_valid_T
+             | (_GEN_250
+                  ? _GEN_252 & ~_issuer_io_out_prod_valid[5'h17] | _GEN_595 | _GEN_594
+                  : _GEN_595 | _GEN_594)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h17]
                    ? _issuer_io_out_prod[5'h17]
                    : regs[5'h17].prod)};
       regs[5'h18] <=
-        '{value: _GEN_70,
+        '{value: _GEN_262,
           prod:
-            (_div_io_clear_valid_T | _GEN_69 & _GEN_71 & ~_issuer_io_out_prod_valid[5'h18]
+            (_div_io_clear_valid_T
+             | (_GEN_261
+                  ? _GEN_263 & ~_issuer_io_out_prod_valid[5'h18] | _GEN_597 | _GEN_596
+                  : _GEN_597 | _GEN_596)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h18]
                    ? _issuer_io_out_prod[5'h18]
                    : regs[5'h18].prod)};
       regs[5'h19] <=
-        '{value: _GEN_73,
+        '{value: _GEN_273,
           prod:
-            (_div_io_clear_valid_T | _GEN_72 & _GEN_74 & ~_issuer_io_out_prod_valid[5'h19]
+            (_div_io_clear_valid_T
+             | (_GEN_272
+                  ? _GEN_274 & ~_issuer_io_out_prod_valid[5'h19] | _GEN_599 | _GEN_598
+                  : _GEN_599 | _GEN_598)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h19]
                    ? _issuer_io_out_prod[5'h19]
                    : regs[5'h19].prod)};
       regs[5'h1A] <=
-        '{value: _GEN_76,
+        '{value: _GEN_284,
           prod:
-            (_div_io_clear_valid_T | _GEN_75 & _GEN_77 & ~_issuer_io_out_prod_valid[5'h1A]
+            (_div_io_clear_valid_T
+             | (_GEN_283
+                  ? _GEN_285 & ~_issuer_io_out_prod_valid[5'h1A] | _GEN_601 | _GEN_600
+                  : _GEN_601 | _GEN_600)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1A]
                    ? _issuer_io_out_prod[5'h1A]
                    : regs[5'h1A].prod)};
       regs[5'h1B] <=
-        '{value: _GEN_79,
+        '{value: _GEN_295,
           prod:
-            (_div_io_clear_valid_T | _GEN_78 & _GEN_80 & ~_issuer_io_out_prod_valid[5'h1B]
+            (_div_io_clear_valid_T
+             | (_GEN_294
+                  ? _GEN_296 & ~_issuer_io_out_prod_valid[5'h1B] | _GEN_603 | _GEN_602
+                  : _GEN_603 | _GEN_602)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1B]
                    ? _issuer_io_out_prod[5'h1B]
                    : regs[5'h1B].prod)};
       regs[5'h1C] <=
-        '{value: _GEN_82,
+        '{value: _GEN_306,
           prod:
-            (_div_io_clear_valid_T | _GEN_81 & _GEN_83 & ~_issuer_io_out_prod_valid[5'h1C]
+            (_div_io_clear_valid_T
+             | (_GEN_305
+                  ? _GEN_307 & ~_issuer_io_out_prod_valid[5'h1C] | _GEN_605 | _GEN_604
+                  : _GEN_605 | _GEN_604)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1C]
                    ? _issuer_io_out_prod[5'h1C]
                    : regs[5'h1C].prod)};
       regs[5'h1D] <=
-        '{value: _GEN_85,
+        '{value: _GEN_317,
           prod:
-            (_div_io_clear_valid_T | _GEN_84 & _GEN_86 & ~_issuer_io_out_prod_valid[5'h1D]
+            (_div_io_clear_valid_T
+             | (_GEN_316
+                  ? _GEN_318 & ~_issuer_io_out_prod_valid[5'h1D] | _GEN_607 | _GEN_606
+                  : _GEN_607 | _GEN_606)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1D]
                    ? _issuer_io_out_prod[5'h1D]
                    : regs[5'h1D].prod)};
       regs[5'h1E] <=
-        '{value: _GEN_88,
+        '{value: _GEN_328,
           prod:
-            (_div_io_clear_valid_T | _GEN_87 & _GEN_89 & ~_issuer_io_out_prod_valid[5'h1E]
+            (_div_io_clear_valid_T
+             | (_GEN_327
+                  ? _GEN_329 & ~_issuer_io_out_prod_valid[5'h1E] | _GEN_609 | _GEN_608
+                  : _GEN_609 | _GEN_608)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1E]
                    ? _issuer_io_out_prod[5'h1E]
                    : regs[5'h1E].prod)};
       regs[5'h1F] <=
-        '{value: _GEN_91,
+        '{value: _GEN_339,
           prod:
-            (_div_io_clear_valid_T | _GEN_90 & _GEN_92 & ~_issuer_io_out_prod_valid[5'h1F]
+            (_div_io_clear_valid_T
+             | (_GEN_338
+                  ? _GEN_340 & ~_issuer_io_out_prod_valid[5'h1F] | _GEN_611 | _GEN_610
+                  : _GEN_611 | _GEN_610)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1F]
                    ? _issuer_io_out_prod[5'h1F]
@@ -60633,9 +61709,9 @@ module CPU(
         '{value:
             (redirect
                ? (_div_io_clear_valid_T ? newaddr : _issuer_io_out_new_pc_val)
-               : _GEN_242 ? pc.value + 32'h10 : pc.value),
+               : _GEN_490 ? pc.value + 32'h10 : pc.value),
           prod: pc.prod};
-      halt <= _GEN_262 | halt | _committer_io_out_halt;
+      halt <= _GEN_510 | halt | _committer_io_out_halt;
       flush <= _committer_io_out_flush;
       if (|fetcher_waiting) begin
         if (_io_arvalid_T) begin
@@ -60645,17 +61721,17 @@ module CPU(
         else if (io_rvalid)
           fetcher_waiting <= 2'h0;
       end
-      else if (_GEN_312)
+      else if (_GEN_622)
         fetcher_waiting <= 2'h1;
       read_discard <=
         redirect & (|fetcher_waiting) & read_owner != 3'h4
-        | ~(~(|fetcher_waiting) & _GEN_312) & read_discard;
-      if (_GEN_260) begin
-        if (_GEN_313)
+        | ~(~(|fetcher_waiting) & _GEN_622) & read_discard;
+      if (_GEN_508) begin
+        if (_GEN_623)
           Dcache_waiting <= 2'h1;
-        write_mmio <= ~_Dcache_io_out_wvalid & (_GEN_311 | write_mmio);
-        aw_sent <= ~_GEN_313 & aw_sent;
-        w_sent <= ~_GEN_313 & w_sent;
+        write_mmio <= ~_Dcache_io_out_wvalid & (_GEN_621 | write_mmio);
+        aw_sent <= ~_GEN_623 & aw_sent;
+        w_sent <= ~_GEN_623 & w_sent;
       end
       else begin
         if (_io_wvalid_T) begin
@@ -60667,16 +61743,16 @@ module CPU(
         aw_sent <= _io_wvalid_T & _io_awvalid_T_2 & io_awready | aw_sent;
         w_sent <= _io_wvalid_T & _io_wvalid_T_2 & io_wready | w_sent;
       end
-      lsu_waiting <= ~_GEN_255 & (_GEN_254 | lsu_waiting);
-      lsu_discard <= _div_io_clear_valid_T & lsu_waiting | _GEN_306 & lsu_discard;
+      lsu_waiting <= ~_GEN_503 & (_GEN_502 | lsu_waiting);
+      lsu_discard <= _div_io_clear_valid_T & lsu_waiting | _GEN_616 & lsu_discard;
       committer_waiting <=
         ~(_Dcache_io_out_done & committer_waiting)
-        & (_GEN_251 & ~_GEN_252 | committer_waiting);
-      fetch_active <= ~(redirect | _GEN_242) & (_GEN_241 | fetch_active);
-      fetch_done[2'h0] <= ~redirect & (_GEN_302 | ~_GEN_241 & fetch_done[2'h0]);
-      fetch_done[2'h1] <= ~redirect & (_GEN_303 | ~_GEN_241 & fetch_done[2'h1]);
-      fetch_done[2'h2] <= ~redirect & (_GEN_304 | ~_GEN_241 & fetch_done[2'h2]);
-      fetch_done[2'h3] <= ~redirect & (_GEN_305 | ~_GEN_241 & fetch_done[2'h3]);
+        & (_GEN_499 & ~_GEN_500 | committer_waiting);
+      fetch_active <= ~(redirect | _GEN_490) & (_GEN_489 | fetch_active);
+      fetch_done[2'h0] <= ~redirect & (_GEN_612 | ~_GEN_489 & fetch_done[2'h0]);
+      fetch_done[2'h1] <= ~redirect & (_GEN_613 | ~_GEN_489 & fetch_done[2'h1]);
+      fetch_done[2'h2] <= ~redirect & (_GEN_614 | ~_GEN_489 & fetch_done[2'h2]);
+      fetch_done[2'h3] <= ~redirect & (_GEN_615 | ~_GEN_489 & fetch_done[2'h3]);
       cdbs[3'h0] <=
         '{valid: (~_div_io_clear_valid_T & _alus_0_io_out_cdb.valid),
           id: (_div_io_clear_valid_T ? 32'h0 : _alus_0_io_out_cdb.id),
@@ -60715,54 +61791,54 @@ module CPU(
         read_owner <= 3'h4;
         read_addr <= _Dcache_io_out_addr;
       end
-      else if (_GEN_310) begin
+      else if (_GEN_620) begin
         read_owner <= 3'h0;
         read_addr <= _Icache_0_io_out_addr;
       end
-      else if (_GEN_309) begin
+      else if (_GEN_619) begin
         read_owner <= 3'h1;
         read_addr <= _Icache_1_io_out_addr;
       end
-      else if (_GEN_308) begin
+      else if (_GEN_618) begin
         read_owner <= 3'h2;
         read_addr <= _Icache_2_io_out_addr;
       end
-      else if (_GEN_307) begin
+      else if (_GEN_617) begin
         read_owner <= 3'h3;
         read_addr <= _Icache_3_io_out_addr;
       end
     end
-    if (_GEN_260) begin
+    if (_GEN_508) begin
       if (_Dcache_io_out_wvalid) begin
         write_addr <= _Dcache_io_out_waddr;
         write_data <= _Dcache_io_out_wdata;
         write_mask <= 4'hF;
       end
-      else if (_GEN_311) begin
+      else if (_GEN_621) begin
         write_addr <= _committer_io_out_store_addr;
         write_data <= _committer_io_out_store_value;
         write_mask <= _committer_io_out_store_mask;
       end
     end
-    if (_GEN_306) begin
+    if (_GEN_616) begin
     end
     else
       lsu_lst_addr <= _lsu_lsuIO_out_addr;
-    if (_GEN_302)
+    if (_GEN_612)
       fetch_data[2'h0] <= _Icache_0_io_out_rdata;
-    if (_GEN_303)
+    if (_GEN_613)
       fetch_data[2'h1] <= _Icache_1_io_out_rdata;
-    if (_GEN_304)
+    if (_GEN_614)
       fetch_data[2'h2] <= _Icache_2_io_out_rdata;
-    if (_GEN_305)
+    if (_GEN_615)
       fetch_data[2'h3] <= _Icache_3_io_out_rdata;
   end // always @(posedge)
   Cache Icache_0 (
     .clock           (clock),
     .reset           (reset),
-    .io_load_valid   (_GEN_241),
-    .io_addr         (_GEN_241 ? pc.value + {28'h0, 2'h0 - pc.value[3:2], 2'h0} : 32'h0),
-    .io_new_valid    (~_GEN_258 & io_rvalid & ~_GEN_257 & _GEN_259 & read_owner == 3'h0),
+    .io_load_valid   (_GEN_489),
+    .io_addr         (_GEN_489 ? pc.value + {28'h0, 2'h0 - pc.value[3:2], 2'h0} : 32'h0),
+    .io_new_valid    (~_GEN_506 & io_rvalid & ~_GEN_505 & _GEN_507 & read_owner == 3'h0),
     .io_new_data     (io_rdata),
     .io_clear_status (redirect),
     .io_out_ready    (_Icache_0_io_out_ready),
@@ -60778,9 +61854,9 @@ module CPU(
   Cache Icache_1 (
     .clock           (clock),
     .reset           (reset),
-    .io_load_valid   (_GEN_241),
-    .io_addr         (_GEN_241 ? pc.value + {28'h0, 2'h1 - pc.value[3:2], 2'h0} : 32'h0),
-    .io_new_valid    (~_GEN_258 & io_rvalid & ~_GEN_257 & _GEN_259 & read_owner == 3'h1),
+    .io_load_valid   (_GEN_489),
+    .io_addr         (_GEN_489 ? pc.value + {28'h0, 2'h1 - pc.value[3:2], 2'h0} : 32'h0),
+    .io_new_valid    (~_GEN_506 & io_rvalid & ~_GEN_505 & _GEN_507 & read_owner == 3'h1),
     .io_new_data     (io_rdata),
     .io_clear_status (redirect),
     .io_out_ready    (_Icache_1_io_out_ready),
@@ -60796,9 +61872,9 @@ module CPU(
   Cache Icache_2 (
     .clock           (clock),
     .reset           (reset),
-    .io_load_valid   (_GEN_241),
-    .io_addr         (_GEN_241 ? pc.value + {28'h0, 2'h2 - pc.value[3:2], 2'h0} : 32'h0),
-    .io_new_valid    (~_GEN_258 & io_rvalid & ~_GEN_257 & _GEN_259 & read_owner == 3'h2),
+    .io_load_valid   (_GEN_489),
+    .io_addr         (_GEN_489 ? pc.value + {28'h0, 2'h2 - pc.value[3:2], 2'h0} : 32'h0),
+    .io_new_valid    (~_GEN_506 & io_rvalid & ~_GEN_505 & _GEN_507 & read_owner == 3'h2),
     .io_new_data     (io_rdata),
     .io_clear_status (redirect),
     .io_out_ready    (_Icache_2_io_out_ready),
@@ -60814,9 +61890,9 @@ module CPU(
   Cache Icache_3 (
     .clock           (clock),
     .reset           (reset),
-    .io_load_valid   (_GEN_241),
-    .io_addr         (_GEN_241 ? pc.value + {28'h0, 2'h3 - pc.value[3:2], 2'h0} : 32'h0),
-    .io_new_valid    (~_GEN_258 & io_rvalid & ~_GEN_257 & _GEN_259 & read_owner == 3'h3),
+    .io_load_valid   (_GEN_489),
+    .io_addr         (_GEN_489 ? pc.value + {28'h0, 2'h3 - pc.value[3:2], 2'h0} : 32'h0),
+    .io_new_valid    (~_GEN_506 & io_rvalid & ~_GEN_505 & _GEN_507 & read_owner == 3'h3),
     .io_new_data     (io_rdata),
     .io_clear_status (redirect),
     .io_out_ready    (_Icache_3_io_out_ready),
@@ -60832,19 +61908,19 @@ module CPU(
   Cache_4 Dcache (
     .clock             (clock),
     .reset             (reset),
-    .io_load_valid     (_GEN_254),
-    .io_store_valid    (_GEN_251 & _committer_io_out_store_addr != 32'h80000000),
+    .io_load_valid     (_GEN_502),
+    .io_store_valid    (_GEN_499 & _committer_io_out_store_addr != 32'h80000000),
     .io_addr
-      (_GEN_250
+      (_GEN_498
          ? (_committer_io_out_store_valid
-              ? (_GEN_252 ? 32'h0 : _committer_io_out_store_addr & 32'hFFFFFFFC)
+              ? (_GEN_500 ? 32'h0 : _committer_io_out_store_addr & 32'hFFFFFFFC)
               : _lsu_lsuIO_out_valid ? _lsu_lsuIO_out_addr & 32'hFFFFFFFC : 32'h0)
          : 32'h0),
-    .io_wdata          (_GEN_253 ? 32'h0 : _Dcache_io_wdata_T_2[31:0]),
-    .io_wmask          (_GEN_253 ? 4'h0 : _Dcache_io_wmask_T_1[3:0]),
-    .io_new_valid      (~_GEN_258 & io_rvalid & _GEN_257),
+    .io_wdata          (_GEN_501 ? 32'h0 : _Dcache_io_wdata_T_2[31:0]),
+    .io_wmask          (_GEN_501 ? 4'h0 : _Dcache_io_wmask_T_1[3:0]),
+    .io_new_valid      (~_GEN_506 & io_rvalid & _GEN_505),
     .io_new_data       (io_rdata),
-    .io_store_received (~_GEN_261 & io_bvalid & ~write_mmio),
+    .io_store_received (~_GEN_509 & io_bvalid & ~write_mmio),
     .io_out_ready      (_Dcache_io_out_ready),
     .io_out_done       (_Dcache_io_out_done),
     .io_out_neednew    (_Dcache_io_out_neednew),
@@ -60862,7 +61938,7 @@ module CPU(
     .io_in_robs             (_issuer_io_out_ROB),
     .io_cdbs                (cdbs),
     .io_clear_valid         (_div_io_clear_valid_T),
-    .io_store_received      (_GEN_262 | _Dcache_io_out_done & committer_waiting),
+    .io_store_received      (_GEN_510 | _Dcache_io_out_done & committer_waiting),
     .io_out_store_valid     (_committer_io_out_store_valid),
     .io_out_store_addr      (_committer_io_out_store_addr),
     .io_out_store_value     (_committer_io_out_store_value),
@@ -60871,6 +61947,7 @@ module CPU(
     .io_out_reg_id          (_committer_io_out_reg_id),
     .io_out_reg_val         (_committer_io_out_reg_val),
     .io_out_reg_prod        (_committer_io_out_reg_prod),
+    .io_out_commit_num      (/* unused */),
     .io_out_flush           (_committer_io_out_flush),
     .io_out_flushval        (_committer_io_out_flushval),
     .io_out_newaddr         (_committer_io_out_newaddr),
@@ -60887,8 +61964,8 @@ module CPU(
     .clock                  (clock),
     .reset                  (reset),
     .io_valid_num
-      ((|(_issuer_io_out_valid[31:2])) & _GEN_186 ? _GEN_179 + 32'h1 : _GEN_179),
-    .io_rs                  ({{_GEN_194}, {_GEN_193}, {_GEN_192}, {_GEN_191}}),
+      ((|(_issuer_io_out_valid[31:2])) & _GEN_434 ? _GEN_427 + 32'h1 : _GEN_427),
+    .io_rs                  ({{_GEN_442}, {_GEN_441}, {_GEN_440}, {_GEN_439}}),
     .io_cdbs                (cdbs),
     .io_clear_valid         (_div_io_clear_valid_T),
     .io_clear_id            (flush_val),
@@ -60914,8 +61991,8 @@ module CPU(
     .clock                  (clock),
     .reset                  (reset),
     .io_valid_num
-      ((|(_issuer_io_out_valid[31:2])) & _GEN_195 ? _GEN_180 + 32'h1 : _GEN_180),
-    .io_rs                  ({{_GEN_203}, {_GEN_202}, {_GEN_201}, {_GEN_200}}),
+      ((|(_issuer_io_out_valid[31:2])) & _GEN_443 ? _GEN_428 + 32'h1 : _GEN_428),
+    .io_rs                  ({{_GEN_451}, {_GEN_450}, {_GEN_449}, {_GEN_448}}),
     .io_cdbs                (cdbs),
     .io_clear_valid         (_div_io_clear_valid_T),
     .io_clear_id            (flush_val),
@@ -60941,8 +62018,8 @@ module CPU(
     .clock                  (clock),
     .reset                  (reset),
     .io_valid_num
-      ((|(_issuer_io_out_valid[31:2])) & _GEN_204 ? _GEN_181 + 32'h1 : _GEN_181),
-    .io_rs                  ({{_GEN_212}, {_GEN_211}, {_GEN_210}, {_GEN_209}}),
+      ((|(_issuer_io_out_valid[31:2])) & _GEN_452 ? _GEN_429 + 32'h1 : _GEN_429),
+    .io_rs                  ({{_GEN_460}, {_GEN_459}, {_GEN_458}, {_GEN_457}}),
     .io_cdbs                (cdbs),
     .io_clear_valid         (_div_io_clear_valid_T),
     .io_clear_id            (flush_val),
@@ -60968,8 +62045,8 @@ module CPU(
     .clock                  (clock),
     .reset                  (reset),
     .io_valid_num
-      ((|(_issuer_io_out_valid[31:2])) & _GEN_213 ? _GEN_182 + 32'h1 : _GEN_182),
-    .io_rs                  ({{_GEN_221}, {_GEN_220}, {_GEN_219}, {_GEN_218}}),
+      ((|(_issuer_io_out_valid[31:2])) & _GEN_461 ? _GEN_430 + 32'h1 : _GEN_430),
+    .io_rs                  ({{_GEN_469}, {_GEN_468}, {_GEN_467}, {_GEN_466}}),
     .io_cdbs                (cdbs),
     .io_clear_valid         (_div_io_clear_valid_T),
     .io_clear_id            (flush_val),
@@ -60995,8 +62072,8 @@ module CPU(
     .clock               (clock),
     .reset               (reset),
     .io_valid_num
-      ((|(_issuer_io_out_valid[31:2])) & _GEN_222 ? _GEN_183 + 32'h1 : _GEN_183),
-    .io_rs               ({{_GEN_263}, {_GEN_264}, {_GEN_265}, {_GEN_266}}),
+      ((|(_issuer_io_out_valid[31:2])) & _GEN_470 ? _GEN_431 + 32'h1 : _GEN_431),
+    .io_rs               ({{_GEN_511}, {_GEN_512}, {_GEN_513}, {_GEN_514}}),
     .io_cdbs             (cdbs),
     .io_clear_valid      (_div_io_clear_valid_T),
     .io_clear_id         (flush_val),
@@ -61005,10 +62082,10 @@ module CPU(
     .lsuIO_robs          (_committer_io_out_robs),
     .lsuIO_l             (_committer_io_out_l),
     .lsuIO_r             (_committer_io_out_r),
-    .lsuIO_addr_valid    (_GEN_255 & _GEN_256),
-    .lsuIO_addr_received (_GEN_254),
+    .lsuIO_addr_valid    (_GEN_503 & _GEN_504),
+    .lsuIO_addr_received (_GEN_502),
     .lsuIO_addr_value
-      (_Dcache_io_out_done & lsu_waiting & _GEN_256
+      (_Dcache_io_out_done & lsu_waiting & _GEN_504
          ? _Dcache_io_out_rdata >> {27'h0, lsu_lst_addr[1:0], 3'h0}
          : 32'h0),
     .lsuIO_out_valid     (_lsu_lsuIO_out_valid),
@@ -61019,9 +62096,9 @@ module CPU(
     .reset          (reset),
     .io_valid_num
       ((|(_issuer_io_out_valid[31:2])) & _issuer_io_out_executer_type[2'h3] == 32'h5
-         ? _GEN_184 + 32'h1
-         : _GEN_184),
-    .io_rs          ({{_GEN_267}, {_GEN_268}, {_GEN_269}, {_GEN_270}}),
+         ? _GEN_432 + 32'h1
+         : _GEN_432),
+    .io_rs          ({{_GEN_515}, {_GEN_516}, {_GEN_517}, {_GEN_518}}),
     .io_cdbs        (cdbs),
     .io_clear_valid (_div_io_clear_valid_T),
     .io_clear_id    (flush_val),
@@ -61032,31 +62109,31 @@ module CPU(
     .clock          (clock),
     .reset          (reset),
     .io_valid
-      (_GEN_238
+      (_GEN_486
          ? 32'h4
-         : _GEN_236 ? 32'h3 : _GEN_232 ? 32'h2 : {31'h0, _alus_0_aluIO_out_mult_valid}),
+         : _GEN_484 ? 32'h3 : _GEN_480 ? 32'h2 : {31'h0, _alus_0_aluIO_out_mult_valid}),
     .io_a
-      (_GEN_238
+      (_GEN_486
          ? _alus_3_aluIO_out_mult_a
-         : _GEN_236
+         : _GEN_484
              ? _alus_2_aluIO_out_mult_a
-             : _GEN_232
+             : _GEN_480
                  ? _alus_1_aluIO_out_mult_a
                  : _alus_0_aluIO_out_mult_valid ? _alus_0_aluIO_out_mult_a : 32'h0),
     .io_b
-      (_GEN_238
+      (_GEN_486
          ? _alus_3_aluIO_out_mult_b
-         : _GEN_236
+         : _GEN_484
              ? _alus_2_aluIO_out_mult_b
-             : _GEN_232
+             : _GEN_480
                  ? _alus_1_aluIO_out_mult_b
                  : _alus_0_aluIO_out_mult_valid ? _alus_0_aluIO_out_mult_b : 32'h0),
     .io_op
-      (_GEN_238
+      (_GEN_486
          ? _alus_3_aluIO_out_mult_op
-         : _GEN_236
+         : _GEN_484
              ? _alus_2_aluIO_out_mult_op
-             : _GEN_232
+             : _GEN_480
                  ? _alus_1_aluIO_out_mult_op
                  : _alus_0_aluIO_out_mult_valid & _alus_0_aluIO_out_mult_op),
     .io_clear_valid (_div_io_clear_valid_T),
@@ -61069,31 +62146,31 @@ module CPU(
     .clock          (clock),
     .reset          (reset),
     .io_valid
-      (_GEN_239
+      (_GEN_487
          ? 32'h4
-         : _GEN_237 ? 32'h3 : _GEN_234 ? 32'h2 : {31'h0, _alus_0_aluIO_out_div_valid}),
+         : _GEN_485 ? 32'h3 : _GEN_482 ? 32'h2 : {31'h0, _alus_0_aluIO_out_div_valid}),
     .io_a
-      (_GEN_239
+      (_GEN_487
          ? _alus_3_aluIO_out_div_a
-         : _GEN_237
+         : _GEN_485
              ? _alus_2_aluIO_out_div_a
-             : _GEN_234
+             : _GEN_482
                  ? _alus_1_aluIO_out_div_a
                  : _alus_0_aluIO_out_div_valid ? _alus_0_aluIO_out_div_a : 32'h0),
     .io_b
-      (_GEN_239
+      (_GEN_487
          ? _alus_3_aluIO_out_div_b
-         : _GEN_237
+         : _GEN_485
              ? _alus_2_aluIO_out_div_b
-             : _GEN_234
+             : _GEN_482
                  ? _alus_1_aluIO_out_div_b
                  : _alus_0_aluIO_out_div_valid ? _alus_0_aluIO_out_div_b : 32'h0),
     .io_op
-      (_GEN_239
+      (_GEN_487
          ? _alus_3_aluIO_out_div_op
-         : _GEN_237
+         : _GEN_485
              ? _alus_2_aluIO_out_div_op
-             : _GEN_234
+             : _GEN_482
                  ? _alus_1_aluIO_out_div_op
                  : _alus_0_aluIO_out_div_valid & _alus_0_aluIO_out_div_op),
     .io_clear_valid (_div_io_clear_valid_T),
@@ -61120,37 +62197,37 @@ module CPU(
         {_alus_0_io_out_space}}),
     .io_committer_space    (_committer_io_out_space),
     .io_reg
-      ({{_GEN_271},
-        {_GEN_272},
-        {_GEN_273},
-        {_GEN_274},
-        {_GEN_275},
-        {_GEN_276},
-        {_GEN_277},
-        {_GEN_278},
-        {_GEN_279},
-        {_GEN_280},
-        {_GEN_281},
-        {_GEN_282},
-        {_GEN_283},
-        {_GEN_284},
-        {_GEN_285},
-        {_GEN_286},
-        {_GEN_287},
-        {_GEN_288},
-        {_GEN_289},
-        {_GEN_290},
-        {_GEN_291},
-        {_GEN_292},
-        {_GEN_293},
-        {_GEN_294},
-        {_GEN_295},
-        {_GEN_296},
-        {_GEN_297},
-        {_GEN_298},
-        {_GEN_299},
-        {_GEN_300},
-        {_GEN_301},
+      ({{_GEN_519},
+        {_GEN_520},
+        {_GEN_521},
+        {_GEN_522},
+        {_GEN_523},
+        {_GEN_524},
+        {_GEN_525},
+        {_GEN_526},
+        {_GEN_527},
+        {_GEN_528},
+        {_GEN_529},
+        {_GEN_530},
+        {_GEN_531},
+        {_GEN_532},
+        {_GEN_533},
+        {_GEN_534},
+        {_GEN_535},
+        {_GEN_536},
+        {_GEN_537},
+        {_GEN_538},
+        {_GEN_539},
+        {_GEN_540},
+        {_GEN_541},
+        {_GEN_542},
+        {_GEN_543},
+        {_GEN_544},
+        {_GEN_545},
+        {_GEN_546},
+        {_GEN_547},
+        {_GEN_548},
+        {_GEN_549},
         {regs[5'h0]}}),
     .io_robs               (_committer_io_out_robs),
     .io_predictor_result   (_predictor_io_out),
@@ -61167,22 +62244,22 @@ module CPU(
     .clock          (clock),
     .reset          (reset),
     .io_clear_valid (redirect),
-    .io_valid_num   ({29'h0, _GEN_242, 2'h0}),
+    .io_valid_num   ({29'h0, _GEN_490, 2'h0}),
     .io_id
-      ({{_GEN_242 ? _GEN_248[pc.value[3:2]] : 32'h0},
-        {_GEN_242 ? _GEN_246[pc.value[3:2]] : 32'h0},
-        {_GEN_242 ? _GEN_244[pc.value[3:2]] : 32'h0},
-        {_GEN_242
+      ({{_GEN_490 ? _GEN_496[pc.value[3:2]] : 32'h0},
+        {_GEN_490 ? _GEN_494[pc.value[3:2]] : 32'h0},
+        {_GEN_490 ? _GEN_492[pc.value[3:2]] : 32'h0},
+        {_GEN_490
          & ((&(pc.value[3:2])) | pc.value[3:2] == 2'h2 | pc.value[3:2] == 2'h1
             | pc.value[3:2] == 2'h0)
            ? pc.value
            : 32'h0}}),
     .io_opcode
-      (_GEN_242
-         ? {{_GEN_249[pc.value[3:2]]},
-            {_GEN_247[pc.value[3:2]]},
-            {_GEN_245[pc.value[3:2]]},
-            {_GEN_243[pc.value[3:2]]}}
+      (_GEN_490
+         ? {{_GEN_497[pc.value[3:2]]},
+            {_GEN_495[pc.value[3:2]]},
+            {_GEN_493[pc.value[3:2]]},
+            {_GEN_491[pc.value[3:2]]}}
          : _GEN),
     .io_out_num     (_decoder_io_out_num),
     .io_out_id      (_decoder_io_out_id),

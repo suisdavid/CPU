@@ -134,9 +134,12 @@ class CPU extends Module{//priority: ready instruction< read data < write data <
     for(i<-0 until ALU_NUM+2){issuer.io.executer_space(i):=executers(i).io.out_space}
     for(i<-0 until 32){
       issuer.io.reg(i):=regs(i)
-      when(committer.io.out_reg_valid && committer.io.out_reg_id===i.U && i.U=/=0.U){
-        issuer.io.reg(i).value:=committer.io.out_reg_val
-        when(regs(i).prod.asUInt===committer.io.out_reg_prod){issuer.io.reg(i).prod:=(-1).S}
+      for(lane<-0 until issueWidth){
+        when(committer.io.out_reg_valid(lane) && committer.io.out_reg_id(lane)===i.U && i.U=/=0.U){
+          // Later lanes are younger and win same-register writeback/bypass.
+          issuer.io.reg(i).value:=committer.io.out_reg_val(lane)
+          when(regs(i).prod.asUInt===committer.io.out_reg_prod(lane)){issuer.io.reg(i).prod:=(-1).S}
+        }
       }
     }
     decoder.io.clear_valid:=redirect
@@ -201,9 +204,11 @@ class CPU extends Module{//priority: ready instruction< read data < write data <
     // Architectural writeback and rename must not clear a younger producer.
     for(i<-1 until 32){
       when(issuer.io.out_prod_valid(i)){regs(i).prod:=issuer.io.out_prod(i)}
-      when(committer.io.out_reg_valid && committer.io.out_reg_id===i.U){
-        regs(i).value:=committer.io.out_reg_val
-        when(regs(i).prod.asUInt===committer.io.out_reg_prod && !issuer.io.out_prod_valid(i)){regs(i).prod:=(-1).S}
+      for(lane<-0 until issueWidth){
+        when(committer.io.out_reg_valid(lane) && committer.io.out_reg_id(lane)===i.U){
+          regs(i).value:=committer.io.out_reg_val(lane)
+          when(regs(i).prod.asUInt===committer.io.out_reg_prod(lane) && !issuer.io.out_prod_valid(i)){regs(i).prod:=(-1).S}
+        }
       }
     }
                 //handling executer output

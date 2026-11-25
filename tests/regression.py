@@ -136,6 +136,14 @@ def directed():
     # An older store with an unresolved base must block a younger overlapping load.
     p.li(5,0x66778899);p.li(6,0x200000);p.li(7,1)
     p.emit(r(21,5,6,7,1),st(2,21,5),i(3,10,2,20,0));p.check(10,0x66778899)
+    # Accumulate ready WAW/RAW instructions behind a long-latency older DIV.
+    # Retirement and new renames overlap; younger values/producers must survive.
+    for k in range(16):
+        p.li(6,0x7fffffff);p.li(7,3)
+        p.emit(r(15,4,6,7,1),i(0x13,10,0,0,11+k),i(0x13,10,0,0,22+k),
+               i(0x13,11,0,0,33+k),i(0x13,12,0,0,44+k),
+               i(0x13,10,0,10,1),r(13,0,10,11))
+        p.check(10,23+k);p.check(11,33+k);p.check(12,44+k);p.check(13,56+2*k)
     return p
 
 def random_program(seed):

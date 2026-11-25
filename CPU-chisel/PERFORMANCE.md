@@ -1,51 +1,43 @@
 # 面积与 IPC 测量
 
-被测提交：`d55e690d7152e8819436135797ee67c918dec924`。RTL SHA-256：`f3e02166b5050124040ae7d220173a261e211464c9ca94fe4faac02e990de329`。
+当前版本：2026-11-25 按用户要求将 Committer 扩为最多 `issueWidth=4` 条按序提交。提交用 RTL SHA-256：`f3843a649f09385b383eb00ea9c63e384618abd9ecba186f049e70a614eb16a1`。实现与验证见 [VALIDATION_ISSUEWIDTH.md](VALIDATION_ISSUEWIDTH.md)。
 
-## IPC
+## IPC：单提交与四提交对比
 
-使用原课程 `scripts/testcase.py --kind perf`，6 个性能用例均通过答案比较。总线延迟 `LATENCY=10`，显式运行上限 `MAX_CYCLES=100000000`；本次 6 个用例实际均少于默认 1,000,000 周期。按用户要求排除 `pi`；它属于 correctness 测试，不在这 6 个性能用例中。
+同一套官方 `perf_*` 测试、`LATENCY=10`、`MAX_CYCLES=100000000`，两版均 6/6 答案比较通过且实际均少于默认 100 万周期。指令数来自课程 `metrics.json`（包含退出 MMIO store），周期数来自课程仿真器；使用各用例 IPC 的几何平均。`pi` 不在性能测试集合中，按用户要求不运行。
 
-指令数来自课程 `metrics.json` 的 `dynamic_instructions`，包含最后的退出 MMIO store；周期数由原课程仿真器实测。IPC 为动态退休指令数除以周期数，不将推测执行后被清空的指令计入。综合 IPC 使用各用例 IPC 的几何平均，不使用算术平均或总指令数/总周期数。
+| 性能用例 | 指令数 | 单提交周期 | 四提交周期 | 四提交 IPC | IPC 变化 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| median | 6,961 | 33,567 | 33,152 | 0.209972 | +1.25% |
+| multiply | 21,722 | 37,300 | 36,238 | 0.599426 | +2.93% |
+| qsort | 139,900 | 446,528 | 434,035 | 0.322324 | +2.88% |
+| rsort | 195,719 | 756,176 | 750,111 | 0.260920 | +0.81% |
+| towers | 5,278 | 12,529 | 11,984 | 0.440421 | +4.55% |
+| vvadd | 4,524 | 27,243 | 27,509 | 0.164455 | -0.97% |
 
-| 用例 | 动态指令数 | 周期数 | IPC | 正确性 |
-| --- | ---: | ---: | ---: | --- |
-| median | 6,961 | 33,567 | 0.207376 | PASS |
-| multiply | 21,722 | 37,300 | 0.582359 | PASS |
-| qsort | 139,900 | 446,528 | 0.313306 | PASS |
-| rsort | 195,719 | 756,176 | 0.258827 | PASS |
-| towers | 5,278 | 12,529 | 0.421263 | PASS |
-| vvadd | 4,524 | 27,243 | 0.166061 | PASS |
+**GEOMEAN IPC：0.296910102 → 0.302530302，提升 1.8929%。** 当前仍低于仓库第一档的 0.6000 要求。`vvadd` 周期略增；加宽提交不保证每项程序都加速。本次未测停顿计数器，不据此断言其他瓶颈的位置。
 
-**IPC 几何平均值：0.296910102。**
+Committer 满宽退休已通过单元测试；未就绪、误预测、halt、store 以及第二个分支会截断当前提交组，详见验证记录。
 
-复现：
+原始数据：[单提交 ipc.json](measurements/ipc.json)、[四提交 ipc-issuewidth.json](measurements/ipc-issuewidth.json)。
 
 ```sh
-make perf SIM=build/sim MAX_CYCLES=100000000 LATENCY=10
+python3 scripts/testcase.py --kind perf --sim build/multicommit/sim --max-cycles 100000000 --latency 10
 ```
 
-当前仓库 `README-ZH.md` 列出的第一档 IPC 要求为 0.6000，本次 0.2969 未达到该要求。当前 Committer 每周期最多退休一条指令，因此即使四发射，持续退休 IPC 的结构上限仍为 1；这是代码结构分析，不是通过计数器测出的停顿占比。
+## 当前版面积
 
-原始数据见 [measurements/ipc.json](measurements/ipc.json)。
+面积综合正在进行，尚无可报告的 CPU 总面积。使用同一份 Chisel 源码，经 `tests/GenerateArea.scala` 的 `--preserve-aggregate=none` 和 sv2v v0.0.13 转换。仅改变 RTL 表示，硬件配置与提交用 RTL 不因测量而改变。
 
-## 面积
+使用课程固定 Yosys 0.63（`70a11c6bf0e8dd669f56c7da3587f78b405138e2`）、对应 ABC、ASAP7 RVT TT 和 FakeRAM。当前流程保留模块层次、跳过出现端口错误的 `opt_hier`，逐模块门级展开后清理并保存检查点。这是单独的面积测量模式，**不是默认扁平化 opt 的评测值**。ABC 目标周期 2 ns；未运行 OpenSTA，不报告已验证频率。
 
-总面积尚未完成，不提供推测值。原 packed RTL 经 sv2v 转换后的 opt 综合，在门级展开时被系统以 SIGKILL 终止；此前内存持续增长，疑似触及环境内存限制。记录见 [packed-opt-attempt.json](measurements/packed-opt-attempt.json)。
+复现流程（工具路径按本机安装位置传入）：
 
-当前使用同一份 Chisel 源码，由 `tests/GenerateArea.scala` 以 `--preserve-aggregate=none` 输出展开式 RTL，再由 sv2v v0.0.13 处理剩余数组语法。CPU 架构、参数和提交用 RTL 未改动。这个面积测量输入已通过 6 个性能用例、21 个整机自检程序（6,510 项检查），结果和周期数与原版完全一致；这属于回归验证，不是形式等价证明。校验信息见 [flat-validation.json](measurements/flat-validation.json)。
+```sh
+scala-cli run CPU-chisel tests/GenerateArea.scala --server=false -M cpu2026.GenerateArea -- build/multicommit-area-input
+python3 tests/measure_area.py --mode hierarchy --prepare-only --filelist build/multicommit-area-input/filelist.f --out build/multicommit-area --yosys "$YOSYS" --abc "$ABC" --sv2v "$SV2V" --asap7-lib "$ASAP7_LIB"
+python3 tests/resume_area.py --script build/multicommit-area/hierarchy/synth.ys --yosys "$YOSYS" --stop-before-techmap
+python3 tests/hierarchical_area.py --script build/multicommit-area/hierarchy/synth.ys --yosys "$YOSYS"
+```
 
-使用课程固定的 Yosys 0.63（`70a11c6bf0e8dd669f56c7da3587f78b405138e2`）、对应 ABC 和 ASAP7 RVT TT 库；SRAM 采用原课程 FakeRAM 模型，计入总面积。ABC 目标周期为 2 ns；本次不执行 OpenSTA，因此不报告已验证频率。
-
-为防止环境重连丢失进度，`tests/resume_area.py` 将相同的 Yosys 0.63 opt 优化命令按阶段执行，并保存带校验的 RTLIL 检查点。它不跳过优化阶段；序列化可能影响优化顺序，不能承诺与一次性运行的映射逐门一致。
-
-按综合前实例配置核对，数据与 tag SRAM 共 136,704 bit，宏面积为 5,740.255672 µm²。这只是 SRAM 部分，不是 CPU 总面积；最终结果以映射后保留的实例重新汇总。
-
-## 2026-11-25 续跑状态
-
-- 展开式 RTL 的分阶段 opt 综合已完成零起始编号 0–5 阶段；第 6 阶段 `techmap` 被 SIGKILL 终止，尚未生成映射面积。
-- 尝试 `techmap -max_iter 1; opt -fast; clean -purge` 后，第一轮展开完成，但随后寄存器优化也被 SIGKILL 终止。观察到内存明显增长；无法取得内核 OOM 日志，因此内存耗尽仍为推断。
-- 随后启动课程 `diagnose` 模式（`synth -top student_top -noabc -hieropt`），最后可读日志显示模块连接检查为 0 problems，正在优化。之后执行环境不可用，最终状态及面积尚未取得，不能记为综合通过。
-- 续跑时优先检查 `build/area-hier/diagnose/report.json`、`synth.log` 和 `../cpu-tools/area-hier.log`。保留层次的面积应标注为 diagnose，不能直接当作默认 opt 模式的评测面积。
-
-已完成的 opt 检查点：`build/area-flat/opt/checkpoints/stage-05.il`，SHA-256 为 `f170b64e0f30daa8350f2c79c0e0fc283b815af0b354f5e3fd4d4b22e51d70b8`；输入及命令签名为 `502e8d2f5e954a6d0edfc854f256502955266d91e95cda6538bd892713e908e5`。检查点未提交至 Git，恢复后必须先确认文件存在及校验值一致。这些尝试均未修改 CPU 硬件源码、配置或提交用 RTL。
+此前单提交版：默认扁平化及分阶段 opt 被 SIGKILL 终止，疑似内存不足；课程 diagnose 的 `opt_hier` 报 `Port io_cout connected on instance adder3 not found in module Adder or width is not matching`。历史 SRAM 配置模型面积 5,740.255672 µm² 只是 SRAM 部分，不能作为 CPU 总面积。旧版输入验证见 [flat-validation.json](measurements/flat-validation.json)，旧版完整面积未取得，无法作总面积前后比较。

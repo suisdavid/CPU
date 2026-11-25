@@ -17,7 +17,7 @@ import chiseltest._
 import chiseltest.RawTester.test
 import _root_.circt.stage.ChiselStage
 
-class Committer extends Module{//needs to add branch predictor!
+class Committer extends Module{
   val io = IO(new Bundle {
     val valid_num = Input(UInt(32.W))
     val in_robs = Input(Vec(issueWidth,new ROB))
@@ -31,10 +31,12 @@ class Committer extends Module{//needs to add branch predictor!
     val out_store_value = Output(UInt(32.W))
     val out_store_mask = Output(UInt(4.W))
     
-    val out_reg_valid = Output(Bool())
-    val out_reg_id = Output(UInt(5.W))
-    val out_reg_val = Output(UInt(32.W))
-    val out_reg_prod = Output(UInt(32.W))
+    // Lanes are ordered oldest to youngest, including non-register instructions.
+    val out_reg_valid = Output(Vec(issueWidth,Bool()))
+    val out_reg_id = Output(Vec(issueWidth,UInt(5.W)))
+    val out_reg_val = Output(Vec(issueWidth,UInt(32.W)))
+    val out_reg_prod = Output(Vec(issueWidth,UInt(32.W)))
+    val out_commit_num = Output(UInt(log2Ceil(issueWidth+1).W))
 
     val out_flush = Output(Bool())
     val out_flushval = Output(UInt(32.W))
@@ -64,7 +66,7 @@ class Committer extends Module{//needs to add branch predictor!
   io.out_r:=r
   io.out_space:=(ROBWidth-1).U-(r-l)
   io.out_robs:=robs
-  io.out_reg_valid:=false.B
+  io.out_reg_valid.foreach(_:=false.B)
   io.out_store_valid:=false.B
   io.out_halt:=false.B
   io.out_predictor_valid:=false.B
@@ -72,15 +74,25 @@ class Committer extends Module{//needs to add branch predictor!
   io.out_store_addr:=0.U
   io.out_store_value:=0.U
   io.out_store_mask:=0.U
-  io.out_reg_id:=0.U
-  io.out_reg_val:=0.U
-  io.out_reg_prod:=0.U
+  io.out_reg_id.foreach(_:=0.U)
+  io.out_reg_val.foreach(_:=0.U)
+  io.out_reg_prod.foreach(_:=0.U)
   io.out_flush:=false.B
   io.out_flushval:=0.U
   io.out_newaddr:=0.U
   io.out_predictor_addr:=0.U
   io.out_predictor_res:=0.U
   val waiting=RegInit(false.B)
+  val retired=WireInit(VecInit(Seq.fill(issueWidth)(false.B)))
+  val proceed=Wire(Vec(issueWidth+1,Bool()))
+  val branch_used=Wire(Vec(issueWidth+1,Bool()))
+  proceed(0):= !io.clear_valid
+  branch_used(0):=false.B
+  for(i<-0 until issueWidth){
+    proceed(i+1):=false.B
+    branch_used(i+1):=branch_used(i)
+  }
+  io.out_commit_num:=PopCount(retired)
 
   when (io.clear_valid===true.B){//flush
     l:=0.U
@@ -112,34 +124,41 @@ class Committer extends Module{//needs to add branch predictor!
       }
     }
     r:=r+io.valid_num
-    when (waiting===false.B){
-        when (l=/=r && robs(l).ready===true.B){//commit
+    for(i<-0 until issueWidth){
+        val index=ringIndex(l,i.U)
+        when (proceed(i) && i.U<(r-l) && robs(index).ready){//commit a ready prefix
             val rb = Wire(new ROB)
-            rb:=robs(l)
+            rb:=robs(index)
+            if(i==0){when(waiting){rb:=cur_rb}}
             when (rb.type_ > 0.S)//store
             {
+                // Keep the existing single store transaction. Even on ACK,
+                // stop this group here (in particular at the exit MMIO store).
                 io.out_store_valid:=true.B
                 io.out_store_addr:=rb.dest.asUInt
                 io.out_store_value:=rb.value
                 io.out_store_mask:=Mux(rb.type_ === 1.S, 1.U, Mux(rb.type_ === 2.S, 3.U, 15.U))
                 cur_rb:=rb
                 when(io.store_received){
-                  l:=l+1.U;robs(l).ready:=false.B
+                  retired(i):=true.B;waiting:=false.B
                 }.otherwise{waiting:=true.B}
             }.elsewhen (rb.type_ === 0.S)//alu
             {
-                l:=l+1.U;robs(l).ready:=false.B
+                retired(i):=true.B
                 when (rb.dest===(-1).S){//halt
                     io.out_halt:=true.B
                 }.otherwise{//change register
-                    io.out_reg_valid:=true.B
-                    io.out_reg_id:=rb.dest.asUInt
-                    io.out_reg_val:=rb.value
-                    io.out_reg_prod:=rb.id
+                    proceed(i+1):=true.B
+                    io.out_reg_valid(i):=rb.dest=/=0.S
+                    io.out_reg_id(i):=rb.dest.asUInt
+                    io.out_reg_val(i):=rb.value
+                    io.out_reg_prod(i):=rb.id
                 }
-            }.otherwise//branch
+            }.elsewhen(!branch_used(i))//one predictor update port
             {
-                l:=l+1.U;robs(l).ready:=false.B
+                retired(i):=true.B
+                branch_used(i+1):=true.B
+                proceed(i+1):= !rb.value(0)
                 when (rb.value(0)===1.U)
                 {        
                     io.out_flush:=true.B
@@ -151,21 +170,8 @@ class Committer extends Module{//needs to add branch predictor!
                 io.out_predictor_res :=  rb.value
             }
         }
-    }.otherwise{
-        io.out_store_valid:=true.B
-        io.out_store_addr:=cur_rb.dest.asUInt
-        io.out_store_value:=cur_rb.value
-        io.out_store_mask:=Mux(cur_rb.type_ ===1.S,1.U,Mux(cur_rb.type_ ===2.S,3.U,15.U))
-        when (io.store_received===true.B){
-            waiting:=false.B
-            l:=l+1.U
-            robs(l).ready:=false.B
-        }.otherwise{
-            io.out_store_valid:=true.B
-            io.out_store_addr:=cur_rb.dest.asUInt
-            io.out_store_value:=cur_rb.value
-            io.out_store_mask:=Mux(cur_rb.type_ === 1.S, 1.U, Mux(cur_rb.type_ === 2.S, 3.U, 15.U))
-        }
+        when(retired(i)){robs(index).ready:=false.B}
     }
+    l:=l+io.out_commit_num
   }
 }

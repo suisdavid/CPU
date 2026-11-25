@@ -1,5 +1,7 @@
 # 验证记录
 
+本文记录单提交修复版的历史验证；当前多提交版见 [VALIDATION_ISSUEWIDTH.md](VALIDATION_ISSUEWIDTH.md)。
+
 验证日期：2026-11-23。被验证 RTL 的 SHA-256：
 
 `f3e02166b5050124040ae7d220173a261e211464c9ca94fe4faac02e990de329`
