@@ -43,8 +43,13 @@ RUN git init && git remote add origin https://github.com/ivmai/cudd.git \
     && autoreconf -fi && ./configure --prefix=/opt/cudd --enable-shared=no \
     && make -j"$BUILD_JOBS" && make install
 WORKDIR /src/opensta
+# This pinned OpenSTA forces Release IPO on, overriding -D flags. Disable it
+# in the source to avoid GCC 13's LTO jobserver ICE (return_token).
 RUN git init && git remote add origin https://github.com/The-OpenROAD-Project/OpenSTA.git \
     && git fetch --depth 1 origin "$OPENSTA_COMMIT" && git checkout --detach FETCH_HEAD \
+    && sed -i \
+        -e 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE FALSE)/' \
+        -e 's/IPO\/LTO: enabled for Release builds/IPO\/LTO: disabled for CPU image (GCC 13 workaround)/' CMakeLists.txt \
     && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCUDD_DIR=/opt/cudd \
         -DCMAKE_INSTALL_PREFIX=/opt/opensta -DUSE_TCL_READLINE=OFF -DBUILD_TESTS=OFF \
     && cmake --build build -j"$BUILD_JOBS" && cmake --install build \

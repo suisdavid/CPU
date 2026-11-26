@@ -36,3 +36,9 @@
 仓库保存源码、生成的提交 RTL、测试脚本、测量数据和文档。工具二进制、依赖缓存、仿真构建目录和大型综合中间网表不作为 Git 源码提交；必要的中间恢复快照见上方链接。
 
 本次交接仅检查 Python 语法/CLI、文档命令与当前脚本参数、生成 RTL 摘要及 Git 差异，不重新运行 CPU 回归或面积综合。新增的 Docker 扩展镜像未重新构建；完整综合和时序仍需在本地执行。
+
+## 2026-11-26 本地 Docker 构建修复
+
+用户日志显示 GCC 13.3 在链接 OpenSTA 时发生 `lto1` / `jobserver_info::return_token` 内部错误。Dockerfile 现对固定 OpenSTA 源码显式禁用 Release IPO/LTO；其上游 CMakeLists.txt 会强制开启该属性，不能只靠 `-D` 参数关闭。CPU、Yosys/ABC、ASAP7 配置不变。完整 Docker 构建仍需用户本机确认，没有重启面积测试。
+
+验证：使用固定上游的真实 IPO 配置片段、CMake 3.28.3 和本机 GCC 14.2 做三目标最小构建。确认原配置覆盖两个命令行 OFF 设置，修复后 OpenSTA/sta_swig/sta 均无 `-flto` 编译参数，sta 链接亦无 `-flto`，最小程序构建及运行通过。验证使用了 Dockerfile 中同一条 sed 命令；没有声称复现了用户的 GCC 13 崩溃或完成了完整 Docker 镜像构建。

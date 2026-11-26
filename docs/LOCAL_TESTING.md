@@ -47,6 +47,12 @@ sta -version
 
 历史验证环境为 Scala 2.13.12、Chisel 6.4.0、firtool 1.62.0、Verilator 5.020。Scala/Chisel 版本由源码 directives 指定，`--jvm system` 使用容器的 JDK 21。课程 Dockerfile 固定 Yosys commit `70a11c6bf0e8dd669f56c7da3587f78b405138e2` 和对应 ABC。
 
+### OpenSTA 链接报 `lto1: internal compiler error`
+
+若日志在 `[100%] Linking CXX executable sta` 后出现 `return_token, at opts-common.cc:2137`，这是 GCC 13 在 OpenSTA 的 LTO 链接过程中报内部错误。更新后的 Dockerfile 在检出固定版本 OpenSTA 后，显式禁用其 Release IPO/LTO，再正常执行 Release 构建。该版本 CMakeLists.txt 会覆盖命令行的 IPO 变量，单独添加 `-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF` 不足以关闭它。
+
+使用包含修复的 Dockerfile 后重新执行上面的两条 `docker build` 命令即可；正常可复用未变化的缓存层，不需要 `--no-cache`。修复后的 OpenSTA 配置日志应显示 `IPO/LTO: disabled for CPU image (GCC 13 workaround)`。此改动只涉及 OpenSTA 工具构建，不改动 CPU RTL、Yosys/ABC 或工艺库。
+
 ## 2. IPC
 
 仓库已提交生成好的四提交 RTL。未修改 Chisel 时可直接构建仿真器；修改过 Chisel 时先重新生成：
