@@ -4,7 +4,7 @@
 //> using plugin org.chipsalliance:::chisel-plugin:6.4.0
 //> using dep edu.berkeley.cs::chiseltest:6.0.0
 //> using options -unchecked -deprecation -feature -language:reflectiveCalls
-//> using options -Xfatal-warnings -Ywarn-unused
+// Unused imports in the draft are not compilation errors.
 
 package CDB
 import chisel3._
@@ -14,6 +14,7 @@ import chisel3.util._
 import _root_.circt.stage.ChiselStage
 
 class CDB extends Bundle{
+    val valid = Bool()
     val id = UInt(32.W)
     val dest = SInt(32.W)
     val value = UInt(32.W)

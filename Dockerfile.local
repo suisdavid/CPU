@@ -1,0 +1,15 @@
+# Local Chisel + sv2v additions to the course toolchain; Linux x86-64.
+FROM cpu2026
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-21-jdk-headless curl unzip git \
+    && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /opt/scala-cli \
+    && curl -fL --retry 3 https://repo.maven.apache.org/maven2/org/virtuslab/scala-cli/cliBootstrapped/1.12.3/cliBootstrapped-1.12.3.jar \
+        -o /opt/scala-cli/scala-cli.jar \
+    && printf '#!/bin/sh\nexec java -jar /opt/scala-cli/scala-cli.jar "$@"\n' > /usr/local/bin/scala-cli \
+    && chmod +x /usr/local/bin/scala-cli
+RUN curl -fL --retry 3 https://github.com/zachjs/sv2v/releases/download/v0.0.13/sv2v-Linux.zip \
+        -o /tmp/sv2v.zip \
+    && unzip -q /tmp/sv2v.zip -d /tmp/sv2v \
+    && install -m 755 /tmp/sv2v/sv2v-Linux/sv2v /usr/local/bin/sv2v \
+    && rm -rf /tmp/sv2v /tmp/sv2v.zip

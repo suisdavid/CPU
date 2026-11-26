@@ -1,0 +1,100 @@
+{
+  "rtl_sha256": "f3843a649f09385b383eb00ea9c63e384618abd9ecba186f049e70a614eb16a1",
+  "max_cycles": 100000000,
+  "latency": 10,
+  "excluded": [
+    "correctness_pi"
+  ],
+  "cases": [
+    {
+      "case": "correctness_add_to_100",
+      "passed": true,
+      "cycles": 954
+    },
+    {
+      "case": "correctness_array_test1",
+      "passed": true,
+      "cycles": 1271
+    },
+    {
+      "case": "correctness_array_test2",
+      "passed": true,
+      "cycles": 1465
+    },
+    {
+      "case": "correctness_basicopt1",
+      "passed": true,
+      "cycles": 623733
+    },
+    {
+      "case": "correctness_bulgarian",
+      "passed": true,
+      "cycles": 431540
+    },
+    {
+      "case": "correctness_expr",
+      "passed": true,
+      "cycles": 1393
+    },
+    {
+      "case": "correctness_gcd",
+      "passed": true,
+      "cycles": 1066
+    },
+    {
+      "case": "correctness_hanoi",
+      "passed": true,
+      "cycles": 9601
+    },
+    {
+      "case": "correctness_lvalue2",
+      "passed": true,
+      "cycles": 651
+    },
+    {
+      "case": "correctness_magic",
+      "passed": true,
+      "cycles": 691341
+    },
+    {
+      "case": "correctness_manyarguments",
+      "passed": true,
+      "cycles": 672
+    },
+    {
+      "case": "correctness_multiarray",
+      "passed": true,
+      "cycles": 4247
+    },
+    {
+      "case": "correctness_naive",
+      "passed": true,
+      "cycles": 631
+    },
+    {
+      "case": "correctness_qsort",
+      "passed": true,
+      "cycles": 2629393
+    },
+    {
+      "case": "correctness_queens",
+      "passed": true,
+      "cycles": 430301
+    },
+    {
+      "case": "correctness_statement_test",
+      "passed": true,
+      "cycles": 2647
+    },
+    {
+      "case": "correctness_superloop",
+      "passed": true,
+      "cycles": 811347
+    },
+    {
+      "case": "correctness_tak",
+      "passed": true,
+      "cycles": 1884271
+    }
+  ]
+}

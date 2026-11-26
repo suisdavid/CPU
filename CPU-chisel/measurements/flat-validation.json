@@ -1,0 +1,17 @@
+{
+  "chisel_commit": "d55e690d7152e8819436135797ee67c918dec924",
+  "original_rtl_sha256": "f3e02166b5050124040ae7d220173a261e211464c9ca94fe4faac02e990de329",
+  "area_emitted_rtl_sha256": "53eef9b5821390068d47adc714e9ba4f6631aa78e1838e2be8716088ce85f987",
+  "area_normalized_rtl_sha256": "476c1046af24e3740c1aba41526c137f52ea7ae22f066460e915653774b1c8aa",
+  "generator": "tests/GenerateArea.scala",
+  "firtool": "1.62.0",
+  "preserve_aggregate": "none",
+  "sv2v": "v0.0.13",
+  "verilator": "5.020",
+  "simulation_note": "Original course sim.cpp with --trace-depth 1; no waveform requested",
+  "perf_cases": 6,
+  "regression_programs": 21,
+  "regression_checks": 6510,
+  "all_outputs_and_cycle_counts_match": true,
+  "formal_equivalence_proven": false
+}

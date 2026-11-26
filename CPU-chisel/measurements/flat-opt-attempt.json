@@ -1,0 +1,19 @@
+{
+  "status": "failed",
+  "mode": "checkpointed-opt",
+  "area_um2": null,
+  "original_rtl_sha256": "f3e02166b5050124040ae7d220173a261e211464c9ca94fe4faac02e990de329",
+  "area_normalized_rtl_sha256": "476c1046af24e3740c1aba41526c137f52ea7ae22f066460e915653774b1c8aa",
+  "yosys": "0.63, 70a11c6bf0e8dd669f56c7da3587f78b405138e2",
+  "completed_checkpoint": {
+    "signature": "502e8d2f5e954a6d0edfc854f256502955266d91e95cda6538bd892713e908e5",
+    "completed_stage": 5,
+    "checkpoint_sha256": "f170b64e0f30daa8350f2c79c0e0fc283b815af0b354f5e3fd4d4b22e51d70b8"
+  },
+  "phase": "TECHMAP gate expansion, stage 6 (zero-indexed)",
+  "termination_signal": "SIGKILL (9)",
+  "suspected_cause": "Memory exhaustion; kernel OOM log unavailable",
+  "environment_total_memory_gib": 9.7,
+  "log_sha256": "81f2521bcd45d82ed47da7a9ca191662da93955e01ef5a8b50c717ef061a031c",
+  "notes": "No final mapping or total CPU area result was produced by this run."
+}

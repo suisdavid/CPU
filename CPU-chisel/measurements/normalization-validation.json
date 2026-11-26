@@ -1,0 +1,11 @@
+{
+  "original_rtl_sha256": "f3e02166b5050124040ae7d220173a261e211464c9ca94fe4faac02e990de329",
+  "normalized_rtl_sha256": "7a5653feaa79577634297839f54bb904fd5576b5507653529125c0e56ca69610",
+  "converter": "sv2v v0.0.13",
+  "conversion_command": "sv2v -D SYNTHESIS verilog/generated/student_top.sv",
+  "perf_cases": 6,
+  "regression_programs": 21,
+  "regression_checks": 6510,
+  "all_outputs_and_cycle_counts_match": true,
+  "scope": "Functional regression comparison, not formal equivalence proof"
+}
