@@ -10,6 +10,8 @@ Cache 元数据按 way/set 表示，并让每路每种元数据只有一个索�
 
 逐文件说明见 [REPAIR_NOTES.md](REPAIR_NOTES.md)。
 
+最新交接状态见 [progress.md](../progress.md)；本地环境安装、IPC 和综合的完整命令见 [LOCAL_TESTING.md](../docs/LOCAL_TESTING.md)。
+
 ## 复现
 
 ```sh

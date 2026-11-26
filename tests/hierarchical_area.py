@@ -82,6 +82,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--script", type=Path, required=True)
     parser.add_argument("--yosys", default="yosys")
+    parser.add_argument("--abc-limit", type=int,
+                        help="Save this many ABC modules, then stop for a later continuation")
     args = parser.parse_args()
     yosys = executable(args.yosys)
     out, version, stages, identities, signature = configuration(args.script, yosys)
@@ -95,6 +97,9 @@ def main():
     if identity(source)["sha256"] != state["checkpoint_sha256"]:
         parser.error("Pre-techmap checkpoint checksum mismatch")
     modules = sorted(word_cells(source))
+    abc_count = len(modules) if args.abc_limit is None else args.abc_limit
+    if not 0 <= abc_count <= len(modules):
+        parser.error("--abc-limit must be between zero and the module count")
     def mapped_module(module, path):
         if word_cells(path).get(module):
             raise ValueError(f"Unmapped word-level cells remain in {module}")
@@ -108,8 +113,11 @@ def main():
     abc_index = next(i for i, line in enumerate(stages[8]) if line.startswith("abc "))
     prepared, source = checkpoint_steps(yosys, version, checkpoints, "libmap", source,
         ["dfflibmap"], lambda _: [*stages[7], *stages[8][:abc_index]])
-    abc_history, source = checkpoint_steps(yosys, version, checkpoints, "abc", source, modules,
+    abc_history, source = checkpoint_steps(yosys, version, checkpoints, "abc", source, modules[:abc_count],
         lambda module: ["select " + module, stages[8][abc_index], "clean -purge", "select *"])
+    if abc_count < len(modules):
+        print(f"Saved {abc_count} ABC modules; stopped for continuation", flush=True)
+        return
     commands = ["read_rtlil " + quote(source), *stages[8][abc_index+1:]]
     for filename in ("stat.json", "design.json", "mapped.v"):
         commands = [line.replace(quote(out / filename), quote(result / filename))

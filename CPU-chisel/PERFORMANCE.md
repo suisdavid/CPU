@@ -27,9 +27,13 @@ python3 scripts/testcase.py --kind perf --sim build/multicommit/sim --max-cycles
 
 ## 当前版面积
 
-面积综合正在进行，尚无可报告的 CPU 总面积。使用同一份 Chisel 源码，经 `tests/GenerateArea.scala` 的 `--preserve-aggregate=none` 和 sv2v v0.0.13 转换。仅改变 RTL 表示，硬件配置与提交用 RTL 不因测量而改变。
+2026-11-26 按用户要求停止继续面积测试，尚无可报告的 CPU 总面积。使用同一份 Chisel 源码，经 `tests/GenerateArea.scala` 的 `--preserve-aggregate=none` 和 sv2v v0.0.13 转换。仅改变 RTL 表示，硬件配置与提交用 RTL 不因测量而改变。
+
+面积输入此前已完成 6 项性能用例和 21 程序/6,574 项回归检查，输出及周期数与提交 RTL 一致；这属于回归验证，不是形式等价证明。记录见 [area-input-issuewidth.json](measurements/area-input-issuewidth.json)。最后确认的综合进度及检查点见 [progress.md](../progress.md)，完整本地命令见 [LOCAL_TESTING.md](../docs/LOCAL_TESTING.md)。
 
 使用课程固定 Yosys 0.63（`70a11c6bf0e8dd669f56c7da3587f78b405138e2`）、对应 ABC、ASAP7 RVT TT 和 FakeRAM。当前流程保留模块层次、跳过出现端口错误的 `opt_hier`，逐模块门级展开后清理并保存检查点。这是单独的面积测量模式，**不是默认扁平化 opt 的评测值**。ABC 目标周期 2 ns；未运行 OpenSTA，不报告已验证频率。
+
+新增 `tests/parallel_area.py` 使用相同 ABC 命令和库，并行映射独立模块后合并检查；此前只确认部分模块完成，端到端结果尚未取得。以下为保留的全串行入口，并行入口与 `--abc-limit`/`--abc-prefix` 用法见本地运行文档。
 
 复现流程（工具路径按本机安装位置传入）：
 

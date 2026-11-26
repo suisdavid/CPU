@@ -1,0 +1,16 @@
+{
+  "hardware_commit": "e79d60ae8bbe129d1c078035a72820aa4fc856d0",
+  "original_rtl_sha256": "f3843a649f09385b383eb00ea9c63e384618abd9ecba186f049e70a614eb16a1",
+  "area_emitted_rtl_sha256": "f40c4c6ec2f5ad5398bc0e28db183f2f5c66f026636bc9de6ea89db8b05f3691",
+  "generator": "tests/GenerateArea.scala",
+  "preserve_aggregate": "none",
+  "firtool": "1.62.0",
+  "normalization": "sv2v v0.0.13 -D SYNTHESIS",
+  "verilator": "5.020",
+  "perf_cases": 6,
+  "regression_programs": 21,
+  "regression_checks": 6574,
+  "all_outputs_and_cycle_counts_match": true,
+  "formal_equivalence_proven": false,
+  "validation_note": "Validation completed before workspace rollback. The emitted RTL was regenerated after recovery and its SHA-256 matches the validated emitted input."
+}
