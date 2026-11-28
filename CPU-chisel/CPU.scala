@@ -83,11 +83,8 @@ class CPU extends Module{//priority: ready instruction< read data < write data <
     val decoder = Module(new Decoder)
     val predictor = Module(new Predictor)
 
-    // AXI transactions keep their owner and payload until the response, even on flush.
-    val fetcher_waiting = RegInit(0.U(2.W)) // 0 idle, 1 AR, 2 R
-    val read_owner = Reg(UInt(3.W)) // I-cache bank or issueWidth for D-cache
-    val read_addr = Reg(UInt(32.W))
-    val read_discard = RegInit(false.B)
+    // Four ordered read credits, with at most one miss per cache/bank.
+    val readArbiter = Module(new ReadArbiter(issueWidth + 1))
     val Dcache_waiting = RegInit(0.U(2.W)) // 0 idle, 1 AW/W, 2 B
     val write_addr = Reg(UInt(32.W));val write_data=Reg(UInt(32.W));val write_mask=Reg(UInt(4.W))
     val write_mmio=RegInit(false.B)
@@ -100,8 +97,11 @@ class CPU extends Module{//priority: ready instruction< read data < write data <
     val redirect=flush || issuer.io.out_pc_val_changed || io.flush_valid
     val redirect_addr=Mux(flush || io.flush_valid,newaddr,issuer.io.out_new_pc_val)
 
-    io.arvalid:=fetcher_waiting===1.U;io.araddr:=read_addr
-    io.rready:=fetcher_waiting===2.U
+    io.arvalid:=readArbiter.io.arvalid;io.araddr:=readArbiter.io.araddr
+    io.rready:=readArbiter.io.rready
+    readArbiter.io.arready:=io.arready
+    readArbiter.io.rvalid:=io.rvalid;readArbiter.io.rdata:=io.rdata
+    readArbiter.io.redirect:=redirect
     io.awvalid:=Dcache_waiting===1.U && !aw_sent;io.awaddr:=write_addr
     io.wvalid:=Dcache_waiting===1.U && !w_sent;io.wdata:=write_data;io.wstrb:=write_mask
     io.bready:=Dcache_waiting===2.U
@@ -246,7 +246,7 @@ class CPU extends Module{//priority: ready instruction< read data < write data <
 
 
     // One group requests all four physical I-cache banks; retain early hits.
-    when(!fetch_active && !halt && !redirect && fetcher_waiting===0.U &&
+    when(!fetch_active && !halt && !redirect &&
       issuer.io.out_space >= issueWidth.U + decoder.io.out_num && Icache.map(_.io.out_ready).reduce(_ && _)){
       fetch_active:=true.B
       for(bank<-0 until issueWidth){
@@ -302,28 +302,16 @@ class CPU extends Module{//priority: ready instruction< read data < write data <
       }
     }
 
-    // Shared read arbitration: D-cache misses precede instruction refill.
-    when(fetcher_waiting===0.U){
-      for(i<-(issueWidth-1) to 0 by -1){
-        when(fetch_active && Icache(i).io.out_neednew && !redirect){
-          read_addr:=Icache(i).io.out_addr;read_owner:=i.U;read_discard:=false.B;fetcher_waiting:=1.U
-        }
-      }
-      when(Dcache.io.out_neednew){
-        read_addr:=Dcache.io.out_addr;read_owner:=issueWidth.U;read_discard:=false.B;fetcher_waiting:=1.U
-      }
-    }.elsewhen(fetcher_waiting===1.U){
-      when(io.arready){fetcher_waiting:=2.U}
-    }.elsewhen(io.rvalid){
-      fetcher_waiting:=0.U
-      when(read_owner===issueWidth.U){
-        Dcache.io.new_valid:=true.B // Finish cache work; wrong-path LSU result is suppressed separately.
-      }.otherwise{
-        when(!read_discard && !redirect){
-          for(i<-0 until issueWidth){when(read_owner===i.U){Icache(i).io.new_valid:=true.B}}
-        }
-      }
+    // Misses from different banks overlap; AXI-Lite responses return in AR order.
+    for(i<-0 until issueWidth){
+      readArbiter.io.request(i).valid:=fetch_active && Icache(i).io.out_neednew
+      readArbiter.io.request(i).bits:=Icache(i).io.out_addr
+      Icache(i).io.new_valid:=readArbiter.io.refill(i).valid
     }
+    readArbiter.io.request(issueWidth).valid:=Dcache.io.out_neednew
+    readArbiter.io.request(issueWidth).bits:=Dcache.io.out_addr
+    // Complete D-cache work even on flush; wrong-path LSU results are suppressed above.
+    Dcache.io.new_valid:=readArbiter.io.refill(issueWidth).valid
 
     // AW and W can be acknowledged in different cycles. Do not retire before B.
     when(Dcache_waiting===0.U){
@@ -350,7 +338,6 @@ class CPU extends Module{//priority: ready instruction< read data < write data <
       pc.value:=redirect_addr
       fetch_active:=false.B;fetch_done.foreach(_:=false.B)
       Icache.foreach(_.io.clear_status:=true.B)
-      when(fetcher_waiting=/=0.U && read_owner=/=issueWidth.U){read_discard:=true.B}
     }
     when(flush || io.flush_valid){
       cdbs.foreach(_:=0.U.asTypeOf(new CDB))

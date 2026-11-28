@@ -1,5 +1,51 @@
 # CPU 交接进度
 
+更新日期：2026-11-28。当前分支：`main`。本次基于 `7d494615cfd7e538ffdc5a8c0d5ab2c42a0be00f` 修改。
+
+## 2026-11-28：修复 fix.md 第 3 项
+
+用户已完成第 2 项；本次保留该修改，直接修改 Chisel 并提交 `main`。按要求不运行性能、面积或时序测试。
+
+### 实现
+
+- `CPU.scala` 移除新一组 I-cache 查询对共享读通路空闲的要求：D-cache miss 等待期间可以查 I-cache，命中指令可以继续进入 decoder。
+- 新增 `ReadArbiter.scala`：4 项响应归属 FIFO + 一个预留 FIFO 名额的 AR 保持寄存器。计入 AR 预留后总共最多 4 笔，不是 4+1 笔；没有背压时可连续发送 AR。
+- 每个 I-cache bank/D-cache 一个 busy 位，从选择请求起直到 R 握手保持，防止 `out_neednew` 持续为高导致重复读。D-cache 优先，再按 I-cache bank 编号仲裁。
+- `ARVALID/ARADDR` 在背压和重定向期间保持；重定向不会清空已接受事务。旧 I-cache 的 FIFO 项及尚未握手的 AR 都标记丢弃，返回后释放 busy。新路径可以查询同一 bank，但若 miss，需等待该 bank 的旧事务排空。
+- D-cache 返回继续完成 cache 内部工作，错误路径 load 的结果仍由现有 `lsu_discard` 屏蔽；dirty writeback、store、AW/W/B 通路保持原行为。
+- 单个 cache 仍只有一个 miss，取指仍按完整四条交给 decoder。后续 LSU/store buffer、Cache 流水化等工作写入 `fix.md`。
+- 新增 `ReadArbiterTests.scala`，覆盖四笔未返回读、满队列、持久 miss 去重、D-cache 优先、AR/R 同周期、AR 背压、重定向与旧返回丢弃、连续重定向和环绕。
+- `tests/axi_stress.cpp` 改为按序响应 FIFO，默认允许 4 个 outstanding；`AXI_READ_DEPTH=1` 可检查只接受单请求的从机。R 数据在接收请求时保存，响应期间保持稳定；增加读并发/I-D 重叠的覆盖统计。
+
+### 验证与生成文件
+
+- Scala 2.13.12 / Chisel 6.4.0 编译通过；firtool 1.62.0 完成 RTL 生成；Verilator 5.032 构建普通和背压仿真器通过。
+- `ReadArbiterTests` 通过：1,345 笔有序响应，其中 363 笔旧路径响应丢弃、578 次 AR/R 同周期；验证队列上限为 4，以及背压、连续重定向、去重和环绕。
+- 普通内存回归：21/21 程序、6,574 项寄存器/内存自检通过。
+- 默认 4 项队列的随机 AXI 背压回归：21/21 程序、6,574 项自检通过。
+- `AXI_READ_DEPTH=1` 单请求从机：定向程序 1,554 项自检通过，确认持续 AR 背压下兼容串行从机。
+- 额外以 AXI 随机种子 `20261128` 运行定向程序：返回值正确，最大未返回读请求为 4；观察到 43 次 D-cache 读尚未返回时接受指令读，确认整机连线确实允许重叠。
+- 已更新 `verilog/generated/student_top.sv`，SHA-256：`fa34df47e5cf49ff3a7ea8ed1ec91639eaea55268b4588091552abf6cbf22bca`；生成文件与本次 Chisel 同步。
+- `git diff --check` 通过。未重新运行官方 correctness 测试集，未运行官方性能集、IPC 对比、面积综合或时序测试。
+
+### 本地复现（仓库根目录）
+
+```bash
+git switch main
+git pull --ff-only origin main
+scala-cli run CPU-chisel --server=false --jvm system -M cpu2026.ReadArbiterTests
+scala-cli run CPU-chisel --server=false --jvm system -M cpu2026.Generate
+make build APPIMAGE=
+python3 tests/regression.py --sim build/sim --seeds 20
+python3 tests/build_stress.py
+python3 tests/regression.py --sim build-stress/sim --seeds 20 --stress
+AXI_READ_DEPTH=1 python3 tests/regression.py --sim build-stress/sim --seeds 0 --stress
+```
+
+以下为历史交接记录；其中 IPC、官方正确性、RTL 摘要和面积状态均属于旧版本，不代表本次验证。
+
+## 2026-11-26 历史交接
+
 更新日期：2026-11-26。分支：`codex/repair-original-chisel`，PR：<https://github.com/suisdavid/CPU/pull/2>。
 
 用户最新要求：停止继续面积测试，提交全部最终代码、测试脚本和进度，并提供本地 IPC/综合命令。此交接没有启动新的面积任务。上轮执行环境已重置，旧并行任务会话不存在；本次从远端恢复最新源码及会话中尚未提交的脚本。

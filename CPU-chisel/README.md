@@ -8,6 +8,8 @@
 
 Cache 元数据按 way/set 表示，并让每路每种元数据只有一个索引写入口；容量、查找与替换算法不变。RS/ROB 广播按物理槽更新，保留环形队列与从老到新的选择顺序，避免动态写展开为大量重复逻辑。
 
+2026-11-28：新增 ReadArbiter，允许最多四笔有序 AXI 读，并在 D-cache miss 期间继续查询 I-cache。每个 cache/bank 仍最多一个 miss；重定向保留事务并丢弃旧指令响应。验证范围见根目录 progress.md，本次不测性能。
+
 逐文件说明见 [REPAIR_NOTES.md](REPAIR_NOTES.md)。
 
 最新交接状态见 [progress.md](../progress.md)；本地环境安装、IPC 和综合的完整命令见 [LOCAL_TESTING.md](../docs/LOCAL_TESTING.md)。
@@ -19,6 +21,7 @@ scala-cli run CPU-chisel --server=false -M cpu2026.Generate
 make build APPIMAGE=
 scala-cli run CPU-chisel --server=false -M cpu2026.ModuleTests
 scala-cli run CPU-chisel --server=false -M cpu2026.CommitterTests
+scala-cli run CPU-chisel --server=false -M cpu2026.ReadArbiterTests
 python3 tests/regression.py --sim build/sim --seeds 20
 for case_dir in testcases/correctness_*; do
   [ "${case_dir##*/}" = correctness_pi ] && continue
@@ -26,8 +29,9 @@ for case_dir in testcases/correctness_*; do
 done
 python3 tests/build_stress.py
 python3 tests/regression.py --sim build-stress/sim --seeds 20 --stress
+AXI_READ_DEPTH=1 python3 tests/regression.py --sim build-stress/sim --seeds 0 --stress
 ```
 
-编译与 RTL 生成通过；模块测试通过；官方正确性 18/18 通过（排除 `pi`，`MAX_CYCLES=100000000`、`LATENCY=10`）；普通与随机阻塞 AXI 各通过 21 个程序、6,574 项自检。
+2026-11-26 历史验证：编译与 RTL 生成通过；模块测试通过；官方正确性 18/18 通过（排除 `pi`，`MAX_CYCLES=100000000`、`LATENCY=10`）；普通与随机阻塞 AXI 各通过 21 个程序、6,574 项自检。这些历史结果不代表后续修改的验证结论。
 
 `qsort`、`tak` 超过默认 100 万周期，不能声称默认周期限制全部通过。当前 Committer 每周期最多按序退休 issueWidth（4）条，store 串行且每周期最多更新一个分支；完整周期与验证范围见 [VALIDATION_ISSUEWIDTH.md](VALIDATION_ISSUEWIDTH.md)，IPC 与面积见 [PERFORMANCE.md](PERFORMANCE.md)。

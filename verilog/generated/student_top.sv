@@ -58742,6 +58742,126 @@ module Predictor(
          : (|(PHT[{io_qaddrs[2'h0][9:2], localhistory}][2:1]))}}};
 endmodule
 
+module ReadArbiter(
+  input                                                        clock,
+                                                               reset,
+  input  struct packed {logic valid; logic [31:0] bits; }[4:0] io_request,
+  input                                                        io_redirect,
+  output struct packed {logic valid; logic [31:0] bits; }[4:0] io_refill,
+  output [31:0]                                                io_araddr,
+  output                                                       io_arvalid,
+  input                                                        io_arready,
+  input  [31:0]                                                io_rdata,
+  input                                                        io_rvalid,
+  output                                                       io_rready
+);
+
+  reg  [4:0]      busy;
+  reg             arPending;
+  reg  [31:0]     arAddr;
+  reg  [2:0]      arOwner;
+  reg             arDiscard;
+  reg  [3:0][2:0] owners;
+  reg  [3:0]      discard;
+  reg  [1:0]      head;
+  reg  [1:0]      tail;
+  reg  [2:0]      count;
+  wire            rFire = io_rvalid & (|count);
+  wire [2:0]      _GEN = owners[head];
+  wire            _GEN_0 = discard[head];
+  wire struct packed {logic valid; logic [31:0] bits; } _GEN_1 =
+    '{valid: (rFire & _GEN == 3'h4), bits: io_rdata};
+  wire struct packed {logic valid; logic [31:0] bits; } _GEN_2 =
+    '{valid: (rFire & _GEN == 3'h3 & ~_GEN_0 & ~io_redirect), bits: io_rdata};
+  wire struct packed {logic valid; logic [31:0] bits; } _GEN_3 =
+    '{valid: (rFire & _GEN == 3'h2 & ~_GEN_0 & ~io_redirect), bits: io_rdata};
+  wire struct packed {logic valid; logic [31:0] bits; } _GEN_4 =
+    '{valid: (rFire & _GEN == 3'h1 & ~_GEN_0 & ~io_redirect), bits: io_rdata};
+  wire struct packed {logic valid; logic [31:0] bits; } _GEN_5 =
+    '{valid: (rFire & ~(|_GEN) & ~_GEN_0 & ~io_redirect), bits: io_rdata};
+  wire            _discard_T_2 = arDiscard | io_redirect & arOwner != 3'h4;
+  wire            arFire = arPending & io_arready;
+  wire            _GEN_6 = io_request[3'h3].valid & ~busy[3'h3] & ~io_redirect;
+  wire            _GEN_7 = io_request[3'h2].valid & ~busy[3'h2] & ~io_redirect;
+  wire            _GEN_8 = io_request[3'h1].valid & ~busy[3'h1] & ~io_redirect;
+  wire            _GEN_9 = io_request[3'h0].valid & ~busy[3'h0] & ~io_redirect;
+  wire            _GEN_10 = io_request[3'h4].valid & ~busy[3'h4];
+  wire [2:0]      selectedOwner =
+    _GEN_10 ? 3'h4 : _GEN_9 ? 3'h0 : _GEN_8 ? 3'h1 : _GEN_7 ? 3'h2 : _GEN_6 ? 3'h3 : 3'h0;
+  wire            _GEN_11 =
+    (~arPending | arFire) & ({1'h0, count} + {3'h0, arPending} < 4'h4 | rFire)
+    & (_GEN_10 | _GEN_9 | _GEN_8 | _GEN_7 | _GEN_6);
+  always @(posedge clock) begin
+    if (reset) begin
+      busy <= '{1'h0, 1'h0, 1'h0, 1'h0, 1'h0};
+      arPending <= 1'h0;
+      arDiscard <= 1'h0;
+      discard <= '{1'h0, 1'h0, 1'h0, 1'h0};
+      head <= 2'h0;
+      tail <= 2'h0;
+      count <= 3'h0;
+    end
+    else begin
+      busy[3'h0] <= _GEN_11 & selectedOwner == 3'h0 | ~(rFire & ~(|_GEN)) & busy[3'h0];
+      busy[3'h1] <=
+        _GEN_11 & selectedOwner == 3'h1 | ~(rFire & _GEN == 3'h1) & busy[3'h1];
+      busy[3'h2] <=
+        _GEN_11 & selectedOwner == 3'h2 | ~(rFire & _GEN == 3'h2) & busy[3'h2];
+      busy[3'h3] <=
+        _GEN_11 & selectedOwner == 3'h3 | ~(rFire & _GEN == 3'h3) & busy[3'h3];
+      busy[3'h4] <=
+        _GEN_11 & selectedOwner == 3'h4 | ~(rFire & _GEN == 3'h4) & busy[3'h4];
+      arPending <= _GEN_11 | ~arFire & arPending;
+      arDiscard <= ~_GEN_11 & (io_redirect & arPending & arOwner != 3'h4 | arDiscard);
+      if (arFire & tail == 2'h0)
+        discard[2'h0] <= _discard_T_2;
+      else
+        discard[2'h0] <= io_redirect | discard[2'h0];
+      if (arFire & tail == 2'h1)
+        discard[2'h1] <= _discard_T_2;
+      else
+        discard[2'h1] <= io_redirect | discard[2'h1];
+      if (arFire & tail == 2'h2)
+        discard[2'h2] <= _discard_T_2;
+      else
+        discard[2'h2] <= io_redirect | discard[2'h2];
+      if (arFire & (&tail))
+        discard[2'h3] <= _discard_T_2;
+      else
+        discard[2'h3] <= io_redirect | discard[2'h3];
+      if (rFire)
+        head <= head + 2'h1;
+      if (arFire)
+        tail <= tail + 2'h1;
+      if (~(arFire == rFire)) begin
+        if (arFire)
+          count <= count + 3'h1;
+        else
+          count <= count - 3'h1;
+      end
+    end
+    if (_GEN_11) begin
+      arAddr <=
+        _GEN_10
+          ? io_request[3'h4].bits
+          : _GEN_9
+              ? io_request[3'h0].bits
+              : _GEN_8
+                  ? io_request[3'h1].bits
+                  : _GEN_7
+                      ? io_request[3'h2].bits
+                      : _GEN_6 ? io_request[3'h3].bits : 32'h0;
+      arOwner <= selectedOwner;
+    end
+    if (arFire)
+      owners[tail] <= arOwner;
+  end // always @(posedge)
+  assign io_refill = {{_GEN_1}, {_GEN_2}, {_GEN_3}, {_GEN_4}, {_GEN_5}};
+  assign io_araddr = arAddr;
+  assign io_arvalid = arPending;
+  assign io_rready = |count;
+endmodule
+
 module CPU(
   input         clock,
                 reset,
@@ -58765,6 +58885,7 @@ module CPU(
   input         io_flush_valid
 );
 
+  wire struct packed {logic valid; logic [31:0] bits; }[4:0] _readArbiter_io_refill;
   wire [3:0][31:0]  _predictor_io_out;
   wire [31:0]       _decoder_io_out_num;
   wire [3:0][31:0]  _decoder_io_out_id;
@@ -58905,10 +59026,6 @@ module CPU(
   reg               flush;
   reg  [31:0]       flush_val;
   reg  [31:0]       newaddr;
-  reg  [1:0]        fetcher_waiting;
-  reg  [2:0]        read_owner;
-  reg  [31:0]       read_addr;
-  reg               read_discard;
   reg  [1:0]        Dcache_waiting;
   reg  [31:0]       write_addr;
   reg  [31:0]       write_data;
@@ -58925,7 +59042,6 @@ module CPU(
   reg  [3:0][31:0]  fetch_data;
   wire              redirect = flush | _issuer_io_out_pc_val_changed | io_flush_valid;
   wire              _div_io_clear_valid_T = flush | io_flush_valid;
-  wire              _io_arvalid_T = fetcher_waiting == 2'h1;
   wire              _io_wvalid_T = Dcache_waiting == 2'h1;
   wire              _io_awvalid_T_2 = _io_wvalid_T & ~aw_sent;
   wire              _io_wvalid_T_2 = _io_wvalid_T & ~w_sent;
@@ -60542,9 +60658,8 @@ module CPU(
   wire              _GEN_487 = _alus_3_aluIO_out_div_valid & ~(_GEN_485 | _GEN_483);
   wire              _GEN_488 = _issuer_io_out_space >= _decoder_io_out_num + 32'h4;
   wire              _GEN_489 =
-    ~fetch_active & ~halt & ~redirect & ~(|fetcher_waiting) & _GEN_488
-    & _Icache_0_io_out_ready & _Icache_1_io_out_ready & _Icache_2_io_out_ready
-    & _Icache_3_io_out_ready;
+    ~fetch_active & ~halt & ~redirect & _GEN_488 & _Icache_0_io_out_ready
+    & _Icache_1_io_out_ready & _Icache_2_io_out_ready & _Icache_3_io_out_ready;
   wire              _GEN_490 =
     fetch_active
     & (&(fetch_done
@@ -60592,15 +60707,22 @@ module CPU(
     _GEN_498 & ~_committer_io_out_store_valid & _lsu_lsuIO_out_valid;
   wire              _GEN_503 = _Dcache_io_out_done & lsu_waiting;
   wire              _GEN_504 = ~lsu_discard & ~flush & ~io_flush_valid;
-  wire              _GEN_505 = read_owner == 3'h4;
-  wire              _GEN_506 = ~(|fetcher_waiting) | _io_arvalid_T;
-  wire              _GEN_507 = ~read_discard & ~redirect;
-  wire              _GEN_508 = Dcache_waiting == 2'h0;
-  wire              _GEN_509 = _GEN_508 | _io_wvalid_T;
-  wire              _GEN_510 = ~_GEN_509 & io_bvalid & write_mmio;
+  wire              _GEN_505 = Dcache_waiting == 2'h0;
+  wire              _GEN_506 = _GEN_505 | _io_wvalid_T;
+  wire              _GEN_507 = ~_GEN_506 & io_bvalid & write_mmio;
+  wire struct packed {logic valid; logic [31:0] bits; } _GEN_508 =
+    '{valid: _Dcache_io_out_neednew, bits: _Dcache_io_out_addr};
+  wire struct packed {logic valid; logic [31:0] bits; } _GEN_509 =
+    '{valid: (fetch_active & _Icache_3_io_out_neednew), bits: _Icache_3_io_out_addr};
+  wire struct packed {logic valid; logic [31:0] bits; } _GEN_510 =
+    '{valid: (fetch_active & _Icache_2_io_out_neednew), bits: _Icache_2_io_out_addr};
+  wire struct packed {logic valid; logic [31:0] bits; } _GEN_511 =
+    '{valid: (fetch_active & _Icache_1_io_out_neednew), bits: _Icache_1_io_out_addr};
+  wire struct packed {logic valid; logic [31:0] bits; } _GEN_512 =
+    '{valid: (fetch_active & _Icache_0_io_out_neednew), bits: _Icache_0_io_out_addr};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_511 =
+    _GEN_513 =
     '{type_:
         (_GEN_474
            ? (_GEN_420 ? 6'h0 : _issuer_io_out_executer_RS[2'h2].type_)
@@ -60635,7 +60757,7 @@ module CPU(
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_512 =
+    _GEN_514 =
     '{type_:
         (_GEN_473
            ? (_GEN_419 ? 6'h0 : _issuer_io_out_executer_RS[2'h2].type_)
@@ -60670,7 +60792,7 @@ module CPU(
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_513 =
+    _GEN_515 =
     '{type_:
         (_GEN_472
            ? (_GEN_416
@@ -60722,7 +60844,7 @@ module CPU(
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_514 =
+    _GEN_516 =
     '{type_:
         (_GEN_471
            ? (_GEN_415
@@ -60790,7 +60912,7 @@ module CPU(
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_515 =
+    _GEN_517 =
     '{type_:
         (_GEN_479
            ? (_GEN_426 ? 6'h0 : _issuer_io_out_executer_RS[2'h2].type_)
@@ -60826,7 +60948,7 @@ module CPU(
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_516 =
+    _GEN_518 =
     '{type_:
         (_GEN_478
            ? (_GEN_425 ? 6'h0 : _issuer_io_out_executer_RS[2'h2].type_)
@@ -60861,7 +60983,7 @@ module CPU(
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_517 =
+    _GEN_519 =
     '{type_:
         (_GEN_477
            ? (_GEN_423
@@ -60913,7 +61035,7 @@ module CPU(
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
   wire
     struct packed {logic [5:0] type_; logic [31:0] v1; logic [31:0] v2; logic [31:0] q1; logic [31:0] q2; logic [31:0] dest; logic [31:0] id; logic is_halt; }
-    _GEN_518 =
+    _GEN_520 =
     '{type_:
         (_GEN_476
            ? (_GEN_422
@@ -60979,332 +61101,326 @@ module CPU(
                      : _issuer_io_out_executer_RS[2'h1].is_halt)
                 : _issuer_io_out_executer_RS[2'h2].is_halt)
            : _issuer_io_out_executer_RS[2'h3].is_halt)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_519 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_521 =
     '{value: _GEN_339,
       prod:
         ((_GEN_338 ? _GEN_340 | _GEN_337 | _GEN_334 : _GEN_337 | _GEN_334)
            ? 32'hFFFFFFFF
            : regs[5'h1F].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_520 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_522 =
     '{value: _GEN_328,
       prod:
         ((_GEN_327 ? _GEN_329 | _GEN_326 | _GEN_323 : _GEN_326 | _GEN_323)
            ? 32'hFFFFFFFF
            : regs[5'h1E].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_521 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_523 =
     '{value: _GEN_317,
       prod:
         ((_GEN_316 ? _GEN_318 | _GEN_315 | _GEN_312 : _GEN_315 | _GEN_312)
            ? 32'hFFFFFFFF
            : regs[5'h1D].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_522 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_524 =
     '{value: _GEN_306,
       prod:
         ((_GEN_305 ? _GEN_307 | _GEN_304 | _GEN_301 : _GEN_304 | _GEN_301)
            ? 32'hFFFFFFFF
            : regs[5'h1C].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_523 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_525 =
     '{value: _GEN_295,
       prod:
         ((_GEN_294 ? _GEN_296 | _GEN_293 | _GEN_290 : _GEN_293 | _GEN_290)
            ? 32'hFFFFFFFF
            : regs[5'h1B].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_524 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_526 =
     '{value: _GEN_284,
       prod:
         ((_GEN_283 ? _GEN_285 | _GEN_282 | _GEN_279 : _GEN_282 | _GEN_279)
            ? 32'hFFFFFFFF
            : regs[5'h1A].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_525 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_527 =
     '{value: _GEN_273,
       prod:
         ((_GEN_272 ? _GEN_274 | _GEN_271 | _GEN_268 : _GEN_271 | _GEN_268)
            ? 32'hFFFFFFFF
            : regs[5'h19].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_526 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_528 =
     '{value: _GEN_262,
       prod:
         ((_GEN_261 ? _GEN_263 | _GEN_260 | _GEN_257 : _GEN_260 | _GEN_257)
            ? 32'hFFFFFFFF
            : regs[5'h18].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_527 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_529 =
     '{value: _GEN_251,
       prod:
         ((_GEN_250 ? _GEN_252 | _GEN_249 | _GEN_246 : _GEN_249 | _GEN_246)
            ? 32'hFFFFFFFF
            : regs[5'h17].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_528 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_530 =
     '{value: _GEN_240,
       prod:
         ((_GEN_239 ? _GEN_241 | _GEN_238 | _GEN_235 : _GEN_238 | _GEN_235)
            ? 32'hFFFFFFFF
            : regs[5'h16].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_529 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_531 =
     '{value: _GEN_229,
       prod:
         ((_GEN_228 ? _GEN_230 | _GEN_227 | _GEN_224 : _GEN_227 | _GEN_224)
            ? 32'hFFFFFFFF
            : regs[5'h15].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_530 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_532 =
     '{value: _GEN_218,
       prod:
         ((_GEN_217 ? _GEN_219 | _GEN_216 | _GEN_213 : _GEN_216 | _GEN_213)
            ? 32'hFFFFFFFF
            : regs[5'h14].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_531 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_533 =
     '{value: _GEN_207,
       prod:
         ((_GEN_206 ? _GEN_208 | _GEN_205 | _GEN_202 : _GEN_205 | _GEN_202)
            ? 32'hFFFFFFFF
            : regs[5'h13].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_532 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_534 =
     '{value: _GEN_196,
       prod:
         ((_GEN_195 ? _GEN_197 | _GEN_194 | _GEN_191 : _GEN_194 | _GEN_191)
            ? 32'hFFFFFFFF
            : regs[5'h12].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_533 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_535 =
     '{value: _GEN_185,
       prod:
         ((_GEN_184 ? _GEN_186 | _GEN_183 | _GEN_180 : _GEN_183 | _GEN_180)
            ? 32'hFFFFFFFF
            : regs[5'h11].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_534 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_536 =
     '{value: _GEN_174,
       prod:
         ((_GEN_173 ? _GEN_175 | _GEN_172 | _GEN_169 : _GEN_172 | _GEN_169)
            ? 32'hFFFFFFFF
            : regs[5'h10].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_535 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_537 =
     '{value: _GEN_163,
       prod:
         ((_GEN_162 ? _GEN_164 | _GEN_161 | _GEN_158 : _GEN_161 | _GEN_158)
            ? 32'hFFFFFFFF
            : regs[5'hF].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_536 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_538 =
     '{value: _GEN_152,
       prod:
         ((_GEN_151 ? _GEN_153 | _GEN_150 | _GEN_147 : _GEN_150 | _GEN_147)
            ? 32'hFFFFFFFF
            : regs[5'hE].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_537 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_539 =
     '{value: _GEN_141,
       prod:
         ((_GEN_140 ? _GEN_142 | _GEN_139 | _GEN_136 : _GEN_139 | _GEN_136)
            ? 32'hFFFFFFFF
            : regs[5'hD].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_538 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_540 =
     '{value: _GEN_130,
       prod:
         ((_GEN_129 ? _GEN_131 | _GEN_128 | _GEN_125 : _GEN_128 | _GEN_125)
            ? 32'hFFFFFFFF
            : regs[5'hC].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_539 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_541 =
     '{value: _GEN_119,
       prod:
         ((_GEN_118 ? _GEN_120 | _GEN_117 | _GEN_114 : _GEN_117 | _GEN_114)
            ? 32'hFFFFFFFF
            : regs[5'hB].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_540 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_542 =
     '{value: _GEN_108,
       prod:
         ((_GEN_107 ? _GEN_109 | _GEN_106 | _GEN_103 : _GEN_106 | _GEN_103)
            ? 32'hFFFFFFFF
            : regs[5'hA].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_541 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_543 =
     '{value: _GEN_97,
       prod:
         ((_GEN_96 ? _GEN_98 | _GEN_95 | _GEN_92 : _GEN_95 | _GEN_92)
            ? 32'hFFFFFFFF
            : regs[5'h9].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_542 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_544 =
     '{value: _GEN_86,
       prod:
         ((_GEN_85 ? _GEN_87 | _GEN_84 | _GEN_81 : _GEN_84 | _GEN_81)
            ? 32'hFFFFFFFF
            : regs[5'h8].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_543 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_545 =
     '{value: _GEN_75,
       prod:
         ((_GEN_74 ? _GEN_76 | _GEN_73 | _GEN_70 : _GEN_73 | _GEN_70)
            ? 32'hFFFFFFFF
            : regs[5'h7].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_544 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_546 =
     '{value: _GEN_64,
       prod:
         ((_GEN_63 ? _GEN_65 | _GEN_62 | _GEN_59 : _GEN_62 | _GEN_59)
            ? 32'hFFFFFFFF
            : regs[5'h6].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_545 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_547 =
     '{value: _GEN_53,
       prod:
         ((_GEN_52 ? _GEN_54 | _GEN_51 | _GEN_48 : _GEN_51 | _GEN_48)
            ? 32'hFFFFFFFF
            : regs[5'h5].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_546 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_548 =
     '{value: _GEN_42,
       prod:
         ((_GEN_41 ? _GEN_43 | _GEN_40 | _GEN_37 : _GEN_40 | _GEN_37)
            ? 32'hFFFFFFFF
            : regs[5'h4].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_547 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_549 =
     '{value: _GEN_31,
       prod:
         ((_GEN_30 ? _GEN_32 | _GEN_29 | _GEN_26 : _GEN_29 | _GEN_26)
            ? 32'hFFFFFFFF
            : regs[5'h3].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_548 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_550 =
     '{value: _GEN_20,
       prod:
         ((_GEN_19 ? _GEN_21 | _GEN_18 | _GEN_15 : _GEN_18 | _GEN_15)
            ? 32'hFFFFFFFF
            : regs[5'h2].prod)};
-  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_549 =
+  wire struct packed {logic [31:0] value; logic [31:0] prod; } _GEN_551 =
     '{value: _GEN_9,
       prod:
         ((_GEN_8 ? _GEN_10 | _GEN_7 | _GEN_4 : _GEN_7 | _GEN_4)
            ? 32'hFFFFFFFF
            : regs[5'h1].prod)};
-  wire              _GEN_550 =
+  wire              _GEN_552 =
     _GEN_2 & _GEN_3 & ~_issuer_io_out_prod_valid[5'h1] | _GEN_0 & _GEN_1
     & ~_issuer_io_out_prod_valid[5'h1];
-  wire              _GEN_551 = _GEN_5 & _GEN_6 & ~_issuer_io_out_prod_valid[5'h1];
-  wire              _GEN_552 =
+  wire              _GEN_553 = _GEN_5 & _GEN_6 & ~_issuer_io_out_prod_valid[5'h1];
+  wire              _GEN_554 =
     _GEN_13 & _GEN_14 & ~_issuer_io_out_prod_valid[5'h2] | _GEN_11 & _GEN_12
     & ~_issuer_io_out_prod_valid[5'h2];
-  wire              _GEN_553 = _GEN_16 & _GEN_17 & ~_issuer_io_out_prod_valid[5'h2];
-  wire              _GEN_554 =
+  wire              _GEN_555 = _GEN_16 & _GEN_17 & ~_issuer_io_out_prod_valid[5'h2];
+  wire              _GEN_556 =
     _GEN_24 & _GEN_25 & ~_issuer_io_out_prod_valid[5'h3] | _GEN_22 & _GEN_23
     & ~_issuer_io_out_prod_valid[5'h3];
-  wire              _GEN_555 = _GEN_27 & _GEN_28 & ~_issuer_io_out_prod_valid[5'h3];
-  wire              _GEN_556 =
+  wire              _GEN_557 = _GEN_27 & _GEN_28 & ~_issuer_io_out_prod_valid[5'h3];
+  wire              _GEN_558 =
     _GEN_35 & _GEN_36 & ~_issuer_io_out_prod_valid[5'h4] | _GEN_33 & _GEN_34
     & ~_issuer_io_out_prod_valid[5'h4];
-  wire              _GEN_557 = _GEN_38 & _GEN_39 & ~_issuer_io_out_prod_valid[5'h4];
-  wire              _GEN_558 =
+  wire              _GEN_559 = _GEN_38 & _GEN_39 & ~_issuer_io_out_prod_valid[5'h4];
+  wire              _GEN_560 =
     _GEN_46 & _GEN_47 & ~_issuer_io_out_prod_valid[5'h5] | _GEN_44 & _GEN_45
     & ~_issuer_io_out_prod_valid[5'h5];
-  wire              _GEN_559 = _GEN_49 & _GEN_50 & ~_issuer_io_out_prod_valid[5'h5];
-  wire              _GEN_560 =
+  wire              _GEN_561 = _GEN_49 & _GEN_50 & ~_issuer_io_out_prod_valid[5'h5];
+  wire              _GEN_562 =
     _GEN_57 & _GEN_58 & ~_issuer_io_out_prod_valid[5'h6] | _GEN_55 & _GEN_56
     & ~_issuer_io_out_prod_valid[5'h6];
-  wire              _GEN_561 = _GEN_60 & _GEN_61 & ~_issuer_io_out_prod_valid[5'h6];
-  wire              _GEN_562 =
+  wire              _GEN_563 = _GEN_60 & _GEN_61 & ~_issuer_io_out_prod_valid[5'h6];
+  wire              _GEN_564 =
     _GEN_68 & _GEN_69 & ~_issuer_io_out_prod_valid[5'h7] | _GEN_66 & _GEN_67
     & ~_issuer_io_out_prod_valid[5'h7];
-  wire              _GEN_563 = _GEN_71 & _GEN_72 & ~_issuer_io_out_prod_valid[5'h7];
-  wire              _GEN_564 =
+  wire              _GEN_565 = _GEN_71 & _GEN_72 & ~_issuer_io_out_prod_valid[5'h7];
+  wire              _GEN_566 =
     _GEN_79 & _GEN_80 & ~_issuer_io_out_prod_valid[5'h8] | _GEN_77 & _GEN_78
     & ~_issuer_io_out_prod_valid[5'h8];
-  wire              _GEN_565 = _GEN_82 & _GEN_83 & ~_issuer_io_out_prod_valid[5'h8];
-  wire              _GEN_566 =
+  wire              _GEN_567 = _GEN_82 & _GEN_83 & ~_issuer_io_out_prod_valid[5'h8];
+  wire              _GEN_568 =
     _GEN_90 & _GEN_91 & ~_issuer_io_out_prod_valid[5'h9] | _GEN_88 & _GEN_89
     & ~_issuer_io_out_prod_valid[5'h9];
-  wire              _GEN_567 = _GEN_93 & _GEN_94 & ~_issuer_io_out_prod_valid[5'h9];
-  wire              _GEN_568 =
+  wire              _GEN_569 = _GEN_93 & _GEN_94 & ~_issuer_io_out_prod_valid[5'h9];
+  wire              _GEN_570 =
     _GEN_101 & _GEN_102 & ~_issuer_io_out_prod_valid[5'hA] | _GEN_99 & _GEN_100
     & ~_issuer_io_out_prod_valid[5'hA];
-  wire              _GEN_569 = _GEN_104 & _GEN_105 & ~_issuer_io_out_prod_valid[5'hA];
-  wire              _GEN_570 =
+  wire              _GEN_571 = _GEN_104 & _GEN_105 & ~_issuer_io_out_prod_valid[5'hA];
+  wire              _GEN_572 =
     _GEN_112 & _GEN_113 & ~_issuer_io_out_prod_valid[5'hB] | _GEN_110 & _GEN_111
     & ~_issuer_io_out_prod_valid[5'hB];
-  wire              _GEN_571 = _GEN_115 & _GEN_116 & ~_issuer_io_out_prod_valid[5'hB];
-  wire              _GEN_572 =
+  wire              _GEN_573 = _GEN_115 & _GEN_116 & ~_issuer_io_out_prod_valid[5'hB];
+  wire              _GEN_574 =
     _GEN_123 & _GEN_124 & ~_issuer_io_out_prod_valid[5'hC] | _GEN_121 & _GEN_122
     & ~_issuer_io_out_prod_valid[5'hC];
-  wire              _GEN_573 = _GEN_126 & _GEN_127 & ~_issuer_io_out_prod_valid[5'hC];
-  wire              _GEN_574 =
+  wire              _GEN_575 = _GEN_126 & _GEN_127 & ~_issuer_io_out_prod_valid[5'hC];
+  wire              _GEN_576 =
     _GEN_134 & _GEN_135 & ~_issuer_io_out_prod_valid[5'hD] | _GEN_132 & _GEN_133
     & ~_issuer_io_out_prod_valid[5'hD];
-  wire              _GEN_575 = _GEN_137 & _GEN_138 & ~_issuer_io_out_prod_valid[5'hD];
-  wire              _GEN_576 =
+  wire              _GEN_577 = _GEN_137 & _GEN_138 & ~_issuer_io_out_prod_valid[5'hD];
+  wire              _GEN_578 =
     _GEN_145 & _GEN_146 & ~_issuer_io_out_prod_valid[5'hE] | _GEN_143 & _GEN_144
     & ~_issuer_io_out_prod_valid[5'hE];
-  wire              _GEN_577 = _GEN_148 & _GEN_149 & ~_issuer_io_out_prod_valid[5'hE];
-  wire              _GEN_578 =
+  wire              _GEN_579 = _GEN_148 & _GEN_149 & ~_issuer_io_out_prod_valid[5'hE];
+  wire              _GEN_580 =
     _GEN_156 & _GEN_157 & ~_issuer_io_out_prod_valid[5'hF] | _GEN_154 & _GEN_155
     & ~_issuer_io_out_prod_valid[5'hF];
-  wire              _GEN_579 = _GEN_159 & _GEN_160 & ~_issuer_io_out_prod_valid[5'hF];
-  wire              _GEN_580 =
+  wire              _GEN_581 = _GEN_159 & _GEN_160 & ~_issuer_io_out_prod_valid[5'hF];
+  wire              _GEN_582 =
     _GEN_167 & _GEN_168 & ~_issuer_io_out_prod_valid[5'h10] | _GEN_165 & _GEN_166
     & ~_issuer_io_out_prod_valid[5'h10];
-  wire              _GEN_581 = _GEN_170 & _GEN_171 & ~_issuer_io_out_prod_valid[5'h10];
-  wire              _GEN_582 =
+  wire              _GEN_583 = _GEN_170 & _GEN_171 & ~_issuer_io_out_prod_valid[5'h10];
+  wire              _GEN_584 =
     _GEN_178 & _GEN_179 & ~_issuer_io_out_prod_valid[5'h11] | _GEN_176 & _GEN_177
     & ~_issuer_io_out_prod_valid[5'h11];
-  wire              _GEN_583 = _GEN_181 & _GEN_182 & ~_issuer_io_out_prod_valid[5'h11];
-  wire              _GEN_584 =
+  wire              _GEN_585 = _GEN_181 & _GEN_182 & ~_issuer_io_out_prod_valid[5'h11];
+  wire              _GEN_586 =
     _GEN_189 & _GEN_190 & ~_issuer_io_out_prod_valid[5'h12] | _GEN_187 & _GEN_188
     & ~_issuer_io_out_prod_valid[5'h12];
-  wire              _GEN_585 = _GEN_192 & _GEN_193 & ~_issuer_io_out_prod_valid[5'h12];
-  wire              _GEN_586 =
+  wire              _GEN_587 = _GEN_192 & _GEN_193 & ~_issuer_io_out_prod_valid[5'h12];
+  wire              _GEN_588 =
     _GEN_200 & _GEN_201 & ~_issuer_io_out_prod_valid[5'h13] | _GEN_198 & _GEN_199
     & ~_issuer_io_out_prod_valid[5'h13];
-  wire              _GEN_587 = _GEN_203 & _GEN_204 & ~_issuer_io_out_prod_valid[5'h13];
-  wire              _GEN_588 =
+  wire              _GEN_589 = _GEN_203 & _GEN_204 & ~_issuer_io_out_prod_valid[5'h13];
+  wire              _GEN_590 =
     _GEN_211 & _GEN_212 & ~_issuer_io_out_prod_valid[5'h14] | _GEN_209 & _GEN_210
     & ~_issuer_io_out_prod_valid[5'h14];
-  wire              _GEN_589 = _GEN_214 & _GEN_215 & ~_issuer_io_out_prod_valid[5'h14];
-  wire              _GEN_590 =
+  wire              _GEN_591 = _GEN_214 & _GEN_215 & ~_issuer_io_out_prod_valid[5'h14];
+  wire              _GEN_592 =
     _GEN_222 & _GEN_223 & ~_issuer_io_out_prod_valid[5'h15] | _GEN_220 & _GEN_221
     & ~_issuer_io_out_prod_valid[5'h15];
-  wire              _GEN_591 = _GEN_225 & _GEN_226 & ~_issuer_io_out_prod_valid[5'h15];
-  wire              _GEN_592 =
+  wire              _GEN_593 = _GEN_225 & _GEN_226 & ~_issuer_io_out_prod_valid[5'h15];
+  wire              _GEN_594 =
     _GEN_233 & _GEN_234 & ~_issuer_io_out_prod_valid[5'h16] | _GEN_231 & _GEN_232
     & ~_issuer_io_out_prod_valid[5'h16];
-  wire              _GEN_593 = _GEN_236 & _GEN_237 & ~_issuer_io_out_prod_valid[5'h16];
-  wire              _GEN_594 =
+  wire              _GEN_595 = _GEN_236 & _GEN_237 & ~_issuer_io_out_prod_valid[5'h16];
+  wire              _GEN_596 =
     _GEN_244 & _GEN_245 & ~_issuer_io_out_prod_valid[5'h17] | _GEN_242 & _GEN_243
     & ~_issuer_io_out_prod_valid[5'h17];
-  wire              _GEN_595 = _GEN_247 & _GEN_248 & ~_issuer_io_out_prod_valid[5'h17];
-  wire              _GEN_596 =
+  wire              _GEN_597 = _GEN_247 & _GEN_248 & ~_issuer_io_out_prod_valid[5'h17];
+  wire              _GEN_598 =
     _GEN_255 & _GEN_256 & ~_issuer_io_out_prod_valid[5'h18] | _GEN_253 & _GEN_254
     & ~_issuer_io_out_prod_valid[5'h18];
-  wire              _GEN_597 = _GEN_258 & _GEN_259 & ~_issuer_io_out_prod_valid[5'h18];
-  wire              _GEN_598 =
+  wire              _GEN_599 = _GEN_258 & _GEN_259 & ~_issuer_io_out_prod_valid[5'h18];
+  wire              _GEN_600 =
     _GEN_266 & _GEN_267 & ~_issuer_io_out_prod_valid[5'h19] | _GEN_264 & _GEN_265
     & ~_issuer_io_out_prod_valid[5'h19];
-  wire              _GEN_599 = _GEN_269 & _GEN_270 & ~_issuer_io_out_prod_valid[5'h19];
-  wire              _GEN_600 =
+  wire              _GEN_601 = _GEN_269 & _GEN_270 & ~_issuer_io_out_prod_valid[5'h19];
+  wire              _GEN_602 =
     _GEN_277 & _GEN_278 & ~_issuer_io_out_prod_valid[5'h1A] | _GEN_275 & _GEN_276
     & ~_issuer_io_out_prod_valid[5'h1A];
-  wire              _GEN_601 = _GEN_280 & _GEN_281 & ~_issuer_io_out_prod_valid[5'h1A];
-  wire              _GEN_602 =
+  wire              _GEN_603 = _GEN_280 & _GEN_281 & ~_issuer_io_out_prod_valid[5'h1A];
+  wire              _GEN_604 =
     _GEN_288 & _GEN_289 & ~_issuer_io_out_prod_valid[5'h1B] | _GEN_286 & _GEN_287
     & ~_issuer_io_out_prod_valid[5'h1B];
-  wire              _GEN_603 = _GEN_291 & _GEN_292 & ~_issuer_io_out_prod_valid[5'h1B];
-  wire              _GEN_604 =
+  wire              _GEN_605 = _GEN_291 & _GEN_292 & ~_issuer_io_out_prod_valid[5'h1B];
+  wire              _GEN_606 =
     _GEN_299 & _GEN_300 & ~_issuer_io_out_prod_valid[5'h1C] | _GEN_297 & _GEN_298
     & ~_issuer_io_out_prod_valid[5'h1C];
-  wire              _GEN_605 = _GEN_302 & _GEN_303 & ~_issuer_io_out_prod_valid[5'h1C];
-  wire              _GEN_606 =
+  wire              _GEN_607 = _GEN_302 & _GEN_303 & ~_issuer_io_out_prod_valid[5'h1C];
+  wire              _GEN_608 =
     _GEN_310 & _GEN_311 & ~_issuer_io_out_prod_valid[5'h1D] | _GEN_308 & _GEN_309
     & ~_issuer_io_out_prod_valid[5'h1D];
-  wire              _GEN_607 = _GEN_313 & _GEN_314 & ~_issuer_io_out_prod_valid[5'h1D];
-  wire              _GEN_608 =
+  wire              _GEN_609 = _GEN_313 & _GEN_314 & ~_issuer_io_out_prod_valid[5'h1D];
+  wire              _GEN_610 =
     _GEN_321 & _GEN_322 & ~_issuer_io_out_prod_valid[5'h1E] | _GEN_319 & _GEN_320
     & ~_issuer_io_out_prod_valid[5'h1E];
-  wire              _GEN_609 = _GEN_324 & _GEN_325 & ~_issuer_io_out_prod_valid[5'h1E];
-  wire              _GEN_610 =
+  wire              _GEN_611 = _GEN_324 & _GEN_325 & ~_issuer_io_out_prod_valid[5'h1E];
+  wire              _GEN_612 =
     _GEN_332 & _GEN_333 & ~_issuer_io_out_prod_valid[5'h1F] | _GEN_330 & _GEN_331
     & ~_issuer_io_out_prod_valid[5'h1F];
-  wire              _GEN_611 = _GEN_335 & _GEN_336 & ~_issuer_io_out_prod_valid[5'h1F];
-  wire              _GEN_612 = fetch_active & _Icache_0_io_out_hit;
-  wire              _GEN_613 = fetch_active & _Icache_1_io_out_hit;
-  wire              _GEN_614 = fetch_active & _Icache_2_io_out_hit;
-  wire              _GEN_615 = fetch_active & _Icache_3_io_out_hit;
-  wire              _GEN_616 =
+  wire              _GEN_613 = _GEN_335 & _GEN_336 & ~_issuer_io_out_prod_valid[5'h1F];
+  wire              _GEN_614 = fetch_active & _Icache_0_io_out_hit;
+  wire              _GEN_615 = fetch_active & _Icache_1_io_out_hit;
+  wire              _GEN_616 = fetch_active & _Icache_2_io_out_hit;
+  wire              _GEN_617 = fetch_active & _Icache_3_io_out_hit;
+  wire              _GEN_618 =
     ~_GEN_498 | _committer_io_out_store_valid | ~_lsu_lsuIO_out_valid;
-  wire              _GEN_617 = fetch_active & _Icache_3_io_out_neednew & ~redirect;
-  wire              _GEN_618 = fetch_active & _Icache_2_io_out_neednew & ~redirect;
-  wire              _GEN_619 = fetch_active & _Icache_1_io_out_neednew & ~redirect;
-  wire              _GEN_620 = fetch_active & _Icache_0_io_out_neednew & ~redirect;
-  wire              _GEN_621 =
+  wire              _GEN_619 =
     _committer_io_out_store_valid & _GEN_500 & ~committer_waiting & ~lsu_waiting & ~flush
     & ~io_flush_valid;
-  wire              _GEN_622 =
-    _Dcache_io_out_neednew | _GEN_620 | _GEN_619 | _GEN_618 | _GEN_617;
-  wire              _GEN_623 = _Dcache_io_out_wvalid | _GEN_621;
+  wire              _GEN_620 = _Dcache_io_out_wvalid | _GEN_619;
   always @(posedge clock) begin
     if (reset) begin
       regs <=
@@ -61343,8 +61459,6 @@ module CPU(
       pc <= '{value: 32'h0, prod: 32'hFFFFFFFF};
       halt <= 1'h0;
       flush <= 1'h0;
-      fetcher_waiting <= 2'h0;
-      read_discard <= 1'h0;
       Dcache_waiting <= 2'h0;
       write_mmio <= 1'h0;
       aw_sent <= 1'h0;
@@ -61369,8 +61483,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_8
-                  ? _GEN_10 & ~_issuer_io_out_prod_valid[5'h1] | _GEN_551 | _GEN_550
-                  : _GEN_551 | _GEN_550)
+                  ? _GEN_10 & ~_issuer_io_out_prod_valid[5'h1] | _GEN_553 | _GEN_552
+                  : _GEN_553 | _GEN_552)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1]
                    ? _issuer_io_out_prod[5'h1]
@@ -61380,8 +61494,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_19
-                  ? _GEN_21 & ~_issuer_io_out_prod_valid[5'h2] | _GEN_553 | _GEN_552
-                  : _GEN_553 | _GEN_552)
+                  ? _GEN_21 & ~_issuer_io_out_prod_valid[5'h2] | _GEN_555 | _GEN_554
+                  : _GEN_555 | _GEN_554)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h2]
                    ? _issuer_io_out_prod[5'h2]
@@ -61391,8 +61505,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_30
-                  ? _GEN_32 & ~_issuer_io_out_prod_valid[5'h3] | _GEN_555 | _GEN_554
-                  : _GEN_555 | _GEN_554)
+                  ? _GEN_32 & ~_issuer_io_out_prod_valid[5'h3] | _GEN_557 | _GEN_556
+                  : _GEN_557 | _GEN_556)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h3]
                    ? _issuer_io_out_prod[5'h3]
@@ -61402,8 +61516,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_41
-                  ? _GEN_43 & ~_issuer_io_out_prod_valid[5'h4] | _GEN_557 | _GEN_556
-                  : _GEN_557 | _GEN_556)
+                  ? _GEN_43 & ~_issuer_io_out_prod_valid[5'h4] | _GEN_559 | _GEN_558
+                  : _GEN_559 | _GEN_558)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h4]
                    ? _issuer_io_out_prod[5'h4]
@@ -61413,8 +61527,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_52
-                  ? _GEN_54 & ~_issuer_io_out_prod_valid[5'h5] | _GEN_559 | _GEN_558
-                  : _GEN_559 | _GEN_558)
+                  ? _GEN_54 & ~_issuer_io_out_prod_valid[5'h5] | _GEN_561 | _GEN_560
+                  : _GEN_561 | _GEN_560)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h5]
                    ? _issuer_io_out_prod[5'h5]
@@ -61424,8 +61538,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_63
-                  ? _GEN_65 & ~_issuer_io_out_prod_valid[5'h6] | _GEN_561 | _GEN_560
-                  : _GEN_561 | _GEN_560)
+                  ? _GEN_65 & ~_issuer_io_out_prod_valid[5'h6] | _GEN_563 | _GEN_562
+                  : _GEN_563 | _GEN_562)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h6]
                    ? _issuer_io_out_prod[5'h6]
@@ -61435,8 +61549,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_74
-                  ? _GEN_76 & ~_issuer_io_out_prod_valid[5'h7] | _GEN_563 | _GEN_562
-                  : _GEN_563 | _GEN_562)
+                  ? _GEN_76 & ~_issuer_io_out_prod_valid[5'h7] | _GEN_565 | _GEN_564
+                  : _GEN_565 | _GEN_564)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h7]
                    ? _issuer_io_out_prod[5'h7]
@@ -61446,8 +61560,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_85
-                  ? _GEN_87 & ~_issuer_io_out_prod_valid[5'h8] | _GEN_565 | _GEN_564
-                  : _GEN_565 | _GEN_564)
+                  ? _GEN_87 & ~_issuer_io_out_prod_valid[5'h8] | _GEN_567 | _GEN_566
+                  : _GEN_567 | _GEN_566)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h8]
                    ? _issuer_io_out_prod[5'h8]
@@ -61457,8 +61571,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_96
-                  ? _GEN_98 & ~_issuer_io_out_prod_valid[5'h9] | _GEN_567 | _GEN_566
-                  : _GEN_567 | _GEN_566)
+                  ? _GEN_98 & ~_issuer_io_out_prod_valid[5'h9] | _GEN_569 | _GEN_568
+                  : _GEN_569 | _GEN_568)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h9]
                    ? _issuer_io_out_prod[5'h9]
@@ -61468,8 +61582,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_107
-                  ? _GEN_109 & ~_issuer_io_out_prod_valid[5'hA] | _GEN_569 | _GEN_568
-                  : _GEN_569 | _GEN_568)
+                  ? _GEN_109 & ~_issuer_io_out_prod_valid[5'hA] | _GEN_571 | _GEN_570
+                  : _GEN_571 | _GEN_570)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'hA]
                    ? _issuer_io_out_prod[5'hA]
@@ -61479,8 +61593,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_118
-                  ? _GEN_120 & ~_issuer_io_out_prod_valid[5'hB] | _GEN_571 | _GEN_570
-                  : _GEN_571 | _GEN_570)
+                  ? _GEN_120 & ~_issuer_io_out_prod_valid[5'hB] | _GEN_573 | _GEN_572
+                  : _GEN_573 | _GEN_572)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'hB]
                    ? _issuer_io_out_prod[5'hB]
@@ -61490,8 +61604,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_129
-                  ? _GEN_131 & ~_issuer_io_out_prod_valid[5'hC] | _GEN_573 | _GEN_572
-                  : _GEN_573 | _GEN_572)
+                  ? _GEN_131 & ~_issuer_io_out_prod_valid[5'hC] | _GEN_575 | _GEN_574
+                  : _GEN_575 | _GEN_574)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'hC]
                    ? _issuer_io_out_prod[5'hC]
@@ -61501,8 +61615,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_140
-                  ? _GEN_142 & ~_issuer_io_out_prod_valid[5'hD] | _GEN_575 | _GEN_574
-                  : _GEN_575 | _GEN_574)
+                  ? _GEN_142 & ~_issuer_io_out_prod_valid[5'hD] | _GEN_577 | _GEN_576
+                  : _GEN_577 | _GEN_576)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'hD]
                    ? _issuer_io_out_prod[5'hD]
@@ -61512,8 +61626,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_151
-                  ? _GEN_153 & ~_issuer_io_out_prod_valid[5'hE] | _GEN_577 | _GEN_576
-                  : _GEN_577 | _GEN_576)
+                  ? _GEN_153 & ~_issuer_io_out_prod_valid[5'hE] | _GEN_579 | _GEN_578
+                  : _GEN_579 | _GEN_578)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'hE]
                    ? _issuer_io_out_prod[5'hE]
@@ -61523,8 +61637,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_162
-                  ? _GEN_164 & ~_issuer_io_out_prod_valid[5'hF] | _GEN_579 | _GEN_578
-                  : _GEN_579 | _GEN_578)
+                  ? _GEN_164 & ~_issuer_io_out_prod_valid[5'hF] | _GEN_581 | _GEN_580
+                  : _GEN_581 | _GEN_580)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'hF]
                    ? _issuer_io_out_prod[5'hF]
@@ -61534,8 +61648,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_173
-                  ? _GEN_175 & ~_issuer_io_out_prod_valid[5'h10] | _GEN_581 | _GEN_580
-                  : _GEN_581 | _GEN_580)
+                  ? _GEN_175 & ~_issuer_io_out_prod_valid[5'h10] | _GEN_583 | _GEN_582
+                  : _GEN_583 | _GEN_582)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h10]
                    ? _issuer_io_out_prod[5'h10]
@@ -61545,8 +61659,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_184
-                  ? _GEN_186 & ~_issuer_io_out_prod_valid[5'h11] | _GEN_583 | _GEN_582
-                  : _GEN_583 | _GEN_582)
+                  ? _GEN_186 & ~_issuer_io_out_prod_valid[5'h11] | _GEN_585 | _GEN_584
+                  : _GEN_585 | _GEN_584)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h11]
                    ? _issuer_io_out_prod[5'h11]
@@ -61556,8 +61670,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_195
-                  ? _GEN_197 & ~_issuer_io_out_prod_valid[5'h12] | _GEN_585 | _GEN_584
-                  : _GEN_585 | _GEN_584)
+                  ? _GEN_197 & ~_issuer_io_out_prod_valid[5'h12] | _GEN_587 | _GEN_586
+                  : _GEN_587 | _GEN_586)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h12]
                    ? _issuer_io_out_prod[5'h12]
@@ -61567,8 +61681,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_206
-                  ? _GEN_208 & ~_issuer_io_out_prod_valid[5'h13] | _GEN_587 | _GEN_586
-                  : _GEN_587 | _GEN_586)
+                  ? _GEN_208 & ~_issuer_io_out_prod_valid[5'h13] | _GEN_589 | _GEN_588
+                  : _GEN_589 | _GEN_588)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h13]
                    ? _issuer_io_out_prod[5'h13]
@@ -61578,8 +61692,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_217
-                  ? _GEN_219 & ~_issuer_io_out_prod_valid[5'h14] | _GEN_589 | _GEN_588
-                  : _GEN_589 | _GEN_588)
+                  ? _GEN_219 & ~_issuer_io_out_prod_valid[5'h14] | _GEN_591 | _GEN_590
+                  : _GEN_591 | _GEN_590)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h14]
                    ? _issuer_io_out_prod[5'h14]
@@ -61589,8 +61703,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_228
-                  ? _GEN_230 & ~_issuer_io_out_prod_valid[5'h15] | _GEN_591 | _GEN_590
-                  : _GEN_591 | _GEN_590)
+                  ? _GEN_230 & ~_issuer_io_out_prod_valid[5'h15] | _GEN_593 | _GEN_592
+                  : _GEN_593 | _GEN_592)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h15]
                    ? _issuer_io_out_prod[5'h15]
@@ -61600,8 +61714,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_239
-                  ? _GEN_241 & ~_issuer_io_out_prod_valid[5'h16] | _GEN_593 | _GEN_592
-                  : _GEN_593 | _GEN_592)
+                  ? _GEN_241 & ~_issuer_io_out_prod_valid[5'h16] | _GEN_595 | _GEN_594
+                  : _GEN_595 | _GEN_594)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h16]
                    ? _issuer_io_out_prod[5'h16]
@@ -61611,8 +61725,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_250
-                  ? _GEN_252 & ~_issuer_io_out_prod_valid[5'h17] | _GEN_595 | _GEN_594
-                  : _GEN_595 | _GEN_594)
+                  ? _GEN_252 & ~_issuer_io_out_prod_valid[5'h17] | _GEN_597 | _GEN_596
+                  : _GEN_597 | _GEN_596)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h17]
                    ? _issuer_io_out_prod[5'h17]
@@ -61622,8 +61736,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_261
-                  ? _GEN_263 & ~_issuer_io_out_prod_valid[5'h18] | _GEN_597 | _GEN_596
-                  : _GEN_597 | _GEN_596)
+                  ? _GEN_263 & ~_issuer_io_out_prod_valid[5'h18] | _GEN_599 | _GEN_598
+                  : _GEN_599 | _GEN_598)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h18]
                    ? _issuer_io_out_prod[5'h18]
@@ -61633,8 +61747,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_272
-                  ? _GEN_274 & ~_issuer_io_out_prod_valid[5'h19] | _GEN_599 | _GEN_598
-                  : _GEN_599 | _GEN_598)
+                  ? _GEN_274 & ~_issuer_io_out_prod_valid[5'h19] | _GEN_601 | _GEN_600
+                  : _GEN_601 | _GEN_600)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h19]
                    ? _issuer_io_out_prod[5'h19]
@@ -61644,8 +61758,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_283
-                  ? _GEN_285 & ~_issuer_io_out_prod_valid[5'h1A] | _GEN_601 | _GEN_600
-                  : _GEN_601 | _GEN_600)
+                  ? _GEN_285 & ~_issuer_io_out_prod_valid[5'h1A] | _GEN_603 | _GEN_602
+                  : _GEN_603 | _GEN_602)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1A]
                    ? _issuer_io_out_prod[5'h1A]
@@ -61655,8 +61769,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_294
-                  ? _GEN_296 & ~_issuer_io_out_prod_valid[5'h1B] | _GEN_603 | _GEN_602
-                  : _GEN_603 | _GEN_602)
+                  ? _GEN_296 & ~_issuer_io_out_prod_valid[5'h1B] | _GEN_605 | _GEN_604
+                  : _GEN_605 | _GEN_604)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1B]
                    ? _issuer_io_out_prod[5'h1B]
@@ -61666,8 +61780,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_305
-                  ? _GEN_307 & ~_issuer_io_out_prod_valid[5'h1C] | _GEN_605 | _GEN_604
-                  : _GEN_605 | _GEN_604)
+                  ? _GEN_307 & ~_issuer_io_out_prod_valid[5'h1C] | _GEN_607 | _GEN_606
+                  : _GEN_607 | _GEN_606)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1C]
                    ? _issuer_io_out_prod[5'h1C]
@@ -61677,8 +61791,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_316
-                  ? _GEN_318 & ~_issuer_io_out_prod_valid[5'h1D] | _GEN_607 | _GEN_606
-                  : _GEN_607 | _GEN_606)
+                  ? _GEN_318 & ~_issuer_io_out_prod_valid[5'h1D] | _GEN_609 | _GEN_608
+                  : _GEN_609 | _GEN_608)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1D]
                    ? _issuer_io_out_prod[5'h1D]
@@ -61688,8 +61802,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_327
-                  ? _GEN_329 & ~_issuer_io_out_prod_valid[5'h1E] | _GEN_609 | _GEN_608
-                  : _GEN_609 | _GEN_608)
+                  ? _GEN_329 & ~_issuer_io_out_prod_valid[5'h1E] | _GEN_611 | _GEN_610
+                  : _GEN_611 | _GEN_610)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1E]
                    ? _issuer_io_out_prod[5'h1E]
@@ -61699,8 +61813,8 @@ module CPU(
           prod:
             (_div_io_clear_valid_T
              | (_GEN_338
-                  ? _GEN_340 & ~_issuer_io_out_prod_valid[5'h1F] | _GEN_611 | _GEN_610
-                  : _GEN_611 | _GEN_610)
+                  ? _GEN_340 & ~_issuer_io_out_prod_valid[5'h1F] | _GEN_613 | _GEN_612
+                  : _GEN_613 | _GEN_612)
                ? 32'hFFFFFFFF
                : _issuer_io_out_prod_valid[5'h1F]
                    ? _issuer_io_out_prod[5'h1F]
@@ -61711,27 +61825,14 @@ module CPU(
                ? (_div_io_clear_valid_T ? newaddr : _issuer_io_out_new_pc_val)
                : _GEN_490 ? pc.value + 32'h10 : pc.value),
           prod: pc.prod};
-      halt <= _GEN_510 | halt | _committer_io_out_halt;
+      halt <= _GEN_507 | halt | _committer_io_out_halt;
       flush <= _committer_io_out_flush;
-      if (|fetcher_waiting) begin
-        if (_io_arvalid_T) begin
-          if (io_arready)
-            fetcher_waiting <= 2'h2;
-        end
-        else if (io_rvalid)
-          fetcher_waiting <= 2'h0;
-      end
-      else if (_GEN_622)
-        fetcher_waiting <= 2'h1;
-      read_discard <=
-        redirect & (|fetcher_waiting) & read_owner != 3'h4
-        | ~(~(|fetcher_waiting) & _GEN_622) & read_discard;
-      if (_GEN_508) begin
-        if (_GEN_623)
+      if (_GEN_505) begin
+        if (_GEN_620)
           Dcache_waiting <= 2'h1;
-        write_mmio <= ~_Dcache_io_out_wvalid & (_GEN_621 | write_mmio);
-        aw_sent <= ~_GEN_623 & aw_sent;
-        w_sent <= ~_GEN_623 & w_sent;
+        write_mmio <= ~_Dcache_io_out_wvalid & (_GEN_619 | write_mmio);
+        aw_sent <= ~_GEN_620 & aw_sent;
+        w_sent <= ~_GEN_620 & w_sent;
       end
       else begin
         if (_io_wvalid_T) begin
@@ -61744,15 +61845,15 @@ module CPU(
         w_sent <= _io_wvalid_T & _io_wvalid_T_2 & io_wready | w_sent;
       end
       lsu_waiting <= ~_GEN_503 & (_GEN_502 | lsu_waiting);
-      lsu_discard <= _div_io_clear_valid_T & lsu_waiting | _GEN_616 & lsu_discard;
+      lsu_discard <= _div_io_clear_valid_T & lsu_waiting | _GEN_618 & lsu_discard;
       committer_waiting <=
         ~(_Dcache_io_out_done & committer_waiting)
         & (_GEN_499 & ~_GEN_500 | committer_waiting);
       fetch_active <= ~(redirect | _GEN_490) & (_GEN_489 | fetch_active);
-      fetch_done[2'h0] <= ~redirect & (_GEN_612 | ~_GEN_489 & fetch_done[2'h0]);
-      fetch_done[2'h1] <= ~redirect & (_GEN_613 | ~_GEN_489 & fetch_done[2'h1]);
-      fetch_done[2'h2] <= ~redirect & (_GEN_614 | ~_GEN_489 & fetch_done[2'h2]);
-      fetch_done[2'h3] <= ~redirect & (_GEN_615 | ~_GEN_489 & fetch_done[2'h3]);
+      fetch_done[2'h0] <= ~redirect & (_GEN_614 | ~_GEN_489 & fetch_done[2'h0]);
+      fetch_done[2'h1] <= ~redirect & (_GEN_615 | ~_GEN_489 & fetch_done[2'h1]);
+      fetch_done[2'h2] <= ~redirect & (_GEN_616 | ~_GEN_489 & fetch_done[2'h2]);
+      fetch_done[2'h3] <= ~redirect & (_GEN_617 | ~_GEN_489 & fetch_done[2'h3]);
       cdbs[3'h0] <=
         '{valid: (~_div_io_clear_valid_T & _alus_0_io_out_cdb.valid),
           id: (_div_io_clear_valid_T ? 32'h0 : _alus_0_io_out_cdb.id),
@@ -61786,51 +61887,29 @@ module CPU(
     end
     flush_val <= _committer_io_out_flushval;
     newaddr <= _committer_io_out_newaddr;
-    if (~(|fetcher_waiting)) begin
-      if (_Dcache_io_out_neednew) begin
-        read_owner <= 3'h4;
-        read_addr <= _Dcache_io_out_addr;
-      end
-      else if (_GEN_620) begin
-        read_owner <= 3'h0;
-        read_addr <= _Icache_0_io_out_addr;
-      end
-      else if (_GEN_619) begin
-        read_owner <= 3'h1;
-        read_addr <= _Icache_1_io_out_addr;
-      end
-      else if (_GEN_618) begin
-        read_owner <= 3'h2;
-        read_addr <= _Icache_2_io_out_addr;
-      end
-      else if (_GEN_617) begin
-        read_owner <= 3'h3;
-        read_addr <= _Icache_3_io_out_addr;
-      end
-    end
-    if (_GEN_508) begin
+    if (_GEN_505) begin
       if (_Dcache_io_out_wvalid) begin
         write_addr <= _Dcache_io_out_waddr;
         write_data <= _Dcache_io_out_wdata;
         write_mask <= 4'hF;
       end
-      else if (_GEN_621) begin
+      else if (_GEN_619) begin
         write_addr <= _committer_io_out_store_addr;
         write_data <= _committer_io_out_store_value;
         write_mask <= _committer_io_out_store_mask;
       end
     end
-    if (_GEN_616) begin
+    if (_GEN_618) begin
     end
     else
       lsu_lst_addr <= _lsu_lsuIO_out_addr;
-    if (_GEN_612)
-      fetch_data[2'h0] <= _Icache_0_io_out_rdata;
-    if (_GEN_613)
-      fetch_data[2'h1] <= _Icache_1_io_out_rdata;
     if (_GEN_614)
-      fetch_data[2'h2] <= _Icache_2_io_out_rdata;
+      fetch_data[2'h0] <= _Icache_0_io_out_rdata;
     if (_GEN_615)
+      fetch_data[2'h1] <= _Icache_1_io_out_rdata;
+    if (_GEN_616)
+      fetch_data[2'h2] <= _Icache_2_io_out_rdata;
+    if (_GEN_617)
       fetch_data[2'h3] <= _Icache_3_io_out_rdata;
   end // always @(posedge)
   Cache Icache_0 (
@@ -61838,7 +61917,7 @@ module CPU(
     .reset           (reset),
     .io_load_valid   (_GEN_489),
     .io_addr         (_GEN_489 ? pc.value + {28'h0, 2'h0 - pc.value[3:2], 2'h0} : 32'h0),
-    .io_new_valid    (~_GEN_506 & io_rvalid & ~_GEN_505 & _GEN_507 & read_owner == 3'h0),
+    .io_new_valid    (_readArbiter_io_refill[3'h0].valid),
     .io_new_data     (io_rdata),
     .io_clear_status (redirect),
     .io_out_ready    (_Icache_0_io_out_ready),
@@ -61856,7 +61935,7 @@ module CPU(
     .reset           (reset),
     .io_load_valid   (_GEN_489),
     .io_addr         (_GEN_489 ? pc.value + {28'h0, 2'h1 - pc.value[3:2], 2'h0} : 32'h0),
-    .io_new_valid    (~_GEN_506 & io_rvalid & ~_GEN_505 & _GEN_507 & read_owner == 3'h1),
+    .io_new_valid    (_readArbiter_io_refill[3'h1].valid),
     .io_new_data     (io_rdata),
     .io_clear_status (redirect),
     .io_out_ready    (_Icache_1_io_out_ready),
@@ -61874,7 +61953,7 @@ module CPU(
     .reset           (reset),
     .io_load_valid   (_GEN_489),
     .io_addr         (_GEN_489 ? pc.value + {28'h0, 2'h2 - pc.value[3:2], 2'h0} : 32'h0),
-    .io_new_valid    (~_GEN_506 & io_rvalid & ~_GEN_505 & _GEN_507 & read_owner == 3'h2),
+    .io_new_valid    (_readArbiter_io_refill[3'h2].valid),
     .io_new_data     (io_rdata),
     .io_clear_status (redirect),
     .io_out_ready    (_Icache_2_io_out_ready),
@@ -61892,7 +61971,7 @@ module CPU(
     .reset           (reset),
     .io_load_valid   (_GEN_489),
     .io_addr         (_GEN_489 ? pc.value + {28'h0, 2'h3 - pc.value[3:2], 2'h0} : 32'h0),
-    .io_new_valid    (~_GEN_506 & io_rvalid & ~_GEN_505 & _GEN_507 & read_owner == 3'h3),
+    .io_new_valid    (_readArbiter_io_refill[3'h3].valid),
     .io_new_data     (io_rdata),
     .io_clear_status (redirect),
     .io_out_ready    (_Icache_3_io_out_ready),
@@ -61918,9 +61997,9 @@ module CPU(
          : 32'h0),
     .io_wdata          (_GEN_501 ? 32'h0 : _Dcache_io_wdata_T_2[31:0]),
     .io_wmask          (_GEN_501 ? 4'h0 : _Dcache_io_wmask_T_1[3:0]),
-    .io_new_valid      (~_GEN_506 & io_rvalid & _GEN_505),
+    .io_new_valid      (_readArbiter_io_refill[3'h4].valid),
     .io_new_data       (io_rdata),
-    .io_store_received (~_GEN_509 & io_bvalid & ~write_mmio),
+    .io_store_received (~_GEN_506 & io_bvalid & ~write_mmio),
     .io_out_ready      (_Dcache_io_out_ready),
     .io_out_done       (_Dcache_io_out_done),
     .io_out_neednew    (_Dcache_io_out_neednew),
@@ -61938,7 +62017,7 @@ module CPU(
     .io_in_robs             (_issuer_io_out_ROB),
     .io_cdbs                (cdbs),
     .io_clear_valid         (_div_io_clear_valid_T),
-    .io_store_received      (_GEN_510 | _Dcache_io_out_done & committer_waiting),
+    .io_store_received      (_GEN_507 | _Dcache_io_out_done & committer_waiting),
     .io_out_store_valid     (_committer_io_out_store_valid),
     .io_out_store_addr      (_committer_io_out_store_addr),
     .io_out_store_value     (_committer_io_out_store_value),
@@ -62073,7 +62152,7 @@ module CPU(
     .reset               (reset),
     .io_valid_num
       ((|(_issuer_io_out_valid[31:2])) & _GEN_470 ? _GEN_431 + 32'h1 : _GEN_431),
-    .io_rs               ({{_GEN_511}, {_GEN_512}, {_GEN_513}, {_GEN_514}}),
+    .io_rs               ({{_GEN_513}, {_GEN_514}, {_GEN_515}, {_GEN_516}}),
     .io_cdbs             (cdbs),
     .io_clear_valid      (_div_io_clear_valid_T),
     .io_clear_id         (flush_val),
@@ -62098,7 +62177,7 @@ module CPU(
       ((|(_issuer_io_out_valid[31:2])) & _issuer_io_out_executer_type[2'h3] == 32'h5
          ? _GEN_432 + 32'h1
          : _GEN_432),
-    .io_rs          ({{_GEN_515}, {_GEN_516}, {_GEN_517}, {_GEN_518}}),
+    .io_rs          ({{_GEN_517}, {_GEN_518}, {_GEN_519}, {_GEN_520}}),
     .io_cdbs        (cdbs),
     .io_clear_valid (_div_io_clear_valid_T),
     .io_clear_id    (flush_val),
@@ -62197,9 +62276,7 @@ module CPU(
         {_alus_0_io_out_space}}),
     .io_committer_space    (_committer_io_out_space),
     .io_reg
-      ({{_GEN_519},
-        {_GEN_520},
-        {_GEN_521},
+      ({{_GEN_521},
         {_GEN_522},
         {_GEN_523},
         {_GEN_524},
@@ -62228,6 +62305,8 @@ module CPU(
         {_GEN_547},
         {_GEN_548},
         {_GEN_549},
+        {_GEN_550},
+        {_GEN_551},
         {regs[5'h0]}}),
     .io_robs               (_committer_io_out_robs),
     .io_predictor_result   (_predictor_io_out),
@@ -62274,9 +62353,19 @@ module CPU(
     .io_ures   (_committer_io_out_predictor_res),
     .io_out    (_predictor_io_out)
   );
-  assign io_araddr = read_addr;
-  assign io_arvalid = _io_arvalid_T;
-  assign io_rready = fetcher_waiting == 2'h2;
+  ReadArbiter readArbiter (
+    .clock       (clock),
+    .reset       (reset),
+    .io_request  ({{_GEN_508}, {_GEN_509}, {_GEN_510}, {_GEN_511}, {_GEN_512}}),
+    .io_redirect (redirect),
+    .io_refill   (_readArbiter_io_refill),
+    .io_araddr   (io_araddr),
+    .io_arvalid  (io_arvalid),
+    .io_arready  (io_arready),
+    .io_rdata    (io_rdata),
+    .io_rvalid   (io_rvalid),
+    .io_rready   (io_rready)
+  );
   assign io_awaddr = write_addr;
   assign io_awvalid = _io_awvalid_T_2;
   assign io_wdata = write_data;

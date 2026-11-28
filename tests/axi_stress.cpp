@@ -4,6 +4,7 @@
 #include "verilated.h"
 #include <cstdint>
 #include <cstdlib>
+#include <deque>
 #include <iostream>
 #include <random>
 #include <sstream>
@@ -40,21 +41,26 @@ int main(int argc, char** argv) {
     d.reset = 0;
     bool ar_wait=false, aw_wait=false, w_wait=false;
     uint32_t old_ar=0, old_aw=0, old_wdata=0; unsigned old_mask=0;
-    bool read_pending=false, have_aw=false, have_w=false, write_pending=false;
-    uint32_t read_addr=0, write_addr=0, write_data=0; unsigned write_mask=0;
-    uint64_t read_due=0, write_due=0;
+    struct Read { uint32_t addr, data; uint64_t due; };
+    std::deque<Read> reads;
+    const char* depth_env = std::getenv("AXI_READ_DEPTH");
+    const size_t read_depth = depth_env ? std::stoul(depth_env) : 4;
+    require(read_depth >= 1 && read_depth <= 16, "AXI_READ_DEPTH must be 1..16");
+    bool have_aw=false, have_w=false, write_pending=false;
+    uint32_t write_addr=0, write_data=0; unsigned write_mask=0;
+    uint64_t write_due=0;
     bool exit_pending=false; uint32_t exit_value=0;
-    uint64_t separated=0;
+    uint64_t separated=0, instruction_during_data=0;
+    size_t max_reads=0;
     for(uint64_t cycle=0;cycle<max_cycles;++cycle) {
       // Long, independent backpressure; neither ready depends on valid.
-      d.arready = !read_pending && random()%4 == 0;
+      d.arready = reads.size() < read_depth && random()%4 == 0;
       d.awready = !have_aw && !write_pending && random()%5 == 0;
       d.wready = !have_w && !write_pending && random()%3 == 0;
-      d.rvalid = read_pending && cycle >= read_due;
+      d.rvalid = !reads.empty() && cycle >= reads.front().due;
       d.bvalid = write_pending && cycle >= write_due;
-      if(d.rvalid) {
-        d.rdata=0; for(int j=0;j<4;++j) d.rdata |= uint32_t(mem[read_addr+j]) << (8*j);
-      }
+      // Capture each word once; hold both RVALID and RDATA until its handshake.
+      d.rdata = reads.empty() ? 0 : reads.front().data;
       d.clock=0; d.eval();
       require(!ar_wait || (d.arvalid && d.araddr==old_ar), "AR changed while stalled");
       require(!aw_wait || (d.awvalid && d.awaddr==old_aw), "AW changed while stalled");
@@ -65,11 +71,17 @@ int main(int argc, char** argv) {
       const bool ar=d.arvalid&&d.arready, aw=d.awvalid&&d.awready, w=d.wvalid&&d.wready;
       const bool r=d.rvalid&&d.rready, b=d.bvalid&&d.bready;
       bool exit_now=b&&exit_pending;
-      if(r) read_pending=false;
+      if(r) reads.pop_front();
       if(b) { write_pending=false; exit_pending=false; }
       if(ar) {
-        require(!read_pending && !(d.araddr&3) && d.araddr<0x10000000, "invalid/duplicate AR");
-        read_pending=true; read_addr=d.araddr; read_due=cycle+latency+1+random()%19;
+        require(reads.size() < read_depth && !(d.araddr&3) && d.araddr<0x10000000, "invalid AR");
+        // Regression programs place code below 1 MiB and data at/above 1 MiB.
+        if(d.araddr < 0x100000)
+          for(const auto& old : reads) if(old.addr >= 0x100000) { ++instruction_during_data; break; }
+        uint32_t data=0;
+        for(int j=0;j<4;++j) data |= uint32_t(mem[d.araddr+j]) << (8*j);
+        reads.push_back({d.araddr, data, cycle+latency+1+random()%19});
+        if(reads.size() > max_reads) max_reads = reads.size();
       }
       if(aw) { require(!have_aw, "duplicate AW"); have_aw=true; write_addr=d.awaddr; }
       if(w) { require(!have_w, "duplicate W"); have_w=true; write_data=d.wdata; write_mask=d.wstrb; }
@@ -88,6 +100,8 @@ int main(int argc, char** argv) {
       if(exit_now) {
         std::cout << exit_value << '\n';
         std::cerr << "CPU2026 cycles=" << cycle+1 << "\nAXI separated_handshakes=" << separated << '\n';
+        std::cerr << "AXI max_outstanding_reads=" << max_reads
+                  << " instruction_during_data=" << instruction_during_data << '\n';
         d.final(); return 0;
       }
     }
