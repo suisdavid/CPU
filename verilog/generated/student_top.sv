@@ -39139,7 +39139,7 @@ module Issuer(
           : id_buffer[rob_dest_index_1] + _GEN_191;
   wire [31:0]       _GEN_193 =
     _GEN_183 ? nex_want : (|_GEN_2) ? nex_want + _GEN_191 : nex_want + 32'h4;
-  wire [1:0]        _GEN_194 = _GEN_183 ? 2'h1 : 2'h2;
+  wire [1:0]        _GEN_194 = _GEN_183 ? 2'h1 : {|_GEN_2, 1'h0};
   wire              _GEN_195 = op_buffer[rs_type__index].type_ == 6'h22;
   wire              _GEN_196 = op_buffer[rs_type__index].type_ == 6'h23;
   wire              _GEN_197 = _GEN_65 | _GEN_10 != 32'hFFFFFFFF & ~has_temp1;
@@ -40739,7 +40739,7 @@ module Issuer(
           : id_buffer[rob_dest_index_3] + _GEN_544;
   wire [31:0]       _GEN_546 =
     _GEN_536 ? _GEN_281 : (|_GEN_1) ? _GEN_281 + _GEN_544 : _GEN_281 + 32'h4;
-  wire [1:0]        _GEN_547 = _GEN_536 ? 2'h1 : 2'h2;
+  wire [1:0]        _GEN_547 = _GEN_536 ? 2'h1 : {|_GEN_1, 1'h0};
   wire              _GEN_548 = op_buffer[rs_type__index_1].type_ == 6'h22;
   wire              _GEN_549 = op_buffer[rs_type__index_1].type_ == 6'h23;
   wire              _GEN_550 = _GEN_356 | _GEN_298 != 32'hFFFFFFFF & ~has_temp1_1;
@@ -44194,7 +44194,7 @@ module Issuer(
           : id_buffer[rob_dest_index_5] + _GEN_950;
   wire [31:0]       _GEN_952 =
     _GEN_942 ? _GEN_694 : (|_GEN_0) ? _GEN_694 + _GEN_950 : _GEN_694 + 32'h4;
-  wire [1:0]        _GEN_953 = _GEN_942 ? 2'h1 : 2'h2;
+  wire [1:0]        _GEN_953 = _GEN_942 ? 2'h1 : {|_GEN_0, 1'h0};
   wire              _GEN_954 = op_buffer[rs_type__index_2].type_ == 6'h22;
   wire              _GEN_955 = op_buffer[rs_type__index_2].type_ == 6'h23;
   wire              _GEN_956 = _GEN_762 | _GEN_704 != 32'hFFFFFFFF & ~has_temp1_2;
@@ -47646,7 +47646,7 @@ module Issuer(
           : id_buffer[rob_dest_index_7] + _GEN_1352;
   wire [31:0]       _GEN_1354 =
     _GEN_1344 ? _GEN_1100 : (|_GEN) ? _GEN_1100 + _GEN_1352 : _GEN_1100 + 32'h4;
-  wire [1:0]        _GEN_1355 = _GEN_1344 ? 2'h1 : 2'h2;
+  wire [1:0]        _GEN_1355 = _GEN_1344 ? 2'h1 : {|_GEN, 1'h0};
   wire              _GEN_1356 = op_buffer[rs_type__index_3].type_ == 6'h22;
   wire              _GEN_1357 = op_buffer[rs_type__index_3].type_ == 6'h23;
   wire              _GEN_1358 = _GEN_1164 | _GEN_1106 != 32'hFFFFFFFF & ~has_temp1_3;

@@ -351,7 +351,7 @@ class Issuer extends Module{
                                 rob.type_ := (~id_buffer(ringIndex(startingPoint,i.U))).asSInt
                                 rob.value:=predictor_buffer(ringIndex(startingPoint,i.U))
                                 out_pc_val(i+1):=Mux(rs.dest=/=0.S,(out_pc_val(i).asSInt+rd(12,0).asSInt).asUInt,out_pc_val(i)+4.U)
-                                halt:=2.U
+                                halt := Mux(rs.dest =/= 0.S, 2.U, 0.U)// if doesn't jump by prediction, no need to halt
                             }
                         }
                         is(OP_TYPE.OP_JAL){
